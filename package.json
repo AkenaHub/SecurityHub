@@ -1,0 +1,14 @@
+{
+  "name": "protection-bot",
+  "version": "1.0.0",
+  "description": "Discord moderation bot for Railway",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "register": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  }
+}
