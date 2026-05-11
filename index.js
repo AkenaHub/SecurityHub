@@ -53,6 +53,7 @@ client.on('messageCreate', async message => {
 
     const member = message.member;
 
+    // --- Invite Spam Protection ---
     if (inviteRegex.test(message.content)) {
         try {
             await message.delete();
@@ -69,12 +70,15 @@ client.on('messageCreate', async message => {
         }
     }
 
+    // --- Hacked Account Protection ---
     if (message.attachments.size >= 4) {
         try {
             await message.delete();
             await member.timeout(259200000, 'Compromised/Hacked account detected');
             
-            const ownerId = 'YOUR_DISCORD_USER_ID'; 
+            // 🔥 THIS IS THE MAGIC NEW LINE 🔥
+            // It automatically gets the Discord ID of whoever owns the server the message was sent in!
+            const ownerId = message.guild.ownerId; 
             
             await message.author.send(`⚠️ Your account has been temporarily timed out in **${message.guild.name}** for 3 days because it appears to be compromised (sending suspicious image groups). Please secure your account immediately and contact <@${ownerId}> once you have control to be untimed.`).catch(() => {});
             
@@ -90,4 +94,5 @@ client.on('messageCreate', async message => {
     }
 });
 
+// Using the safe Railway Variable method!
 client.login(process.env.DISCORD_TOKEN);
