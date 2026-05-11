@@ -4,6 +4,7 @@
   "description": "Discord moderation bot for Railway",
   "main": "index.js",
   "scripts": {
+    "build": "echo 'No build needed'",
     "start": "node index.js",
     "register": "node deploy-commands.js"
   },
