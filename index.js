@@ -1,1 +1,93 @@
-const _0xcfa5d2=_0x4ef8;(function(_0x345baa,_0x209d74){const _0x289d62=_0x4ef8,_0x5da213=_0x345baa();while(!![]){try{const _0x106868=-parseInt(_0x289d62(0x245))/(0x20*-0xbf+-0x4*0x431+0x821*0x5)*(-parseInt(_0x289d62(0x258))/(-0xb*-0x265+0x21e*0x5+-0x1*0x24eb))+parseInt(_0x289d62(0x1fb))/(-0x20*-0xb5+0x1f*0xad+-0x2b90)*(parseInt(_0x289d62(0x248))/(-0xc5*-0x29+-0x7fb+-0x178e))+parseInt(_0x289d62(0x1e3))/(0xbb0+-0x1172+0x5c7)+-parseInt(_0x289d62(0x273))/(0x1591*0x1+0x7*0x441+0x1*-0x3352)+-parseInt(_0x289d62(0x1f3))/(0xe7e+-0x70f*0x5+0x14d4)*(parseInt(_0x289d62(0x26d))/(-0x1e01*0x1+0x20b0*-0x1+0x3eb9))+-parseInt(_0x289d62(0x200))/(-0x1b23*-0x1+-0xc2*-0x26+0xf*-0x3ba)+-parseInt(_0x289d62(0x1ea))/(-0x13a8+0x10*0x112+0x292)*(-parseInt(_0x289d62(0x233))/(-0xa05+-0x74b+0x1*0x115b));if(_0x106868===_0x209d74)break;else _0x5da213['push'](_0x5da213['shift']());}catch(_0xbced03){_0x5da213['push'](_0x5da213['shift']());}}}(_0x869e,-0x64395+0x22b6*0x4e+-0x98ad*-0x4));const {Client,GatewayIntentBits,Partials,EmbedBuilder}=require(_0xcfa5d2(0x266)),client=new Client({'intents':[GatewayIntentBits[_0xcfa5d2(0x1fa)],GatewayIntentBits[_0xcfa5d2(0x22b)+_0xcfa5d2(0x206)],GatewayIntentBits[_0xcfa5d2(0x20a)+_0xcfa5d2(0x1e5)],GatewayIntentBits[_0xcfa5d2(0x253)+'rs']],'partials':[Partials[_0xcfa5d2(0x1fd)],Partials[_0xcfa5d2(0x260)],Partials[_0xcfa5d2(0x246)]]});let protectionEnabled=![];const inviteRegex=/(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i,createLogEmbed=(_0x51cabd,_0x45e34f,_0x2da833)=>{const _0x4a6229=_0xcfa5d2;return new EmbedBuilder()[_0x4a6229(0x203)](_0x51cabd)[_0x4a6229(0x20d)+_0x4a6229(0x227)](_0x45e34f)[_0x4a6229(0x21e)](_0x2da833)[_0x4a6229(0x202)+'mp']();};client[_0xcfa5d2(0x267)](_0xcfa5d2(0x265),()=>{const _0x34903a=_0xcfa5d2;console[_0x34903a(0x1e4)](_0x34903a(0x205)+_0x34903a(0x1f5)+client[_0x34903a(0x1df)][_0x34903a(0x223)]+'!');}),client['on'](_0xcfa5d2(0x238)+_0xcfa5d2(0x254),async _0x3e4a59=>{const _0x2a5989=_0xcfa5d2,_0x42f691={'StbRQ':function(_0xc5505e,_0x85f56a){return _0xc5505e===_0x85f56a;},'qBvni':_0x2a5989(0x1ec)+_0x2a5989(0x1e8),'FkLXY':_0x2a5989(0x214)+_0x2a5989(0x234)+_0x2a5989(0x26b),'anifE':_0x2a5989(0x1f2)+_0x2a5989(0x24b)+_0x2a5989(0x239)+_0x2a5989(0x23b),'jzxYm':function(_0x1468e9,_0x1885a8){return _0x1468e9===_0x1885a8;},'CJmJX':_0x2a5989(0x25c)+_0x2a5989(0x1f6),'RyzlU':_0x2a5989(0x214)+_0x2a5989(0x234)+_0x2a5989(0x26e)+'.','FwIDD':_0x2a5989(0x217)+_0x2a5989(0x24b)+_0x2a5989(0x201)+_0x2a5989(0x241)};if(!_0x3e4a59[_0x2a5989(0x22c)+_0x2a5989(0x25a)]())return;if(_0x42f691[_0x2a5989(0x1f8)](_0x3e4a59[_0x2a5989(0x26c)+'e'],_0x42f691[_0x2a5989(0x242)])){if(protectionEnabled)return _0x3e4a59[_0x2a5989(0x20b)]({'content':_0x42f691[_0x2a5989(0x229)],'ephemeral':!![]});protectionEnabled=!![],await _0x3e4a59[_0x2a5989(0x20b)](_0x42f691[_0x2a5989(0x23e)]);}if(_0x42f691[_0x2a5989(0x1eb)](_0x3e4a59[_0x2a5989(0x26c)+'e'],_0x42f691[_0x2a5989(0x1e1)])){if(!protectionEnabled)return _0x3e4a59[_0x2a5989(0x20b)]({'content':_0x42f691[_0x2a5989(0x243)],'ephemeral':!![]});protectionEnabled=![],await _0x3e4a59[_0x2a5989(0x20b)](_0x42f691[_0x2a5989(0x228)]);}}),client['on'](_0xcfa5d2(0x213)+_0xcfa5d2(0x1fe),async _0x16ef7a=>{const _0xf42fcc=_0xcfa5d2,_0xe856be={'nKufg':_0xf42fcc(0x21d)+_0xf42fcc(0x24d)+_0xf42fcc(0x1ff),'bSFhf':function(_0x44a980,_0x16a6e2,_0x33b830,_0xeebd4b){return _0x44a980(_0x16a6e2,_0x33b830,_0xeebd4b);},'wJUTJ':_0xf42fcc(0x1f9)+_0xf42fcc(0x24c)+'ed','emCNV':_0xf42fcc(0x211),'oWCuF':function(_0x5b9df8,_0x4cc97f){return _0x5b9df8>=_0x4cc97f;},'iOOox':_0xf42fcc(0x23c)+_0xf42fcc(0x22d)+_0xf42fcc(0x23a)+_0xf42fcc(0x20c),'oOqUB':_0xf42fcc(0x247)+_0xf42fcc(0x1e9),'fssTV':_0xf42fcc(0x25e)+_0xf42fcc(0x212)+_0xf42fcc(0x20c),'mrnEN':_0xf42fcc(0x210)};if(_0x16ef7a[_0xf42fcc(0x218)][_0xf42fcc(0x1ed)]||_0x16ef7a[_0xf42fcc(0x21c)])return;if(!_0x16ef7a[_0xf42fcc(0x221)])return;if(!protectionEnabled)return;const _0x31a3f8=_0x16ef7a[_0xf42fcc(0x1e0)];if(inviteRegex[_0xf42fcc(0x231)](_0x16ef7a[_0xf42fcc(0x1ee)]))try{await _0x16ef7a[_0xf42fcc(0x235)](),await _0x31a3f8[_0xf42fcc(0x21f)](-0x14e646+-0x27c5a3+0x582329,_0xe856be[_0xf42fcc(0x232)]);const _0x291773=_0xe856be[_0xf42fcc(0x244)](createLogEmbed,_0xe856be[_0xf42fcc(0x226)],_0xf42fcc(0x25b)+_0x16ef7a[_0xf42fcc(0x218)][_0xf42fcc(0x223)]+_0xf42fcc(0x262)+_0x16ef7a[_0xf42fcc(0x218)]['id']+(_0xf42fcc(0x256)+_0xf42fcc(0x1f0)+_0xf42fcc(0x20f)+_0xf42fcc(0x215)+_0xf42fcc(0x21a)+_0xf42fcc(0x269)),_0xe856be[_0xf42fcc(0x26f)]);await _0x16ef7a[_0xf42fcc(0x225)][_0xf42fcc(0x261)]({'embeds':[_0x291773]});}catch(_0x3c57db){console[_0xf42fcc(0x23d)](_0x3c57db);}if(_0xe856be[_0xf42fcc(0x237)](_0x16ef7a[_0xf42fcc(0x207)+'s'][_0xf42fcc(0x220)],0x3*0x849+0x1d6e+-0x3*0x1217))try{await _0x16ef7a[_0xf42fcc(0x235)](),await _0x31a3f8[_0xf42fcc(0x21f)](-0x2ebd375+-0x2ca41*-0x463+0x621ac52,_0xe856be[_0xf42fcc(0x264)]);const _0xad792c=_0xe856be[_0xf42fcc(0x255)];await _0x16ef7a[_0xf42fcc(0x218)][_0xf42fcc(0x261)](_0xf42fcc(0x22e)+_0xf42fcc(0x1fc)+_0xf42fcc(0x1e7)+_0xf42fcc(0x24f)+_0xf42fcc(0x1ef)+'*'+_0x16ef7a[_0xf42fcc(0x221)][_0xf42fcc(0x20e)]+(_0xf42fcc(0x216)+_0xf42fcc(0x259)+_0xf42fcc(0x230)+_0xf42fcc(0x204)+_0xf42fcc(0x268)+_0xf42fcc(0x1e2)+_0xf42fcc(0x236)+_0xf42fcc(0x24e)+_0xf42fcc(0x22f)+_0xf42fcc(0x222)+_0xf42fcc(0x21b)+_0xf42fcc(0x270)+_0xf42fcc(0x209)+_0xf42fcc(0x240))+_0xad792c+(_0xf42fcc(0x208)+_0xf42fcc(0x22a)+_0xf42fcc(0x250)+_0xf42fcc(0x25d)))[_0xf42fcc(0x219)](()=>{});const _0x5dc6c7=_0xe856be[_0xf42fcc(0x244)](createLogEmbed,_0xe856be[_0xf42fcc(0x1e6)],_0xf42fcc(0x25b)+_0x16ef7a[_0xf42fcc(0x218)][_0xf42fcc(0x223)]+_0xf42fcc(0x262)+_0x16ef7a[_0xf42fcc(0x218)]['id']+(_0xf42fcc(0x256)+_0xf42fcc(0x1f0)+_0xf42fcc(0x20f)+_0xf42fcc(0x1f4)+_0xf42fcc(0x271)+_0xf42fcc(0x257)+_0xf42fcc(0x24a)+_0xf42fcc(0x23f)),_0xe856be[_0xf42fcc(0x1f7)]);await _0x16ef7a[_0xf42fcc(0x225)][_0xf42fcc(0x261)]({'embeds':[_0x5dc6c7]});}catch(_0x5da7e3){console[_0xf42fcc(0x23d)](_0x5da7e3);}}),client[_0xcfa5d2(0x249)](_0xcfa5d2(0x26a)+_0xcfa5d2(0x25f)+_0xcfa5d2(0x251)+_0xcfa5d2(0x252)+_0xcfa5d2(0x224)+_0xcfa5d2(0x263)+_0xcfa5d2(0x1f1)+_0xcfa5d2(0x272));function _0x4ef8(_0x81f79e,_0xedaa6b){_0x81f79e=_0x81f79e-(0xb30+-0x20e1+0x2f2*0x8);const _0x216808=_0x869e();let _0x1b6106=_0x216808[_0x81f79e];return _0x1b6106;}function _0x869e(){const _0x4a63e3=['tion','FwIDD','FkLXY','\x20have\x20cont','GuildMessa','isChatInpu','d/Hacked\x20a','⚠️\x20Your\x20acc','ups).\x20Plea','e\x20it\x20appea','test','nKufg','306988cwiITQ','\x20is\x20alread','delete','suspicious','oWCuF','interactio','is\x20now\x20**E','ccount\x20det','NABLED**.','Compromise','error','anifE','rning.','ontact\x20<@','ISABLED**.','qBvni','RyzlU','bSFhf','43799MEIBvt','Reaction','YOUR_DISCO','201928HVdcxj','login','nt\x20a\x20DM\x20wa','on\x20system\x20','pam\x20Detect','iscord\x20Inv','\x20image\x20gro','arily\x20time','rol\x20to\x20be\x20','OTQ0NA.GVY','VKn.MaQ4iF','GuildMembe','nCreate','oOqUB','>)\x0a**Actio','ys,\x20and\x20se','6SVeelN','ays\x20becaus','tCommand','**User:**\x20','stopprotec','untimed.','🚨\x20Hacked\x20A','Q3ODAzNDkx','Channel','send','\x20(<@','kQWKiTL-vg','iOOox','ready','discord.js','once','ompromised','minutes.','MTM4NzI4MT','y\x20active.','commandNam','344tXRZFF','y\x20inactive','emCNV','nt\x20immedia','t\x20for\x203\x20da','VQc','4400022HwOjOm','user','member','CJmJX','\x20(sending\x20','3747890zlGyoD','log','tent','fssTV','een\x20tempor','cting','RD_USER_ID','370GQsFDe','jzxYm','startprote','bot','content','d\x20out\x20in\x20*','n:**\x20Messa','zx-Tazf0QH','✅\x20Protecti','100247fuiGhe',',\x20timed\x20ou','as\x20','ting','mrnEN','StbRQ','🛡️\x20Invite\x20S','Guilds','24eVubBO','ount\x20has\x20b','Message','ate','ite\x20Links','4764204LoRNMV','is\x20now\x20**D','setTimesta','setTitle','rs\x20to\x20be\x20c','Logged\x20in\x20','ges','attachment','>\x20once\x20you','tely\x20and\x20c','MessageCon','reply','ected','setDescrip','name','ge\x20deleted','#ff0000','#ffcc00','ccount\x20Det','messageCre','Protection','\x20&\x20timed\x20o','**\x20for\x203\x20d','⚠️\x20Protecti','author','catch','ut\x20for\x2030\x20','your\x20accou','webhookId','Spamming\x20D','setColor','timeout','size','guild','se\x20secure\x20','tag','dMTIeigaEE','channel','wJUTJ'];_0x869e=function(){return _0x4a63e3;};return _0x869e();}
+const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+});
+
+let protectionEnabled = false;
+
+const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
+
+const createLogEmbed = (title, description, color) => {
+    return new EmbedBuilder()
+        .setTitle(title)
+        .setDescription(description)
+        .setColor(color)
+        .setTimestamp();
+};
+
+client.once('ready', () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'startprotecting') {
+        if (protectionEnabled) {
+            return interaction.reply({ content: 'Protection is already active.', ephemeral: true });
+        }
+        protectionEnabled = true;
+        await interaction.reply('✅ Protection system is now **ENABLED**.');
+    }
+
+    if (interaction.commandName === 'stopprotecting') {
+        if (!protectionEnabled) {
+            return interaction.reply({ content: 'Protection is already inactive.', ephemeral: true });
+        }
+        protectionEnabled = false;
+        await interaction.reply('⚠️ Protection system is now **DISABLED**.');
+    }
+});
+
+client.on('messageCreate', async message => {
+    if (message.author.bot || message.webhookId) return;
+    if (!message.guild) return;
+    if (!protectionEnabled) return;
+
+    const member = message.member;
+
+    if (inviteRegex.test(message.content)) {
+        try {
+            await message.delete();
+            await member.timeout(1800000, 'Spamming Discord Invite Links');
+            
+            const logEmbed = createLogEmbed(
+                '🛡️ Invite Spam Detected',
+                `**User:** ${message.author.tag} (<@${message.author.id}>)\n**Action:** Message deleted & timed out for 30 minutes.`,
+                '#ffcc00'
+            );
+            await message.channel.send({ embeds: [logEmbed] });
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    if (message.attachments.size >= 4) {
+        try {
+            await message.delete();
+            await member.timeout(259200000, 'Compromised/Hacked account detected');
+            
+            const ownerId = 'YOUR_DISCORD_USER_ID'; 
+            
+            await message.author.send(`⚠️ Your account has been temporarily timed out in **${message.guild.name}** for 3 days because it appears to be compromised (sending suspicious image groups). Please secure your account immediately and contact <@${ownerId}> once you have control to be untimed.`).catch(() => {});
+            
+            const logEmbed = createLogEmbed(
+                '🚨 Hacked Account Detected',
+                `**User:** ${message.author.tag} (<@${message.author.id}>)\n**Action:** Message deleted, timed out for 3 days, and sent a DM warning.`,
+                '#ff0000'
+            );
+            await message.channel.send({ embeds: [logEmbed] });
+        } catch (error) {
+            console.error(error);
+        }
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);
