@@ -54,27 +54,30 @@ const generateDashboard = (guildId) => {
     const settings = getSettings(guildId);
     
     const embed = new EmbedBuilder()
-        .setTitle('🛡️ Server Protection Dashboard')
-        .setColor('#2b2d31')
-        .setDescription('Manage your server\'s security settings below. Only you can see this menu.')
+        .setTitle('🛡️ Master Security Setup Panel')
+        .setColor(settings.masterSwitch ? '#00ff00' : '#ff0000')
+        .setDescription('Welcome to the control center. Configure your server\'s automated protection below.')
         .addFields(
-            { name: '🔗 Discord Invite Links', value: `**Status:** ${settings.linksEnabled ? '✅ Enabled' : '❌ Disabled'}\n**Timeout:** ${formatDuration(settings.linkTimeout)}`, inline: false },
-            { name: '🖼️ Image Spam (Hacked Accounts)', value: `**Status:** ${settings.imagesEnabled ? '✅ Enabled' : '❌ Disabled'}\n**Max Images:** ${settings.maxImages}\n**Timeout:** ${formatDuration(settings.imageTimeout)}`, inline: false },
-            { name: '📝 Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'None Set', inline: false }
-        );
+            { name: '🤖 Bot Status', value: settings.masterSwitch ? '✅ **ONLINE AND PROTECTING**' : '❌ **OFFLINE (Sleeping)**', inline: false },
+            { name: '🔗 Invite Link Shield', value: `**Status:** ${settings.linksEnabled ? '✅ Enabled' : '❌ Disabled'}\n**Timeout:** ${formatDuration(settings.linkTimeout)}`, inline: true },
+            { name: '🖼️ Image Spam Shield', value: `**Status:** ${settings.imagesEnabled ? '✅ Enabled' : '❌ Disabled'}\n**Limit:** ${settings.maxImages} Images\n**Timeout:** ${formatDuration(settings.imageTimeout)}`, inline: true },
+            { name: '📝 Action Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : '*Currently logging in the channel where the spam happens.*', inline: false }
+        )
+        .setFooter({ text: 'Only server administrators can view and interact with this panel.' });
 
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Link Shield' : 'Enable Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Link Timeout').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'TURN BOT OFF' : 'TURN BOT ON').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Links' : 'Enable Links').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Images' : 'Enable Images').setStyle(ButtonStyle.Secondary)
     );
 
     const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Image Shield' : 'Enable Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Image Settings').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Link Timeout').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Image Limits').setStyle(ButtonStyle.Primary)
     );
 
     const row3 = new ActionRowBuilder().addComponents(
-        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Select a channel for logs...').addChannelTypes(ChannelType.GuildText)
+        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Choose where to send the action logs...').addChannelTypes(ChannelType.GuildText)
     );
 
     return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
@@ -92,25 +95,18 @@ client.once('ready', () => {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
-        const settings = getSettings(interaction.guildId);
-
-        if (interaction.commandName === 'startprotecting') {
-            settings.masterSwitch = true;
-            await interaction.reply('✅ Master Protection system is now **ENABLED**.');
-        }
-
-        if (interaction.commandName === 'stopprotecting') {
-            settings.masterSwitch = false;
-            await interaction.reply('⚠️ Master Protection system is now **DISABLED**.');
-        }
-
-        if (interaction.commandName === 'settings') {
+        if (interaction.commandName === 'setup') {
             await interaction.reply(generateDashboard(interaction.guildId));
         }
     }
 
     if (interaction.isButton()) {
         const settings = getSettings(interaction.guildId);
+
+        if (interaction.customId === 'toggle_master') {
+            settings.masterSwitch = !settings.masterSwitch;
+            await interaction.update(generateDashboard(interaction.guildId));
+        }
 
         if (interaction.customId === 'toggle_links') {
             settings.linksEnabled = !settings.linksEnabled;
@@ -123,7 +119,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'edit_links') {
-            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Protection Settings');
+            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Setup');
             const input = new TextInputBuilder()
                 .setCustomId('input_link_timeout')
                 .setLabel('Timeout Duration (e.g. 30m, 3d)')
@@ -135,7 +131,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'edit_images') {
-            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Protection Settings');
+            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Setup');
             const inputMax = new TextInputBuilder()
                 .setCustomId('input_image_max')
                 .setLabel('Max images allowed per message')
@@ -189,8 +185,12 @@ client.on('messageCreate', async message => {
     let targetLogChannel = message.channel;
     
     if (settings.logChannelId) {
-        const configuredChannel = message.guild.channels.cache.get(settings.logChannelId);
-        if (configuredChannel) targetLogChannel = configuredChannel;
+        try {
+            const configuredChannel = await message.guild.channels.fetch(settings.logChannelId);
+            if (configuredChannel) targetLogChannel = configuredChannel;
+        } catch (error) {
+            console.error('Could not fetch the designated log channel. Falling back to the current channel.');
+        }
     }
 
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
