@@ -24,7 +24,7 @@ const getSettings = (guildId) => {
             linksEnabled: true,
             linkTimeout: 30,
             imagesEnabled: true,
-            maxImages: 4,
+            maxImages: 1,
             imageTimeout: 4320,
             logChannelId: null
         });
@@ -56,19 +56,19 @@ const generateDashboard = (guildId) => {
     const embed = new EmbedBuilder()
         .setTitle('🛡️ Master Security Setup Panel')
         .setColor(settings.masterSwitch ? '#00ff00' : '#ff0000')
-        .setDescription('Welcome to the control center. Configure your server\'s automated protection below.')
+        .setDescription('Configure your server protection. The bot is currently ' + (settings.masterSwitch ? '**ACTIVE**.' : '**INACTIVE**.'))
         .addFields(
-            { name: '🤖 Bot Status', value: settings.masterSwitch ? '✅ **ONLINE AND PROTECTING**' : '❌ **OFFLINE (Sleeping)**', inline: false },
-            { name: '🔗 Invite Link Shield', value: `**Status:** ${settings.linksEnabled ? '✅ Enabled' : '❌ Disabled'}\n**Timeout:** ${formatDuration(settings.linkTimeout)}`, inline: true },
-            { name: '🖼️ Image Spam Shield', value: `**Status:** ${settings.imagesEnabled ? '✅ Enabled' : '❌ Disabled'}\n**Limit:** ${settings.maxImages} Images\n**Timeout:** ${formatDuration(settings.imageTimeout)}`, inline: true },
-            { name: '📝 Action Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : '*Currently logging in the channel where the spam happens.*', inline: false }
+            { name: '🤖 Protection Status', value: settings.masterSwitch ? '✅ **RUNNING**' : '❌ **STOPPED**', inline: false },
+            { name: '🔗 Link Shield', value: `**Status:** ${settings.linksEnabled ? 'Enabled' : 'Disabled'}\n**Timeout:** ${formatDuration(settings.linkTimeout)}`, inline: true },
+            { name: '🖼️ Image Shield', value: `**Status:** ${settings.imagesEnabled ? 'Enabled' : 'Disabled'}\n**Limit:** ${settings.maxImages} or more\n**Timeout:** ${formatDuration(settings.imageTimeout)}`, inline: true },
+            { name: '📝 Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Set (Sends to source)', inline: false }
         )
-        .setFooter({ text: 'Only server administrators can view and interact with this panel.' });
+        .setFooter({ text: 'Settings are saved per-server.' });
 
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'TURN BOT OFF' : 'TURN BOT ON').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Links' : 'Enable Links').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Images' : 'Enable Images').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'STOP PROTECTION' : 'START PROTECTION').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('toggle_links').setLabel('Toggle Links').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('toggle_images').setLabel('Toggle Images').setStyle(ButtonStyle.Secondary)
     );
 
     const row2 = new ActionRowBuilder().addComponents(
@@ -77,7 +77,7 @@ const generateDashboard = (guildId) => {
     );
 
     const row3 = new ActionRowBuilder().addComponents(
-        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Choose where to send the action logs...').addChannelTypes(ChannelType.GuildText)
+        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Select log channel...').addChannelTypes(ChannelType.GuildText)
     );
 
     return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
@@ -119,10 +119,10 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'edit_links') {
-            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Setup');
+            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield');
             const input = new TextInputBuilder()
                 .setCustomId('input_link_timeout')
-                .setLabel('Timeout Duration (e.g. 30m, 3d)')
+                .setLabel('Timeout (e.g. 30m, 1d)')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true)
                 .setValue(toShortFormat(settings.linkTimeout));
@@ -131,16 +131,16 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'edit_images') {
-            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Setup');
+            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield');
             const inputMax = new TextInputBuilder()
                 .setCustomId('input_image_max')
-                .setLabel('Max images allowed per message')
+                .setLabel('Trigger limit (e.g. 1, 3, 5)')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true)
                 .setValue(settings.maxImages.toString());
             const inputTimeout = new TextInputBuilder()
                 .setCustomId('input_image_timeout')
-                .setLabel('Timeout Duration (e.g. 60m, 7d)')
+                .setLabel('Timeout (e.g. 60m, 7d)')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true)
                 .setValue(toShortFormat(settings.imageTimeout));
@@ -175,8 +175,7 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('messageCreate', async message => {
-    if (message.author.bot || message.webhookId) return;
-    if (!message.guild) return;
+    if (message.author.bot || !message.guild) return;
 
     const settings = getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
@@ -186,34 +185,28 @@ client.on('messageCreate', async message => {
     
     if (settings.logChannelId) {
         try {
-            const configuredChannel = await message.guild.channels.fetch(settings.logChannelId);
-            if (configuredChannel) targetLogChannel = configuredChannel;
-        } catch (error) {
-            console.error('Could not fetch the designated log channel. Falling back to the current channel.');
-        }
+            const chan = await message.guild.channels.fetch(settings.logChannelId);
+            if (chan) targetLogChannel = chan;
+        } catch (e) {}
     }
 
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
         try {
             await message.delete();
-            await member.timeout(settings.linkTimeout * 60000, 'Spamming Discord Invite Links');
-            const logEmbed = createLogEmbed('🛡️ Invite Spam Detected', `**User:** ${message.author.tag} (<@${message.author.id}>)\n**Action:** Message deleted & timed out for ${formatDuration(settings.linkTimeout)}.`, '#ffcc00');
-            await targetLogChannel.send({ embeds: [logEmbed] }).catch(() => {});
-        } catch (error) {
-            console.error(error);
-        }
+            await member.timeout(settings.linkTimeout * 60000, 'Invite Link Spam');
+            const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
+            await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+        } catch (e) {}
     }
 
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
-            await member.timeout(settings.imageTimeout * 60000, 'Compromised/Hacked account detected');
-            await message.author.send(`⚠️ Your account has been temporarily timed out in **${message.guild.name}** for ${formatDuration(settings.imageTimeout)} because it appears to be compromised. Please secure your account immediately and contact <@${message.guild.ownerId}> once you have control.`).catch(() => {});
-            const logEmbed = createLogEmbed('🚨 Hacked Account Detected', `**User:** ${message.author.tag} (<@${message.author.id}>)\n**Action:** Message deleted, timed out for ${formatDuration(settings.imageTimeout)}, and sent a DM.`, '#ff0000');
-            await targetLogChannel.send({ embeds: [logEmbed] }).catch(() => {});
-        } catch (error) {
-            console.error(error);
-        }
+            await member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account');
+            await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
+            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
+            await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+        } catch (e) {}
     }
 });
 
