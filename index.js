@@ -20,7 +20,6 @@ const client = new Client({
 const dbFile = './database.json';
 let guildSettings = {};
 
-// Load existing database if it exists
 if (fs.existsSync(dbFile)) {
     try {
         guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
@@ -29,7 +28,6 @@ if (fs.existsSync(dbFile)) {
     }
 }
 
-// Function to save to hard drive
 const saveDatabase = () => {
     fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
 };
@@ -44,19 +42,18 @@ const getSettings = (guildId) => {
             maxImages: 1,
             imageTimeout: 4320,
             raidEnabled: true,
-            logDeletedEnabled: false, // New Setting!
+            logDeletedEnabled: false,
             logChannelId: null
         };
-        saveDatabase(); // Save defaults immediately
+        saveDatabase();
     }
     return guildSettings[guildId];
 };
 
-// Update setting helper
 const updateSetting = (guildId, key, value) => {
     const settings = getSettings(guildId);
     settings[key] = value;
-    saveDatabase(); // Save to file immediately
+    saveDatabase();
 };
 
 const parseDuration = (input) => {
@@ -120,7 +117,7 @@ const generateDashboard = (guildId, page = 1) => {
             .setColor(statusColor)
             .setDescription(`**Master Status:** ${statusEmoji} \`${statusText}\`\nConfigure your channel logs and adjust punishment durations.`)
             .addFields(
-                { name: '🗑️ Deleted Message Logs', value: `> **State:** ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Tracks messages deleted by users.*`, inline: false },
+                { name: '🗑️ Deleted Message Logs', value: `> **State:** ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Tracks deleted texts, images, and videos.*`, inline: false },
                 { name: '📝 Primary Action Log Channel', value: settings.logChannelId ? `> **Channel:** <#${settings.logChannelId}>` : '> **Channel:** `Not Set (Sends to source)`', inline: false }
             )
             .setFooter({ text: 'Settings automatically save to the database.' });
@@ -162,11 +159,9 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         const settings = getSettings(interaction.guildId);
 
-        // Navigation
         if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
         if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
 
-        // Page 1 Toggles
         if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid'].includes(interaction.customId)) {
             if (interaction.customId === 'toggle_master') updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
             if (interaction.customId === 'toggle_links') updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
@@ -175,13 +170,11 @@ client.on('interactionCreate', async interaction => {
             return interaction.update(generateDashboard(interaction.guildId, 1));
         }
 
-        // Page 2 Toggles
         if (interaction.customId === 'toggle_deleted') {
             updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
             return interaction.update(generateDashboard(interaction.guildId, 2));
         }
 
-        // Modals (Triggered from Page 2)
         if (interaction.customId === 'edit_links') {
             const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
             modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
@@ -218,13 +211,13 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
         updateSetting(interaction.guildId, 'logChannelId', interaction.values);
-        await interaction.update(generateDashboard(interaction.guildId, 2)); // Stays on Page 2
+        await interaction.update(generateDashboard(interaction.guildId, 2)); 
     }
 });
 
-// 🗑️ NEW: DELETED MESSAGE LOGGER
+// 🗑️ DELETED MESSAGE LOGGER (NOW WITH MEDIA SUPPORT!)
 client.on('messageDelete', async message => {
-    if (!message.guild || !message.author || message.author.bot) return; // Ignore bots and system messages
+    if (!message.guild || !message.author || message.author.bot) return; 
 
     const settings = getSettings(message.guild.id);
     if (!settings.masterSwitch || !settings.logDeletedEnabled || !settings.logChannelId) return;
@@ -233,19 +226,36 @@ client.on('messageDelete', async message => {
         const logChannel = await message.guild.channels.fetch(settings.logChannelId);
         if (!logChannel) return;
 
-        const content = message.content ? message.content : '*Message contained no text (likely an image or attachment).*';
+        let content = message.content ? message.content : '*No text.*';
+        let attachmentInfo = '';
+        let displayImageUrl = null;
+
+        // If the user uploaded files, images, or videos
+        if (message.attachments.size > 0) {
+            // Create a clickable list of all deleted files
+            attachmentInfo = '\n\n**📎 Attached Media:**\n' + message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
+            
+            // If one of the attachments is an image/GIF, grab it to display!
+            const imageFile = message.attachments.find(a => a.contentType && a.contentType.startsWith('image/'));
+            if (imageFile) {
+                displayImageUrl = imageFile.url;
+            }
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('🗑️ Message Deleted')
             .setColor('#ff9900')
-            .setDescription(`**Author:** <@${message.author.id}>\n**Channel:** <#${message.channel.id}>\n\n**Content:**\n>>> ${content}`)
+            .setDescription(`**Author:** <@${message.author.id}>\n**Channel:** <#${message.channel.id}>\n\n**Content:**\n>>> ${content}${attachmentInfo}`)
             .setTimestamp()
             .setFooter({ text: `User ID: ${message.author.id}` });
 
+        // Physically display the image/GIF in the log embed if we found one
+        if (displayImageUrl) {
+            embed.setImage(displayImageUrl);
+        }
+
         await logChannel.send({ embeds: [embed] }).catch(() => {});
-    } catch (e) {
-        // Suppress errors if channel is missing
-    }
+    } catch (e) {}
 });
 
 client.on('messageCreate', async message => {
