@@ -42,6 +42,7 @@ const getSettings = (guildId) => {
             maxImages: 1,
             imageTimeout: 4320,
             raidEnabled: true,
+            fileShieldEnabled: true, // NEW: Dangerous File Shield
             logDeletedEnabled: false,
             logChannelId: null
         };
@@ -88,9 +89,10 @@ const generateDashboard = (guildId, page = 1) => {
             .setColor(statusColor)
             .setDescription(`**Master Status:** ${statusEmoji} \`${statusText}\`\nUse the modules below to configure your active defenses.`)
             .addFields(
-                { name: '🔗 Invite Link Shield', value: `> **State:** ${settings.linksEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Timeout:** \`${formatDuration(settings.linkTimeout)}\``, inline: true },
-                { name: '🖼️ Image Spam Shield', value: `> **State:** ${settings.imagesEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Limit:** \`${settings.maxImages} Image(s)\`\n> **Timeout:** \`${formatDuration(settings.imageTimeout)}\``, inline: true },
-                { name: '⚔️ Raid App Shield', value: `> **State:** ${settings.raidEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Action:** \`Auto-Delete & 24h Timeout\``, inline: false }
+                { name: '🔗 Link Shield', value: `> **State:** ${settings.linksEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Timeout:** \`${formatDuration(settings.linkTimeout)}\``, inline: true },
+                { name: '🖼️ Image Shield', value: `> **State:** ${settings.imagesEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Limit:** \`${settings.maxImages} Image(s)\`\n> **Timeout:** \`${formatDuration(settings.imageTimeout)}\``, inline: true },
+                { name: '⚔️ Raid Shield', value: `> **State:** ${settings.raidEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Action:** \`Auto-Delete & 24h Timeout\``, inline: true },
+                { name: '📁 Malware/File Shield', value: `> **State:** ${settings.fileShieldEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Action:** \`Blocks .exe, .bat, etc.\``, inline: true }
             )
             .setFooter({ text: 'Settings automatically save to the database.' });
 
@@ -99,9 +101,10 @@ const generateDashboard = (guildId, page = 1) => {
         );
 
         const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🔗'),
-            new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🖼️'),
-            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('⚔️')
+            new ButtonBuilder().setCustomId('toggle_links').setLabel('Link').setStyle(settings.linksEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🔗'),
+            new ButtonBuilder().setCustomId('toggle_images').setLabel('Image').setStyle(settings.imagesEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🖼️'),
+            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('⚔️'),
+            new ButtonBuilder().setCustomId('toggle_files').setLabel('Files').setStyle(settings.fileShieldEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('📁')
         );
 
         const row3 = new ActionRowBuilder().addComponents(
@@ -141,6 +144,8 @@ const generateDashboard = (guildId, page = 1) => {
 };
 
 const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
+// 📁 Dangerous file extensions used to spread malware/viruses
+const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
     return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
@@ -162,11 +167,12 @@ client.on('interactionCreate', async interaction => {
         if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
         if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
 
-        if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid'].includes(interaction.customId)) {
+        if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
             if (interaction.customId === 'toggle_master') updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
             if (interaction.customId === 'toggle_links') updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
             if (interaction.customId === 'toggle_images') updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
             if (interaction.customId === 'toggle_raid') updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
+            if (interaction.customId === 'toggle_files') updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
             return interaction.update(generateDashboard(interaction.guildId, 1));
         }
 
@@ -215,7 +221,7 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// 🗑️ DELETED MESSAGE LOGGER (NOW WITH MEDIA SUPPORT!)
+// 🗑️ DELETED MESSAGE LOGGER
 client.on('messageDelete', async message => {
     if (!message.guild || !message.author || message.author.bot) return; 
 
@@ -230,16 +236,10 @@ client.on('messageDelete', async message => {
         let attachmentInfo = '';
         let displayImageUrl = null;
 
-        // If the user uploaded files, images, or videos
         if (message.attachments.size > 0) {
-            // Create a clickable list of all deleted files
             attachmentInfo = '\n\n**📎 Attached Media:**\n' + message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
-            
-            // If one of the attachments is an image/GIF, grab it to display!
             const imageFile = message.attachments.find(a => a.contentType && a.contentType.startsWith('image/'));
-            if (imageFile) {
-                displayImageUrl = imageFile.url;
-            }
+            if (imageFile) displayImageUrl = imageFile.url;
         }
 
         const embed = new EmbedBuilder()
@@ -249,10 +249,7 @@ client.on('messageDelete', async message => {
             .setTimestamp()
             .setFooter({ text: `User ID: ${message.author.id}` });
 
-        // Physically display the image/GIF in the log embed if we found one
-        if (displayImageUrl) {
-            embed.setImage(displayImageUrl);
-        }
+        if (displayImageUrl) embed.setImage(displayImageUrl);
 
         await logChannel.send({ embeds: [embed] }).catch(() => {});
     } catch (e) {}
@@ -273,6 +270,7 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
+    // ⚔️ RAID SHIELD
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
         const isRaid = content.includes('﷽') || 
@@ -291,10 +289,7 @@ client.on('messageCreate', async message => {
                 }
 
                 const targetMember = await message.guild.members.fetch(culpritId).catch(() => null);
-
-                if (targetMember && targetMember.timeout) {
-                    await targetMember.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
-                }
+                if (targetMember && targetMember.timeout) await targetMember.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
 
                 await message.channel.send(`🚨 **RAID BLOCKED:** <@${culpritId}> tried to use a malicious raid app!`);
 
@@ -307,6 +302,26 @@ client.on('messageCreate', async message => {
 
     if (message.author.bot || message.webhookId) return;
 
+    // 📁 MALWARE / DANGEROUS FILE SHIELD
+    if (settings.fileShieldEnabled && message.attachments.size > 0) {
+        const hasDangerousFile = message.attachments.some(attachment => {
+            const fileName = attachment.name.toLowerCase();
+            return dangerousExtensions.some(ext => fileName.endsWith(ext));
+        });
+
+        if (hasDangerousFile) {
+            try {
+                await message.delete();
+                if (message.member) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files'); // 24 hours
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
+                const log = createLogEmbed('📁 Dangerous File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return; // Stop processing further checks for this message
+            } catch (e) {}
+        }
+    }
+
+    // 🔗 LINK SHIELD
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
         try {
             await message.delete();
@@ -316,6 +331,7 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
+    // 🖼️ IMAGE SHIELD
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
