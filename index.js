@@ -16,7 +16,6 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-// 💾 DATABASE SYSTEM
 const dbFile = './database.json';
 let guildSettings = {};
 
@@ -42,7 +41,7 @@ const getSettings = (guildId) => {
             maxImages: 1,
             imageTimeout: 4320,
             raidEnabled: true,
-            fileShieldEnabled: true, // NEW: Dangerous File Shield
+            fileShieldEnabled: true,
             logDeletedEnabled: false,
             logChannelId: null
         };
@@ -75,7 +74,6 @@ const toShortFormat = (mins) => {
     return `${mins}m`;
 };
 
-// 🎨 MULTI-PAGE DASHBOARD DESIGN
 const generateDashboard = (guildId, page = 1) => {
     const settings = getSettings(guildId);
     
@@ -144,7 +142,6 @@ const generateDashboard = (guildId, page = 1) => {
 };
 
 const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
-// 📁 Dangerous file extensions used to spread malware/viruses
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
@@ -221,7 +218,6 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// 🗑️ DELETED MESSAGE LOGGER
 client.on('messageDelete', async message => {
     if (!message.guild || !message.author || message.author.bot) return; 
 
@@ -270,7 +266,6 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
-    // ⚔️ RAID SHIELD
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
         const isRaid = content.includes('﷽') || 
@@ -302,7 +297,6 @@ client.on('messageCreate', async message => {
 
     if (message.author.bot || message.webhookId) return;
 
-    // 📁 MALWARE / DANGEROUS FILE SHIELD
     if (settings.fileShieldEnabled && message.attachments.size > 0) {
         const hasDangerousFile = message.attachments.some(attachment => {
             const fileName = attachment.name.toLowerCase();
@@ -312,16 +306,15 @@ client.on('messageCreate', async message => {
         if (hasDangerousFile) {
             try {
                 await message.delete();
-                if (message.member) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files'); // 24 hours
+                if (message.member) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
                 const log = createLogEmbed('📁 Dangerous File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-                return; // Stop processing further checks for this message
+                return; 
             } catch (e) {}
         }
     }
 
-    // 🔗 LINK SHIELD
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
         try {
             await message.delete();
@@ -331,7 +324,6 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
-    // 🖼️ IMAGE SHIELD
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
