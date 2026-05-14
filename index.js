@@ -26,6 +26,7 @@ const getSettings = (guildId) => {
             imagesEnabled: true,
             maxImages: 1,
             imageTimeout: 4320,
+            raidEnabled: true,
             logChannelId: null
         });
     }
@@ -61,6 +62,7 @@ const generateDashboard = (guildId) => {
             { name: '🤖 Protection Status', value: settings.masterSwitch ? '✅ **RUNNING**' : '❌ **STOPPED**', inline: false },
             { name: '🔗 Link Shield', value: `**Status:** ${settings.linksEnabled ? 'Enabled' : 'Disabled'}\n**Timeout:** ${formatDuration(settings.linkTimeout)}`, inline: true },
             { name: '🖼️ Image Shield', value: `**Status:** ${settings.imagesEnabled ? 'Enabled' : 'Disabled'}\n**Limit:** ${settings.maxImages} or more\n**Timeout:** ${formatDuration(settings.imageTimeout)}`, inline: true },
+            { name: '⚔️ Raid App Shield', value: `**Status:** ${settings.raidEnabled ? 'Enabled' : 'Disabled'}\n**Action:** Auto-Delete & Expose User`, inline: true },
             { name: '📝 Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Set (Sends to source)', inline: false }
         )
         .setFooter({ text: 'Settings are saved per-server.' });
@@ -68,7 +70,8 @@ const generateDashboard = (guildId) => {
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'STOP PROTECTION' : 'START PROTECTION').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success),
         new ButtonBuilder().setCustomId('toggle_links').setLabel('Toggle Links').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('toggle_images').setLabel('Toggle Images').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_images').setLabel('Toggle Images').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Toggle Raid App Shield').setStyle(ButtonStyle.Secondary)
     );
 
     const row2 = new ActionRowBuilder().addComponents(
@@ -103,18 +106,12 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         const settings = getSettings(interaction.guildId);
 
-        if (interaction.customId === 'toggle_master') {
-            settings.masterSwitch = !settings.masterSwitch;
-            await interaction.update(generateDashboard(interaction.guildId));
-        }
+        if (interaction.customId === 'toggle_master') settings.masterSwitch = !settings.masterSwitch;
+        if (interaction.customId === 'toggle_links') settings.linksEnabled = !settings.linksEnabled;
+        if (interaction.customId === 'toggle_images') settings.imagesEnabled = !settings.imagesEnabled;
+        if (interaction.customId === 'toggle_raid') settings.raidEnabled = !settings.raidEnabled;
 
-        if (interaction.customId === 'toggle_links') {
-            settings.linksEnabled = !settings.linksEnabled;
-            await interaction.update(generateDashboard(interaction.guildId));
-        }
-
-        if (interaction.customId === 'toggle_images') {
-            settings.imagesEnabled = !settings.imagesEnabled;
+        if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid'].includes(interaction.customId)) {
             await interaction.update(generateDashboard(interaction.guildId));
         }
 
@@ -175,12 +172,12 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('messageCreate', async message => {
-    if (message.author.bot || !message.guild) return;
+    if (!message.guild) return;
+    if (message.author.id === client.user.id) return;
 
     const settings = getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
 
-    const member = message.member;
     let targetLogChannel = message.channel;
     
     if (settings.logChannelId) {
@@ -190,10 +187,42 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
+    if (settings.raidEnabled) {
+        const content = message.content.toLowerCase();
+        const isRaid = content.includes('﷽') || 
+                       (content.includes('@everyone') && inviteRegex.test(content)) ||
+                       (content.includes('@here') && inviteRegex.test(content));
+
+        if (isRaid) {
+            try {
+                await message.delete();
+                let culpritId = message.author.id;
+                let targetMember = message.member;
+
+                if (message.interaction) {
+                    culpritId = message.interaction.user.id;
+                    targetMember = await message.guild.members.fetch(culpritId).catch(() => null);
+                }
+
+                if (targetMember && targetMember.timeout) {
+                    await targetMember.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
+                }
+
+                await message.channel.send(`🚨 **RAID BLOCKED:** <@${culpritId}> tried to use a malicious raid app!`);
+
+                const log = createLogEmbed('🛡️ Raid App Blocked', `**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return; 
+            } catch (e) {}
+        }
+    }
+
+    if (message.author.bot || message.webhookId) return;
+
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
         try {
             await message.delete();
-            await member.timeout(settings.linkTimeout * 60000, 'Invite Link Spam');
+            if (message.member) await message.member.timeout(settings.linkTimeout * 60000, 'Invite Link Spam');
             const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
             await targetLogChannel.send({ embeds: [log] }).catch(() => {});
         } catch (e) {}
@@ -202,7 +231,7 @@ client.on('messageCreate', async message => {
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
-            await member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account');
+            if (message.member) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account');
             await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
             const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
             await targetLogChannel.send({ embeds: [log] }).catch(() => {});
