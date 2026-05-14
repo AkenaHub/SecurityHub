@@ -51,39 +51,63 @@ const toShortFormat = (mins) => {
     return `${mins}m`;
 };
 
+// 🎨 BEAUTIFUL NEW DASHBOARD DESIGN
 const generateDashboard = (guildId) => {
     const settings = getSettings(guildId);
     
+    const statusColor = settings.masterSwitch ? '#58b9ff' : '#2b2d31';
+    const statusEmoji = settings.masterSwitch ? '🟢' : '🔴';
+    const statusText = settings.masterSwitch ? 'SYSTEM ONLINE & PROTECTING' : 'SYSTEM OFFLINE (ASLEEP)';
+
     const embed = new EmbedBuilder()
-        .setTitle('🛡️ Master Security Setup Panel')
-        .setColor(settings.masterSwitch ? '#00ff00' : '#ff0000')
-        .setDescription('Configure your server protection. The bot is currently ' + (settings.masterSwitch ? '**ACTIVE**.' : '**INACTIVE**.'))
+        .setTitle('🛡️ Security Control Center')
+        .setColor(statusColor)
+        .setDescription(`Welcome to the master configuration panel. Use the modules below to customize your automated server defenses.\n\n**Master Status:** ${statusEmoji} \`${statusText}\``)
         .addFields(
-            { name: '🤖 Protection Status', value: settings.masterSwitch ? '✅ **RUNNING**' : '❌ **STOPPED**', inline: false },
-            { name: '🔗 Link Shield', value: `**Status:** ${settings.linksEnabled ? 'Enabled' : 'Disabled'}\n**Timeout:** ${formatDuration(settings.linkTimeout)}`, inline: true },
-            { name: '🖼️ Image Shield', value: `**Status:** ${settings.imagesEnabled ? 'Enabled' : 'Disabled'}\n**Limit:** ${settings.maxImages} or more\n**Timeout:** ${formatDuration(settings.imageTimeout)}`, inline: true },
-            { name: '⚔️ Raid App Shield', value: `**Status:** ${settings.raidEnabled ? 'Enabled' : 'Disabled'}\n**Action:** Auto-Delete & Expose User`, inline: true },
-            { name: '📝 Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Set (Sends to source)', inline: false }
+            { 
+                name: '🔗 Invite Link Shield', 
+                value: `> **State:** ${settings.linksEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Timeout:** \`${formatDuration(settings.linkTimeout)}\``, 
+                inline: true 
+            },
+            { 
+                name: '🖼️ Image Spam Shield', 
+                value: `> **State:** ${settings.imagesEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Limit:** \`${settings.maxImages} Image(s)\`\n> **Timeout:** \`${formatDuration(settings.imageTimeout)}\``, 
+                inline: true 
+            },
+            { 
+                name: '⚔️ Raid App Shield', 
+                value: `> **State:** ${settings.raidEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Action:** \`Auto-Delete & 24h Timeout\``, 
+                inline: false 
+            },
+            { 
+                name: '📝 Action Logs', 
+                value: settings.logChannelId ? `> **Channel:** <#${settings.logChannelId}>` : '> **Channel:** `Not Set (Sends to source)`', 
+                inline: false 
+            }
         )
-        .setFooter({ text: 'Settings are saved per-server.' });
+        .setFooter({ text: 'Settings save automatically per-server.', iconURL: client.user?.displayAvatarURL() })
+        .setTimestamp();
 
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'STOP PROTECTION' : 'START PROTECTION').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('toggle_links').setLabel('Toggle Links').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('toggle_images').setLabel('Toggle Images').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Toggle Raid App Shield').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'SHUTDOWN SYSTEM' : 'BOOT UP SYSTEM').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌')
     );
 
     const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Link Timeout').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Image Limits').setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🔗'),
+        new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🖼️'),
+        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('⚔️')
     );
 
     const row3 = new ActionRowBuilder().addComponents(
-        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Select log channel...').addChannelTypes(ChannelType.GuildText)
+        new ButtonBuilder().setCustomId('edit_links').setLabel('Configure Links').setStyle(ButtonStyle.Primary).setEmoji('⚙️'),
+        new ButtonBuilder().setCustomId('edit_images').setLabel('Configure Images').setStyle(ButtonStyle.Primary).setEmoji('⚙️')
     );
 
-    return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
+    const row4 = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('🗂️ Select a channel for security logs...').addChannelTypes(ChannelType.GuildText)
+    );
+
+    return { embeds: [embed], components: [row1, row2, row3, row4], ephemeral: true };
 };
 
 const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
@@ -116,7 +140,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'edit_links') {
-            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield');
+            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
             const input = new TextInputBuilder()
                 .setCustomId('input_link_timeout')
                 .setLabel('Timeout (e.g. 30m, 1d)')
@@ -128,7 +152,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'edit_images') {
-            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield');
+            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
             const inputMax = new TextInputBuilder()
                 .setCustomId('input_image_max')
                 .setLabel('Trigger limit (e.g. 1, 3, 5)')
@@ -173,7 +197,7 @@ client.on('interactionCreate', async interaction => {
 
 client.on('messageCreate', async message => {
     if (!message.guild) return;
-    if (message.author.id === client.user.id) return;
+    if (message.author.id === client.user.id) return; // Ignore itself
 
     const settings = getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
@@ -187,6 +211,7 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
+    // ⚔️ RAID APP DETECTION FIX
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
         const isRaid = content.includes('﷽') || 
@@ -195,14 +220,18 @@ client.on('messageCreate', async message => {
 
         if (isRaid) {
             try {
-                await message.delete();
+                await message.delete().catch(() => {});
+                
+                // Fetch the actual user behind the User App command!
                 let culpritId = message.author.id;
-                let targetMember = message.member;
-
-                if (message.interaction) {
+                
+                if (message.interactionMetadata) {
+                    culpritId = message.interactionMetadata.user.id;
+                } else if (message.interaction) {
                     culpritId = message.interaction.user.id;
-                    targetMember = await message.guild.members.fetch(culpritId).catch(() => null);
                 }
+
+                const targetMember = await message.guild.members.fetch(culpritId).catch(() => null);
 
                 if (targetMember && targetMember.timeout) {
                     await targetMember.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
@@ -219,6 +248,7 @@ client.on('messageCreate', async message => {
 
     if (message.author.bot || message.webhookId) return;
 
+    // 🔗 LINK SHIELD
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
         try {
             await message.delete();
@@ -228,6 +258,7 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
+    // 🖼️ IMAGE SHIELD
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
