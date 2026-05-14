@@ -4,6 +4,7 @@ const {
     ChannelSelectMenuBuilder, ChannelType, 
     ModalBuilder, TextInputBuilder, TextInputStyle 
 } = require('discord.js');
+const fs = require('fs');
 
 const client = new Client({
     intents: [
@@ -15,11 +16,27 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-const guildSettings = new Map();
+// 💾 DATABASE SYSTEM
+const dbFile = './database.json';
+let guildSettings = {};
+
+// Load existing database if it exists
+if (fs.existsSync(dbFile)) {
+    try {
+        guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
+    } catch (e) {
+        console.error("Failed to load database. Starting fresh.");
+    }
+}
+
+// Function to save to hard drive
+const saveDatabase = () => {
+    fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
+};
 
 const getSettings = (guildId) => {
-    if (!guildSettings.has(guildId)) {
-        guildSettings.set(guildId, {
+    if (!guildSettings[guildId]) {
+        guildSettings[guildId] = {
             masterSwitch: false,
             linksEnabled: true,
             linkTimeout: 30,
@@ -27,10 +44,19 @@ const getSettings = (guildId) => {
             maxImages: 1,
             imageTimeout: 4320,
             raidEnabled: true,
+            logDeletedEnabled: false, // New Setting!
             logChannelId: null
-        });
+        };
+        saveDatabase(); // Save defaults immediately
     }
-    return guildSettings.get(guildId);
+    return guildSettings[guildId];
+};
+
+// Update setting helper
+const updateSetting = (guildId, key, value) => {
+    const settings = getSettings(guildId);
+    settings[key] = value;
+    saveDatabase(); // Save to file immediately
 };
 
 const parseDuration = (input) => {
@@ -51,63 +77,70 @@ const toShortFormat = (mins) => {
     return `${mins}m`;
 };
 
-// 🎨 BEAUTIFUL NEW DASHBOARD DESIGN
-const generateDashboard = (guildId) => {
+// 🎨 MULTI-PAGE DASHBOARD DESIGN
+const generateDashboard = (guildId, page = 1) => {
     const settings = getSettings(guildId);
     
     const statusColor = settings.masterSwitch ? '#58b9ff' : '#2b2d31';
     const statusEmoji = settings.masterSwitch ? '🟢' : '🔴';
-    const statusText = settings.masterSwitch ? 'SYSTEM ONLINE & PROTECTING' : 'SYSTEM OFFLINE (ASLEEP)';
+    const statusText = settings.masterSwitch ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE';
 
-    const embed = new EmbedBuilder()
-        .setTitle('🛡️ Security Control Center')
-        .setColor(statusColor)
-        .setDescription(`Welcome to the master configuration panel. Use the modules below to customize your automated server defenses.\n\n**Master Status:** ${statusEmoji} \`${statusText}\``)
-        .addFields(
-            { 
-                name: '🔗 Invite Link Shield', 
-                value: `> **State:** ${settings.linksEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Timeout:** \`${formatDuration(settings.linkTimeout)}\``, 
-                inline: true 
-            },
-            { 
-                name: '🖼️ Image Spam Shield', 
-                value: `> **State:** ${settings.imagesEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Limit:** \`${settings.maxImages} Image(s)\`\n> **Timeout:** \`${formatDuration(settings.imageTimeout)}\``, 
-                inline: true 
-            },
-            { 
-                name: '⚔️ Raid App Shield', 
-                value: `> **State:** ${settings.raidEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Action:** \`Auto-Delete & 24h Timeout\``, 
-                inline: false 
-            },
-            { 
-                name: '📝 Action Logs', 
-                value: settings.logChannelId ? `> **Channel:** <#${settings.logChannelId}>` : '> **Channel:** `Not Set (Sends to source)`', 
-                inline: false 
-            }
-        )
-        .setFooter({ text: 'Settings save automatically per-server.', iconURL: client.user?.displayAvatarURL() })
-        .setTimestamp();
+    if (page === 1) {
+        const embed = new EmbedBuilder()
+            .setTitle('🛡️ Security Control Center (Page 1/2)')
+            .setColor(statusColor)
+            .setDescription(`**Master Status:** ${statusEmoji} \`${statusText}\`\nUse the modules below to configure your active defenses.`)
+            .addFields(
+                { name: '🔗 Invite Link Shield', value: `> **State:** ${settings.linksEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Timeout:** \`${formatDuration(settings.linkTimeout)}\``, inline: true },
+                { name: '🖼️ Image Spam Shield', value: `> **State:** ${settings.imagesEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Limit:** \`${settings.maxImages} Image(s)\`\n> **Timeout:** \`${formatDuration(settings.imageTimeout)}\``, inline: true },
+                { name: '⚔️ Raid App Shield', value: `> **State:** ${settings.raidEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> **Action:** \`Auto-Delete & 24h Timeout\``, inline: false }
+            )
+            .setFooter({ text: 'Settings automatically save to the database.' });
 
-    const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'SHUTDOWN SYSTEM' : 'BOOT UP SYSTEM').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌')
-    );
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'SHUTDOWN' : 'BOOT UP').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌')
+        );
 
-    const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🔗'),
-        new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🖼️'),
-        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('⚔️')
-    );
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🔗'),
+            new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🖼️'),
+            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('⚔️')
+        );
 
-    const row3 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('edit_links').setLabel('Configure Links').setStyle(ButtonStyle.Primary).setEmoji('⚙️'),
-        new ButtonBuilder().setCustomId('edit_images').setLabel('Configure Images').setStyle(ButtonStyle.Primary).setEmoji('⚙️')
-    );
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('nav_page2').setLabel('Log Settings & Config ➡️').setStyle(ButtonStyle.Primary)
+        );
 
-    const row4 = new ActionRowBuilder().addComponents(
-        new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('🗂️ Select a channel for security logs...').addChannelTypes(ChannelType.GuildText)
-    );
+        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
+    } 
+    
+    if (page === 2) {
+        const embed = new EmbedBuilder()
+            .setTitle('📝 Log & Configuration Panel (Page 2/2)')
+            .setColor(statusColor)
+            .setDescription(`**Master Status:** ${statusEmoji} \`${statusText}\`\nConfigure your channel logs and adjust punishment durations.`)
+            .addFields(
+                { name: '🗑️ Deleted Message Logs', value: `> **State:** ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Tracks messages deleted by users.*`, inline: false },
+                { name: '📝 Primary Action Log Channel', value: settings.logChannelId ? `> **Channel:** <#${settings.logChannelId}>` : '> **Channel:** `Not Set (Sends to source)`', inline: false }
+            )
+            .setFooter({ text: 'Settings automatically save to the database.' });
 
-    return { embeds: [embed], components: [row1, row2, row3, row4], ephemeral: true };
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('toggle_deleted').setLabel('Deleted Msg Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️'),
+            new ButtonBuilder().setCustomId('edit_links').setLabel('Config Links').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
+            new ButtonBuilder().setCustomId('edit_images').setLabel('Config Images').setStyle(ButtonStyle.Secondary).setEmoji('⚙️')
+        );
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('🗂️ Select a channel for security logs...').addChannelTypes(ChannelType.GuildText)
+        );
+
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Back to Main Defenses').setStyle(ButtonStyle.Primary)
+        );
+
+        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
+    }
 };
 
 const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
@@ -118,54 +151,49 @@ const createLogEmbed = (title, description, color) => {
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    console.log('Database Loaded Successfully.');
 });
 
 client.on('interactionCreate', async interaction => {
-    if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'setup') {
-            await interaction.reply(generateDashboard(interaction.guildId));
-        }
+    if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
+        await interaction.reply(generateDashboard(interaction.guildId, 1));
     }
 
     if (interaction.isButton()) {
         const settings = getSettings(interaction.guildId);
 
-        if (interaction.customId === 'toggle_master') settings.masterSwitch = !settings.masterSwitch;
-        if (interaction.customId === 'toggle_links') settings.linksEnabled = !settings.linksEnabled;
-        if (interaction.customId === 'toggle_images') settings.imagesEnabled = !settings.imagesEnabled;
-        if (interaction.customId === 'toggle_raid') settings.raidEnabled = !settings.raidEnabled;
+        // Navigation
+        if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
+        if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
 
+        // Page 1 Toggles
         if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid'].includes(interaction.customId)) {
-            await interaction.update(generateDashboard(interaction.guildId));
+            if (interaction.customId === 'toggle_master') updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
+            if (interaction.customId === 'toggle_links') updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
+            if (interaction.customId === 'toggle_images') updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
+            if (interaction.customId === 'toggle_raid') updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
+            return interaction.update(generateDashboard(interaction.guildId, 1));
         }
 
+        // Page 2 Toggles
+        if (interaction.customId === 'toggle_deleted') {
+            updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
+            return interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+
+        // Modals (Triggered from Page 2)
         if (interaction.customId === 'edit_links') {
             const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
-            const input = new TextInputBuilder()
-                .setCustomId('input_link_timeout')
-                .setLabel('Timeout (e.g. 30m, 1d)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(toShortFormat(settings.linkTimeout));
-            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
             await interaction.showModal(modal);
         }
 
         if (interaction.customId === 'edit_images') {
             const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
-            const inputMax = new TextInputBuilder()
-                .setCustomId('input_image_max')
-                .setLabel('Trigger limit (e.g. 1, 3, 5)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(settings.maxImages.toString());
-            const inputTimeout = new TextInputBuilder()
-                .setCustomId('input_image_timeout')
-                .setLabel('Timeout (e.g. 60m, 7d)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(toShortFormat(settings.imageTimeout));
-            modal.addComponents(new ActionRowBuilder().addComponents(inputMax), new ActionRowBuilder().addComponents(inputTimeout));
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_max').setLabel('Trigger limit (e.g. 1, 3, 5)').setStyle(TextInputStyle.Short).setRequired(true).setValue(settings.maxImages.toString())),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_timeout').setLabel('Timeout (e.g. 60m, 7d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.imageTimeout)))
+            );
             await interaction.showModal(modal);
         }
     }
@@ -175,29 +203,53 @@ client.on('interactionCreate', async interaction => {
 
         if (interaction.customId === 'modal_links') {
             const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
-            if (parsed) settings.linkTimeout = parsed;
-            await interaction.update(generateDashboard(interaction.guildId));
+            if (parsed) updateSetting(interaction.guildId, 'linkTimeout', parsed);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
         }
 
         if (interaction.customId === 'modal_images') {
             const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
             const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
-            if (!isNaN(max) && max > 0) settings.maxImages = max;
-            if (parsedTimeout) settings.imageTimeout = parsedTimeout;
-            await interaction.update(generateDashboard(interaction.guildId));
+            if (!isNaN(max) && max > 0) updateSetting(interaction.guildId, 'maxImages', max);
+            if (parsedTimeout) updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
         }
     }
 
     if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
-        const settings = getSettings(interaction.guildId);
-        settings.logChannelId = interaction.values;
-        await interaction.update(generateDashboard(interaction.guildId));
+        updateSetting(interaction.guildId, 'logChannelId', interaction.values);
+        await interaction.update(generateDashboard(interaction.guildId, 2)); // Stays on Page 2
+    }
+});
+
+// 🗑️ NEW: DELETED MESSAGE LOGGER
+client.on('messageDelete', async message => {
+    if (!message.guild || !message.author || message.author.bot) return; // Ignore bots and system messages
+
+    const settings = getSettings(message.guild.id);
+    if (!settings.masterSwitch || !settings.logDeletedEnabled || !settings.logChannelId) return;
+
+    try {
+        const logChannel = await message.guild.channels.fetch(settings.logChannelId);
+        if (!logChannel) return;
+
+        const content = message.content ? message.content : '*Message contained no text (likely an image or attachment).*';
+
+        const embed = new EmbedBuilder()
+            .setTitle('🗑️ Message Deleted')
+            .setColor('#ff9900')
+            .setDescription(`**Author:** <@${message.author.id}>\n**Channel:** <#${message.channel.id}>\n\n**Content:**\n>>> ${content}`)
+            .setTimestamp()
+            .setFooter({ text: `User ID: ${message.author.id}` });
+
+        await logChannel.send({ embeds: [embed] }).catch(() => {});
+    } catch (e) {
+        // Suppress errors if channel is missing
     }
 });
 
 client.on('messageCreate', async message => {
-    if (!message.guild) return;
-    if (message.author.id === client.user.id) return; // Ignore itself
+    if (!message.guild || message.author.id === client.user.id) return; 
 
     const settings = getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
@@ -211,7 +263,6 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
-    // ⚔️ RAID APP DETECTION FIX
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
         const isRaid = content.includes('﷽') || 
@@ -221,8 +272,6 @@ client.on('messageCreate', async message => {
         if (isRaid) {
             try {
                 await message.delete().catch(() => {});
-                
-                // Fetch the actual user behind the User App command!
                 let culpritId = message.author.id;
                 
                 if (message.interactionMetadata) {
@@ -248,7 +297,6 @@ client.on('messageCreate', async message => {
 
     if (message.author.bot || message.webhookId) return;
 
-    // 🔗 LINK SHIELD
     if (settings.linksEnabled && inviteRegex.test(message.content)) {
         try {
             await message.delete();
@@ -258,7 +306,6 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
 
-    // 🖼️ IMAGE SHIELD
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
