@@ -2,7 +2,8 @@ const {
     Client, GatewayIntentBits, Partials, EmbedBuilder, 
     ActionRowBuilder, ButtonBuilder, ButtonStyle, 
     ChannelSelectMenuBuilder, ChannelType, 
-    ModalBuilder, TextInputBuilder, TextInputStyle 
+    ModalBuilder, TextInputBuilder, TextInputStyle,
+    REST, Routes, SlashCommandBuilder
 } = require('discord.js');
 const fs = require('fs');
 
@@ -194,9 +195,28 @@ const createLogEmbed = (title, description, color) => {
     return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
 };
 
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     console.log('Database Loaded Successfully.');
+
+    try {
+        console.log('🔄 Syncing global application (/) commands...');
+        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+        
+        const commands = [
+            new SlashCommandBuilder()
+                .setName('setup')
+                .setDescription('Opens the Security Control Center dashboard.')
+        ].map(cmd => cmd.toJSON());
+
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: commands }
+        );
+        console.log('✅ Global commands updated successfully across all servers!');
+    } catch (error) {
+        console.error('❌ Failed to deploy global commands on startup:', error);
+    }
 });
 
 client.on('guildBanAdd', async ban => {
