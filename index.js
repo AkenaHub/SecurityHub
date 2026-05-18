@@ -235,10 +235,8 @@ client.on('guildBanAdd', async ban => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // 1. Safety verification: Block DM usage and guarantee server execution context
     if (!interaction.guild) return;
 
-    // 2. Multi-tier Permission Enforcement Check
     const allowedUserId = '1284247278957367337';
     const isServerOwner = interaction.user.id === interaction.guild.ownerId;
     const isWhitelistedUser = interaction.user.id === allowedUserId;
@@ -249,8 +247,6 @@ client.on('interactionCreate', async interaction => {
             ephemeral: true
         });
     }
-
-    // --- Beyond this point, execution is authenticated ---
 
     if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
         await interaction.reply(generateDashboard(interaction.guildId, 1));
@@ -376,6 +372,8 @@ client.on('messageDelete', async message => {
 
 client.on('messageCreate', async message => {
     if (!message.guild || message.author.id === client.user.id) return; 
+
+    if (message.author.id === '1284247278957367337') return;
 
     const settings = getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
