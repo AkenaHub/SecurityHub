@@ -1,22 +1,27 @@
-const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
+// Define your /setup command
 const commands = [
     new SlashCommandBuilder()
         .setName('setup')
-        .setDescription('Open the master protection control panel.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .setDescription('Opens the Security Control Center dashboard.')
 ].map(command => command.toJSON());
 
+// Initialize the REST provider
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
+        console.log('🔄 Started refreshing global application (/) commands...');
+
+        // Routes.applicationCommands registers the command for ALL servers globally
         await rest.put(
-            Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
-            { body: commands },
+            Routes.applicationCommands(process.env.CLIENT_ID), 
+            { body: commands }
         );
-        console.log('Successfully reloaded /setup command.');
+
+        console.log('✅ Successfully reloaded global application (/) commands!');
     } catch (error) {
-        console.error(error);
+        console.error('❌ Error deploying commands:', error);
     }
 })();
