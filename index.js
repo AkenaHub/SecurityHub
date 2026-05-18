@@ -36,10 +36,11 @@ const saveDatabase = () => {
 const getSettings = (guildId) => {
     if (!guildSettings[guildId]) {
         guildSettings[guildId] = {
-            masterSwitch: false,
+            masterSwitch: true, 
             linksEnabled: true,
             linkTimeout: 30,
-            linkBlacklist: [], 
+            linkAvoids: [], 
+            allowedAccess: [],
             imagesEnabled: true,
             maxImages: 1,
             imageTimeout: 4320,
@@ -51,10 +52,15 @@ const getSettings = (guildId) => {
         };
         saveDatabase();
     }
-    if (!guildSettings[guildId].linkBlacklist) {
-        guildSettings[guildId].linkBlacklist = [];
+    
+    if (guildSettings[guildId].linkBlacklist) {
+        guildSettings[guildId].linkAvoids = guildSettings[guildId].linkBlacklist;
+        delete guildSettings[guildId].linkBlacklist;
         saveDatabase();
     }
+    if (!guildSettings[guildId].linkAvoids) guildSettings[guildId].linkAvoids = [];
+    if (!guildSettings[guildId].allowedAccess) guildSettings[guildId].allowedAccess = [];
+    
     return guildSettings[guildId];
 };
 
@@ -113,7 +119,7 @@ const generateDashboard = (guildId, page = 1) => {
             .setColor(statusColor)
             .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nManage your automated defensive shields below. Use the navigation buttons to jump between configuration views and moderation histories.`)
             .addFields(
-                { name: '🔗 LINK SHIELD', value: `\`\`\`yaml\nStatus: ${settings.linksEnabled ? 'ENABLED' : 'DISABLED'}\nTimeout: ${formatDuration(settings.linkTimeout)}\nBlacklist: ${settings.linkBlacklist.length} Items\`\`\``, inline: true },
+                { name: '🔗 LINK SHIELD', value: `\`\`\`yaml\nStatus: ${settings.linksEnabled ? 'ENABLED' : 'DISABLED'}\nTimeout: ${formatDuration(settings.linkTimeout)}\nAvoids: ${settings.linkAvoids.length} Items\`\`\``, inline: true },
                 { name: '🖼️ IMAGE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.imagesEnabled ? 'ENABLED' : 'DISABLED'}\nLimit: ${settings.maxImages} Msg\nTimeout: ${formatDuration(settings.imageTimeout)}\`\`\``, inline: true },
                 { name: '⚔️ RAID SHIELD', value: `\`\`\`yaml\nStatus: ${settings.raidEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 24h Timeout\`\`\``, inline: true },
                 { name: '📁 FILE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.fileShieldEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 1d Timeout\`\`\``, inline: true }
@@ -141,9 +147,13 @@ const generateDashboard = (guildId, page = 1) => {
     } 
     
     if (page === 2) {
-        const blacklistSummary = settings.linkBlacklist.length > 0 
-            ? settings.linkBlacklist.map(d => `\`${d}\``).join(', ')
-            : '_No custom domains blacklisted._';
+        const avoidsSummary = settings.linkAvoids.length > 0 
+            ? settings.linkAvoids.map(d => `\`${d}\``).join(', ')
+            : '_No links avoided._';
+            
+        const accessSummary = settings.allowedAccess.length > 0 
+            ? settings.allowedAccess.map(d => `\`${d}\``).join(', ')
+            : '_Only Owner & Main Admin._';
 
         const embed = new EmbedBuilder()
             .setTitle('📝 LOGGING & ADVANCED CONFIG')
@@ -151,17 +161,19 @@ const generateDashboard = (guildId, page = 1) => {
             .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nFine-tune thresholds, action criteria, and designated tracking channels for server modifications.`)
             .addFields(
                 { name: '🗑️ Deleted Message Logs', value: `> State: ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Applies to all texts, files, and images.*`, inline: false },
-                { name: '🚫 Active Link Blacklist', value: `> ${blacklistSummary}`, inline: false },
+                { name: '🟢 Allowed Links (Avoids)', value: `> ${avoidsSummary}`, inline: false },
+                { name: '🔑 Panel Access (IDs)', value: `> ${accessSummary}`, inline: false },
                 { name: '🗂️ Target Logging Channel', value: settings.logChannelId ? `> Destination: <#${settings.logChannelId}>` : '> Destination: `Not Set (Sends to source channel)`', inline: false }
             )
             .setTimestamp()
             .setFooter({ text: 'Configuration • Page 2 of 3' });
 
         const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_deleted').setLabel('Toggle Delete Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️'),
+            new ButtonBuilder().setCustomId('toggle_deleted').setLabel('Delete Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️'),
             new ButtonBuilder().setCustomId('edit_links').setLabel('Setup Links').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
-            new ButtonBuilder().setCustomId('edit_blacklist').setLabel('Edit Blacklist').setStyle(ButtonStyle.Secondary).setEmoji('🚫'),
-            new ButtonBuilder().setCustomId('edit_images').setLabel('Setup Images').setStyle(ButtonStyle.Secondary).setEmoji('⚙️')
+            new ButtonBuilder().setCustomId('edit_avoids').setLabel('Edit Avoids').setStyle(ButtonStyle.Secondary).setEmoji('🟢'),
+            new ButtonBuilder().setCustomId('edit_images').setLabel('Setup Images').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
+            new ButtonBuilder().setCustomId('edit_access').setLabel('Edit Access').setStyle(ButtonStyle.Secondary).setEmoji('🔑')
         );
 
         const row2 = new ActionRowBuilder().addComponents(
@@ -237,13 +249,26 @@ client.on('guildBanAdd', async ban => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.guild) return;
 
+    const settings = getSettings(interaction.guildId);
+    
     const allowedUserId = '1284247278957367337';
     const isServerOwner = interaction.user.id === interaction.guild.ownerId;
     const isWhitelistedUser = interaction.user.id === allowedUserId;
+    
+    let hasAccess = isServerOwner || isWhitelistedUser;
 
-    if (!isServerOwner && !isWhitelistedUser) {
+    if (!hasAccess && settings.allowedAccess.length > 0) {
+        if (settings.allowedAccess.includes(interaction.user.id)) {
+            hasAccess = true;
+        }
+        if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) {
+            hasAccess = true;
+        }
+    }
+
+    if (!hasAccess) {
         return interaction.reply({
-            content: '❌ **Access Denied:** Only the designated Server Owner and explicitly whitelisted administrators are authorized to use or change settings on this control panel.',
+            content: '❌ **Access Denied:** You do not have permission to use or view the security panel.',
             ephemeral: true
         });
     }
@@ -253,8 +278,6 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isButton()) {
-        const settings = getSettings(interaction.guildId);
-
         if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
         if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
         if (interaction.customId === 'nav_page3') return interaction.update(generateDashboard(interaction.guildId, 3));
@@ -279,16 +302,30 @@ client.on('interactionCreate', async interaction => {
             await interaction.showModal(modal);
         }
 
-        if (interaction.customId === 'edit_blacklist') {
-            const modal = new ModalBuilder().setCustomId('modal_blacklist').setTitle('Configure Blocked Domains');
+        if (interaction.customId === 'edit_avoids') {
+            const modal = new ModalBuilder().setCustomId('modal_avoids').setTitle('Configure Allowed Links');
             modal.addComponents(new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
-                    .setCustomId('input_blacklist')
-                    .setLabel('Enter domains/words (Separate with commas)')
+                    .setCustomId('input_avoids')
+                    .setLabel('Enter domains/invites to AVOID (comma-sep)')
                     .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('scamlink.xyz, free-robux, malicioussite.com')
+                    .setPlaceholder('discord.gg/yourserver, discord.com/invite/xyz')
                     .setRequired(false)
-                    .setValue(settings.linkBlacklist.join(', '))
+                    .setValue(settings.linkAvoids.join(', '))
+            ));
+            await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'edit_access') {
+            const modal = new ModalBuilder().setCustomId('modal_access').setTitle('Configure Panel Access');
+            modal.addComponents(new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('input_access')
+                    .setLabel('Enter User/Role IDs (Separate with commas)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('123456789012345678, 987654321098765432')
+                    .setRequired(false)
+                    .setValue(settings.allowedAccess.join(', '))
             ));
             await interaction.showModal(modal);
         }
@@ -304,21 +341,29 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isModalSubmit()) {
-        const settings = getSettings(interaction.guildId);
-
         if (interaction.customId === 'modal_links') {
             const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
             if (parsed) updateSetting(interaction.guildId, 'linkTimeout', parsed);
             await interaction.update(generateDashboard(interaction.guildId, 2));
         }
 
-        if (interaction.customId === 'modal_blacklist') {
-            const rawInput = interaction.fields.getTextInputValue('input_blacklist');
+        if (interaction.customId === 'modal_avoids') {
+            const rawInput = interaction.fields.getTextInputValue('input_avoids');
             const processedList = rawInput.split(',')
                 .map(item => item.trim().toLowerCase())
                 .filter(item => item.length > 0);
 
-            updateSetting(interaction.guildId, 'linkBlacklist', processedList);
+            updateSetting(interaction.guildId, 'linkAvoids', processedList);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+
+        if (interaction.customId === 'modal_access') {
+            const rawInput = interaction.fields.getTextInputValue('input_access');
+            const processedList = rawInput.split(',')
+                .map(item => item.trim())
+                .filter(item => item.length > 0);
+
+            updateSetting(interaction.guildId, 'allowedAccess', processedList);
             await interaction.update(generateDashboard(interaction.guildId, 2));
         }
 
@@ -446,17 +491,16 @@ client.on('messageCreate', async message => {
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
         const isDiscordInvite = inviteRegex.test(message.content);
-        const isBlacklistedLink = settings.linkBlacklist && settings.linkBlacklist.some(domain => messageContentLower.includes(domain));
+        const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
 
-        if (isDiscordInvite || isBlacklistedLink) {
+        if (isDiscordInvite && !isAvoided) {
             try {
                 await message.delete();
-                if (message.member) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link/Blacklist Match');
+                if (message.member) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Invite Link');
                 
-                const reasonText = isBlacklistedLink ? 'Blacklisted Domain Match' : 'Invite Link Spam';
-                logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, reasonText);
+                logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Invite Link Spam');
                 
-                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`${isBlacklistedLink ? 'Blacklist Phrase Found' : 'Discord Invite Link'}\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
+                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
             } catch (e) {}
         }
