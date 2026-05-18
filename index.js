@@ -3,7 +3,8 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, 
     ChannelSelectMenuBuilder, ChannelType, 
     ModalBuilder, TextInputBuilder, TextInputStyle,
-    REST, Routes, SlashCommandBuilder
+    REST, Routes, SlashCommandBuilder,
+    AuditLogEvent, Events
 } = require('discord.js');
 const fs = require('fs');
 
@@ -192,13 +193,13 @@ const generateDashboard = (guildId, page = 1) => {
         const embed = new EmbedBuilder()
             .setTitle('📜 RECENT MODERATION ACTIONS')
             .setColor('#ffcc00')
-            .setDescription('Displaying the last 10 automated timeouts and server ban executions tracked by this system.')
+            .setDescription('Displaying the last 10 automated and manual moderation actions tracked by this system.')
             .setTimestamp()
             .setFooter({ text: 'Incident History • Page 3 of 3' });
 
         const historyList = settings.history && settings.history.length > 0
             ? settings.history.map((log, index) => `**${index + 1}. [${log.type}]** \`${log.username}\` (${log.userId})\n🔹 **When:** <t:${log.timestamp}:F> (<t:${log.timestamp}:R>)\n🔹 **Reason:** \`${log.reason}\``).join('\n\n—\n\n')
-            : '*No recent timeouts or bans have been logged.*';
+            : '*No recent actions have been logged.*';
 
         embed.addFields({ name: '🚨 Active Incident Feed', value: historyList });
 
@@ -242,8 +243,56 @@ client.once('ready', async () => {
     }
 });
 
-client.on('guildBanAdd', async ban => {
-    logAction(ban.guild.id, 'BAN', ban.user.username, ban.user.id, ban.reason || 'Executed via server moderation.');
+// WATCH AUDIT LOGS FOR MANUAL ACTIONS
+client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
+    if (!guild) return;
+    const settings = getSettings(guild.id);
+    if (!settings.masterSwitch) return;
+
+    // Ignore if the bot did it (to prevent double logging)
+    if (auditLog.executorId === client.user.id) return;
+
+    const target = auditLog.target;
+    const executor = auditLog.executor;
+    if (!target || !executor) return;
+
+    let actionType = null;
+    let color = '#000000';
+    const reason = auditLog.reason || `Action by admin: ${executor.username}`;
+
+    if (auditLog.action === AuditLogEvent.MemberKick) {
+        actionType = 'KICK';
+        color = '#ff5500';
+    } else if (auditLog.action === AuditLogEvent.MemberBanAdd) {
+        actionType = 'BAN';
+        color = '#ff0000';
+    } else if (auditLog.action === AuditLogEvent.MemberUpdate) {
+        const timeoutChange = auditLog.changes.find(c => c.key === 'communication_disabled_until');
+        if (timeoutChange && timeoutChange.new) {
+            actionType = 'TIMEOUT';
+            color = '#ffcc00';
+        }
+    }
+
+    if (actionType) {
+        // Save to internal database (Page 3 of dashboard)
+        logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
+
+        // Forward to the logging channel if one is set up
+        if (settings.logChannelId) {
+            try {
+                const logChannel = await guild.channels.fetch(settings.logChannelId);
+                if (logChannel) {
+                    const embed = createLogEmbed(
+                        `🔨 Manual ${actionType} Executed`, 
+                        `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, 
+                        color
+                    );
+                    await logChannel.send({ embeds: [embed] }).catch(() => {});
+                }
+            } catch (e) {}
+        }
+    }
 });
 
 client.on('interactionCreate', async interaction => {
