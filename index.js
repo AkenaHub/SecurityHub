@@ -312,11 +312,30 @@ app.set('trust proxy', 1);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
+const isProduction = process.env.PUBLIC_URL && process.env.PUBLIC_URL.includes('https');
 app.use(session({
     secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 600000 * 6 }
+    proxy: true,
+    cookie: { 
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        maxAge: 600000 * 6 
+    }
 }));
 
 app.get('/', (req, res) => {
