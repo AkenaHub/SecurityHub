@@ -1,319 +1,372 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="antialiased selection:bg-indigo-500/30">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServSecurity</title>
-    <!-- Tailwind CSS for sleek utility styling -->
+    <title>ServSecurity Control Center</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Base page background set to deep cyber black */
-        body { background-color: #050508; }
-        /* Premium custom blur effect for glassmorphism layout components */
-        .custom-blur { background: rgba(13, 16, 26, 0.75); backdrop-filter: blur(12px); }
+        body { 
+            background-color: #09090b; /* Zinc 950 */
+            font-family: 'Inter', sans-serif;
+            color: #fafafa;
+        }
+        /* Hide scrollbar for clean aesthetic */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        
+        .glass-panel { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(16px); }
+        .input-base { background: #18181b; border: 1px solid #27272a; transition: all 0.2s; }
+        .input-base:focus { border-color: #6366f1; box-shadow: 0 0 0 1px #6366f1; outline: none; }
+        
+        /* Modern Switch Styling */
+        .toggle-checkbox:checked { right: 0; border-color: #6366f1; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #6366f1; }
     </style>
 </head>
-<body class="text-gray-100 font-sans antialiased min-h-screen flex flex-col">
+<body class="flex h-screen overflow-hidden">
 
-    <!-- TOP NAVIGATION NAVBAR -->
-    <nav class="border-b border-zinc-900 bg-black/50 sticky top-0 z-50 backdrop-blur-md">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <!-- Glowing status indicator -->
-                <div class="h-3 w-3 rounded-full bg-indigo-500 animate-pulse"></div>
-                <span class="tracking-widest font-black text-sm uppercase bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">ServSecurity</span>
-            </div>
-            <!-- Discord user profile / Authentication login zone -->
-            <div id="auth-zone" class="flex items-center space-x-4"></div>
+    <!-- SIDEBAR -->
+    <aside class="w-72 border-r border-white/5 bg-[#0e0e11] flex flex-col z-20">
+        <div class="h-20 flex items-center px-6 border-b border-white/5">
+            <div class="h-2.5 w-2.5 rounded-full bg-indigo-500 shadow-[0_0_10px_#6366f1] mr-3"></div>
+            <span class="text-sm font-bold tracking-widest uppercase bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">ServSecurity</span>
         </div>
-    </nav>
 
-    <!-- MAIN BODY INTERFACE -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div id="auth-zone" class="p-5 border-b border-white/5 bg-white/[0.02]">
+            <!-- Injected User Profile or Login -->
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Terminals</h3>
+                <span id="sandbox-indicator" class="hidden text-[9px] font-bold text-amber-400 uppercase bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Offline UI</span>
+            </div>
+            
+            <div id="server-list" class="space-y-1.5">
+                <p class="text-xs text-zinc-500 py-2">Loading authorization...</p>
+            </div>
+            <p id="server-helper-text" class="hidden text-[10px] text-zinc-600 leading-relaxed mt-4 pt-4 border-t border-white/5">
+                Only displaying servers where you possess Administrator or Manage Server privileges.
+            </p>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/10 via-[#09090b] to-[#09090b]">
         
-        <!-- SIDEBAR SERVER TRACKER -->
-        <section class="md:col-span-1 flex flex-col space-y-4">
-            <div class="flex items-center justify-between px-2">
-                <h3 class="text-xs font-semibold tracking-wider text-zinc-500 uppercase">Managed Terminals</h3>
-                <span id="sandbox-indicator" class="hidden text-[9px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30">Sandbox Mode</span>
-            </div>
-            <div id="server-list" class="space-y-1 overflow-y-auto max-h-[75vh]">
-                <p class="text-sm text-zinc-500 italic px-2">Awaiting system authorization...</p>
-            </div>
-        </section>
+        <!-- HEADER -->
+        <header class="h-20 border-b border-white/5 flex items-center px-10 glass-panel z-10 sticky top-0">
+            <h2 id="active-server-name" class="text-xl font-bold tracking-tight text-white/90">Select a Terminal Node</h2>
+        </header>
 
-        <!-- LIVE CONFIGURATOR GRID -->
-        <section class="md:col-span-3">
-            <div id="dashboard-view" class="custom-blur border border-zinc-900 rounded-xl p-8 hidden flex-col h-full justify-between">
-                <div>
-                    <!-- Active Server Header Status & Master Toggle -->
-                    <div class="flex items-center justify-between border-b border-zinc-900 pb-6 mb-6">
-                        <div>
-                            <h2 id="active-server-name" class="text-2xl font-bold tracking-tight text-white">Select a terminal</h2>
-                            <p class="text-sm text-zinc-400 mt-1">Configure automated containment grids.</p>
+        <!-- DASHBOARD CONTAINER -->
+        <div class="flex-1 overflow-y-auto p-6 md:p-10 relative">
+            
+            <!-- BLANK STATE -->
+            <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div class="h-16 w-16 rounded-2xl bg-zinc-900/50 border border-white/5 flex items-center justify-center mb-6 shadow-2xl">
+                    <svg class="w-6 h-6 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-zinc-300">No Target Specified</h3>
+                <p class="text-sm text-zinc-500 mt-2 max-w-sm text-center">Select an authorized Discord server from the left panel to configure its security matrix.</p>
+            </div>
+
+            <!-- ACTIVE DASHBOARD -->
+            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-8 pb-12">
+                
+                <!-- Master Control Hero -->
+                <div class="p-8 rounded-2xl border border-white/5 bg-[#121215] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
+                    <div class="absolute right-0 top-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-1">Master Defense Network</h3>
+                        <p class="text-sm text-zinc-400">Enabling this arms the entire automated protection suite for this terminal.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer group">
+                        <input type="checkbox" id="masterSwitch" class="sr-only peer">
+                        <div class="w-14 h-7 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-500 shadow-inner"></div>
+                    </label>
+                </div>
+
+                <!-- Grid Settings -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- LINK SHIELD -->
+                    <div class="p-6 rounded-2xl border border-white/5 bg-[#121215] flex flex-col group hover:border-white/10 transition-colors">
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+                            <div class="flex items-center space-x-3">
+                                <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
+                                <span class="font-semibold text-white tracking-wide">Link Shield</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="linksEnabled" class="sr-only peer">
+                                <div class="w-11 h-6 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </label>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="masterSwitch" class="sr-only peer">
-                            <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white"></div>
-                            <span class="ml-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">Master Shield</span>
-                        </label>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-medium text-zinc-400 block mb-1.5 uppercase tracking-wide">Punishment Timeout (Mins)</label>
+                                <input type="number" id="linkTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-zinc-400 block mb-1.5 uppercase tracking-wide">Allowed Exceptions (Avoids)</label>
+                                <textarea id="linkAvoids" rows="2" placeholder="discord.gg/yourserver, google.com" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 resize-none"></textarea>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Grid Configuration Cards -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        
-                        <!-- LINK SHIELD CONTAINER -->
-                        <div class="bg-zinc-950/60 border border-zinc-900 rounded-lg p-5">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-bold text-zinc-200 tracking-wide uppercase">🔗 Link Shield</span>
-                                <input type="checkbox" id="linksEnabled" class="accent-indigo-500 h-4 w-4">
+                    <!-- IMAGE SHIELD -->
+                    <div class="p-6 rounded-2xl border border-white/5 bg-[#121215] flex flex-col group hover:border-white/10 transition-colors">
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+                            <div class="flex items-center space-x-3">
+                                <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                                <span class="font-semibold text-white tracking-wide">Image Shield</span>
                             </div>
-                            <label class="text-xs text-zinc-500 block mb-1">Containment Timeout (Mins)</label>
-                            <input type="number" id="linkTimeout" class="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 mb-3">
-                            
-                            <label class="text-xs text-zinc-500 block mb-1">Avoids List (Whitelisted Domain/Invite Keywords)</label>
-                            <textarea id="linkAvoids" rows="2" placeholder="discord.gg/myserver, google.com" class="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="imagesEnabled" class="sr-only peer">
+                                <div class="w-11 h-6 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </label>
                         </div>
-
-                        <!-- IMAGE SHIELD CONTAINER -->
-                        <div class="bg-zinc-950/60 border border-zinc-900 rounded-lg p-5">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-bold text-zinc-200 tracking-wide uppercase">🖼️ Image Shield</span>
-                                <input type="checkbox" id="imagesEnabled" class="accent-indigo-500 h-4 w-4">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-medium text-zinc-400 block mb-1.5 uppercase tracking-wide">Image Burst Limit</label>
+                                <input type="number" id="maxImages" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600">
                             </div>
-                            <label class="text-xs text-zinc-500 block mb-1">Max Images Per Burst</label>
-                            <input type="number" id="maxImages" class="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 mb-3">
-
-                            <label class="text-xs text-zinc-500 block mb-1">Spam Timeout (Mins)</label>
-                            <input type="number" id="imageTimeout" class="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500">
-                        </div>
-
-                        <!-- STRUCTURAL DEFENSES toggles -->
-                        <div class="bg-zinc-950/60 border border-zinc-900 rounded-lg p-5 flex flex-col justify-between">
-                            <span class="text-sm font-bold text-zinc-200 tracking-wide uppercase mb-3 block">⚔️ Structural Defenses</span>
-                            <div class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs text-zinc-400">Raid Matrix App Shield</span>
-                                    <input type="checkbox" id="raidEnabled" class="accent-indigo-500 h-4 w-4">
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs text-zinc-400">Executable File Sandbox</span>
-                                    <input type="checkbox" id="fileShieldEnabled" class="accent-indigo-500 h-4 w-4">
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs text-zinc-400">Log Deleted Transmissions</span>
-                                    <input type="checkbox" id="logDeletedEnabled" class="accent-indigo-500 h-4 w-4">
-                                </div>
+                            <div>
+                                <label class="text-xs font-medium text-zinc-400 block mb-1.5 uppercase tracking-wide">Spam Timeout (Mins)</label>
+                                <input type="number" id="imageTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600">
                             </div>
                         </div>
+                    </div>
 
-                        <!-- OPERATION ACCESS KEYS -->
-                        <div class="bg-zinc-950/60 border border-zinc-900 rounded-lg p-5">
-                            <span class="text-sm font-bold text-zinc-200 tracking-wide uppercase mb-2 block">🔑 Operations Keys</span>
-                            <label class="text-xs text-zinc-500 block mb-1">Authorized Admins / Roles (Comma Separated)</label>
-                            <textarea id="allowedAccess" rows="3" placeholder="User IDs, Role IDs" class="w-full h-24 bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                    <!-- STRUCTURAL TOGGLES -->
+                    <div class="p-6 rounded-2xl border border-white/5 bg-[#121215] flex flex-col group hover:border-white/10 transition-colors">
+                        <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-white/5">
+                            <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></div>
+                            <span class="font-semibold text-white tracking-wide">Structural Parameters</span>
+                        </div>
+                        <div class="space-y-5">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-medium text-zinc-300">Raid Matrix Blocker</span>
+                                <input type="checkbox" id="raidEnabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-medium text-zinc-300">Executable File Sandbox</span>
+                                <input type="checkbox" id="fileShieldEnabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-medium text-zinc-300">Log Deleted Transmissions</span>
+                                <input type="checkbox" id="logDeletedEnabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500 relative"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- ACCESS CONTROL -->
+                    <div class="p-6 rounded-2xl border border-white/5 bg-[#121215] flex flex-col group hover:border-white/10 transition-colors">
+                        <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-white/5">
+                            <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg></div>
+                            <span class="font-semibold text-white tracking-wide">Key Operations</span>
+                        </div>
+                        <div class="flex-1 flex flex-col">
+                            <label class="text-xs font-medium text-zinc-400 block mb-1.5 uppercase tracking-wide">Authorized IDs (Comma Separated)</label>
+                            <textarea id="allowedAccess" placeholder="User IDs, Role IDs" class="flex-1 w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 resize-none min-h-[100px]"></textarea>
                         </div>
                     </div>
                 </div>
 
-                <!-- SAVE / LOAD / DELETE ACTION CONTROLS -->
-                <div class="flex items-center justify-between mt-8 pt-6 border-t border-zinc-900">
-                    <button onclick="confirmReset()" class="bg-red-950/40 text-red-400 border border-red-900/50 hover:bg-red-900/30 px-4 py-2 rounded text-xs font-semibold uppercase tracking-wider transition">Wipe Configuration</button>
+                <!-- SAVE / ACTION BAR -->
+                <div class="pt-6 border-t border-white/5 flex items-center justify-between">
+                    <button onclick="confirmReset()" class="text-xs font-semibold uppercase tracking-wider text-red-400 hover:text-red-300 transition px-2 py-2">Wipe Configuration</button>
                     <div class="flex space-x-3">
-                        <button onclick="loadConfig(activeGuildId)" class="bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 px-5 py-2 rounded text-xs font-semibold uppercase tracking-wider transition">Reload Last Save</button>
-                        <button onclick="saveConfig()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded text-xs font-semibold uppercase tracking-wider shadow-lg shadow-indigo-600/20 transition">Commit Changes</button>
+                        <button onclick="loadConfig(activeGuildId)" class="px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-white transition shadow-sm">Discard Edits</button>
+                        <button onclick="saveConfig()" class="px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg shadow-indigo-500/25">Deploy Changes</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- BLANK/PLACEHOLDER STATE -->
-            <div id="blank-view" class="border border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center p-12 text-center h-full min-h-[50vh]">
-                <div class="h-12 w-12 rounded-lg bg-zinc-950 flex items-center justify-center border border-zinc-800 text-zinc-600 font-bold mb-4 text-xl">#</div>
-                <h3 class="text-zinc-300 font-medium">No Node Connected</h3>
-                <p class="text-xs text-zinc-500 max-w-xs mt-1">Select an active hardware server on the left sidebar terminal list to access active config modules.</p>
             </div>
-        </section>
+        </div>
     </main>
 
-    <!-- CUSTOM TOAST NOTIFICATIONS (Replaces browser alert popup dialogs) -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-3 pointer-events-none"></div>
 
-    <!-- CUSTOM CONFIRMATION OVERLAY MODAL (Replaces browser confirm alert boxes) -->
-    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div class="bg-zinc-950 border border-zinc-900 rounded-xl max-w-sm w-full p-6 shadow-2xl">
-            <h3 class="text-white font-bold text-lg">Confirm Action</h3>
-            <p id="confirm-text" class="text-sm text-zinc-400 mt-2">Are you sure you want to proceed?</p>
-            <div class="flex justify-end space-x-3 mt-6">
-                <button id="confirm-cancel" class="bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800 px-4 py-2 rounded text-xs font-semibold uppercase tracking-wider transition">Cancel</button>
-                <button id="confirm-proceed" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-xs font-semibold uppercase tracking-wider transition">Reset Node</button>
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-opacity">
+        <div class="bg-[#121215] border border-white/10 rounded-2xl max-w-sm w-full p-6 shadow-2xl transform scale-95 transition-transform" id="modal-box">
+            <h3 class="text-white font-bold text-lg mb-2">Confirm Action</h3>
+            <p id="confirm-text" class="text-sm text-zinc-400">Are you sure you want to proceed?</p>
+            <div class="flex justify-end space-x-3 mt-8">
+                <button id="confirm-cancel" class="bg-zinc-800 text-white hover:bg-zinc-700 px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition">Cancel</button>
+                <button id="confirm-proceed" class="bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition">Reset Node</button>
             </div>
         </div>
     </div>
 
-    <!-- MAIN SYSTEM LOGIC SCRIPTS -->
     <script>
         let activeGuildId = null;
         let systemBotId = '';
-        let isSandboxMode = false; // Flags if we are in local offline simulation mode
+        let isSandboxMode = false;
 
-        // Safely parses and establishes base API endpoints for nested frames/environments
         function resolveUrl(path) {
             let base = window.location.origin;
             if (base === 'null' || window.location.protocol === 'blob:') {
                 try {
                     const urlObj = new URL(window.location.href);
-                    if (urlObj.protocol === 'blob:') {
-                        base = new URL(urlObj.pathname).origin;
-                    }
+                    if (urlObj.protocol === 'blob:') base = new URL(urlObj.pathname).origin;
                 } catch (e) {
-                    // Safe fix for visual builder environment sandboxes
                     base = (window.location.ancestorOrigins && window.location.ancestorOrigins) || '';
                 }
             }
             return new URL(path, base).toString();
         }
 
-        // Custom UI system notices instead of native alert boxes
         function showNotification(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `px-4 py-3 rounded-lg text-xs font-semibold uppercase tracking-wider shadow-lg border transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center space-x-2 ${
-                type === 'success' 
-                    ? 'bg-emerald-950/90 border-emerald-500 text-emerald-400' 
-                    : 'bg-red-950/90 border-red-500 text-red-400'
+            toast.className = `px-5 py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-2xl border transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-auto flex items-center space-x-3 ${
+                type === 'success' ? 'bg-[#0f1714] border-emerald-500/30 text-emerald-400' : 'bg-[#1a0f11] border-red-500/30 text-red-400'
             }`;
             toast.innerHTML = `
-                <div class="h-2 w-2 rounded-full ${type === 'success' ? 'bg-emerald-400' : 'bg-red-400'}"></div>
+                <div class="h-2 w-2 rounded-full ${type === 'success' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-red-400 shadow-[0_0_8px_#f87171]'}"></div>
                 <span>${message}</span>
             `;
             container.appendChild(toast);
             
+            setTimeout(() => toast.classList.remove('translate-y-4', 'opacity-0'), 10);
             setTimeout(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('translate-y-2', 'opacity-0');
-                setTimeout(() => { toast.remove(); }, 300);
+                toast.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
             }, 4000);
         }
 
-        // Custom confirmation modal handler
         function showConfirm(message, onConfirm) {
             const modal = document.getElementById('confirm-modal');
-            const text = document.getElementById('confirm-text');
-            const cancelBtn = document.getElementById('confirm-cancel');
-            const proceedBtn = document.getElementById('confirm-proceed');
-
-            text.innerText = message;
+            const box = document.getElementById('modal-box');
+            document.getElementById('confirm-text').innerText = message;
+            
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            setTimeout(() => box.classList.remove('scale-95'), 10);
 
             const closeModal = () => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
+                box.classList.add('scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }, 150);
             };
 
-            cancelBtn.onclick = closeModal;
-            proceedBtn.onclick = () => {
-                onConfirm();
-                closeModal();
-            };
+            document.getElementById('confirm-cancel').onclick = closeModal;
+            document.getElementById('confirm-proceed').onclick = () => { onConfirm(); closeModal(); };
         }
 
-        // Handles initial app launch and Discord authentication check
         async function fetchSystemInitialization() {
             let data;
             const authZone = document.getElementById('auth-zone');
             const serverList = document.getElementById('server-list');
+            const helperText = document.getElementById('server-helper-text');
             
             try {
                 const response = await fetch(resolveUrl('/api/user-data'));
-                
-                // Inspect response type. If we receive an HTML document instead of JSON, trigger sandbox simulation
                 const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    throw new TypeError("Server returned an invalid non-JSON payload");
-                }
+                if (!contentType || !contentType.includes("application/json")) throw new TypeError("Offline Payload");
                 
                 data = await response.json();
                 isSandboxMode = false;
                 document.getElementById('sandbox-indicator').classList.add('hidden');
-
             } catch (err) {
-                // Graceful simulation mode activation for static workspace environments
-                console.warn("Express backend offline. Running in secure web sandbox environment.");
                 isSandboxMode = true;
                 document.getElementById('sandbox-indicator').classList.remove('hidden');
-                
                 data = {
-                    loggedIn: true,
-                    botClientId: "1234567890",
-                    user: {
-                        id: "1284247278957367337",
-                        username: "DevTester",
-                        avatar: "a_00000000000000000000000000000000"
-                    },
+                    loggedIn: true, botClientId: "123456",
+                    user: { id: "1284247278957367337", username: "DevTester", avatar: null },
                     guilds: [
-                        { id: "100001", name: "ServSecurity Home Base", icon: null, botPresent: true },
-                        { id: "100002", name: "Community Hub Terminal", icon: null, botPresent: true },
-                        { id: "100003", name: "Offline Admin Guild", icon: null, botPresent: false }
+                        { id: "1", name: "ServSecurity Base", icon: null, botPresent: true },
+                        { id: "2", name: "Community Terminal", icon: null, botPresent: false }
                     ]
                 };
             }
 
             if (!data.loggedIn) {
-                authZone.innerHTML = `<a href="/api/auth/login" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-xs font-semibold uppercase tracking-wider shadow-md shadow-indigo-600/10 transition">Initialize via Discord</a>`;
+                authZone.innerHTML = `
+                    <div class="text-center">
+                        <p class="text-xs text-zinc-500 mb-3">Connect identity to proceed</p>
+                        <a href="/api/auth/login" class="inline-block w-full text-center bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-600/20 transition">Login via Discord</a>
+                    </div>
+                `;
                 return;
             }
 
             systemBotId = data.botClientId;
             authZone.innerHTML = `
-                <div class="flex items-center space-x-3">
-                    <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-7 w-7 rounded-full ring-1 ring-zinc-800">
-                    <span class="text-xs font-medium text-zinc-300">${data.user.username}</span>
-                    <a href="${isSandboxMode ? '#' : '/api/auth/logout'}" onclick="if(isSandboxMode){location.reload()}" class="text-zinc-500 hover:text-zinc-300 text-xs uppercase tracking-wider pl-2 border-l border-zinc-800">Disconnect</a>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-9 w-9 rounded-full ring-2 ring-zinc-800">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-semibold text-white">${data.user.username}</span>
+                            <span class="text-[10px] text-zinc-500 uppercase tracking-widest">Admin Access</span>
+                        </div>
+                    </div>
+                    <a href="${isSandboxMode ? '#' : '/api/auth/logout'}" onclick="if(isSandboxMode){location.reload()}" class="p-2 text-zinc-500 hover:text-white transition bg-zinc-900 rounded-lg hover:bg-red-500/20 hover:text-red-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </a>
                 </div>
             `;
 
+            helperText.classList.remove('hidden');
+
             if (data.guilds.length === 0) {
-                serverList.innerHTML = `<p class="text-xs text-zinc-600 italic p-2">No administrative targets found.</p>`;
+                serverList.innerHTML = `
+                    <div class="p-4 bg-zinc-900/50 border border-white/5 rounded-xl text-center">
+                        <p class="text-xs text-zinc-400">No authorized servers located.</p>
+                    </div>
+                `;
                 return;
             }
 
             serverList.innerHTML = '';
             data.guilds.forEach(guild => {
+                const iconHtml = guild.icon 
+                    ? `<img src="${guild.icon}" class="h-8 w-8 rounded-lg shrink-0">` 
+                    : `<div class="h-8 w-8 rounded-lg bg-zinc-800 text-zinc-400 flex items-center justify-center font-bold text-xs shrink-0">${guild.name.charAt(0)}</div>`;
+
                 if (guild.botPresent) {
                     serverList.innerHTML += `
-                        <button onclick="selectServer('${guild.id}', '${guild.name}')" id="btn-${guild.id}" class="w-full flex items-center justify-between p-3 rounded-lg text-left text-xs font-medium border border-transparent hover:bg-zinc-900/60 hover:border-zinc-900 text-zinc-300 transition mb-1">
-                            <div class="flex items-center space-x-3 truncate">
-                                <div class="h-6 w-6 rounded bg-gradient-to-br from-indigo-600 to-blue-700 text-white flex items-center justify-center font-bold uppercase text-[10px] shrink-0">${guild.name.charAt(0)}</div>
-                                <span class="truncate">${guild.name}</span>
+                        <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="w-full flex items-center p-2 rounded-xl text-left border border-transparent hover:bg-white/5 text-zinc-300 transition group">
+                            ${iconHtml}
+                            <div class="ml-3 overflow-hidden">
+                                <p class="text-sm font-medium truncate group-hover:text-white transition">${guild.name}</p>
+                                <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mt-0.5">Online</p>
                             </div>
-                            <span class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-900/30">Ready</span>
                         </button>
                     `;
                 } else {
                     const inviteLink = `https://discord.com/api/oauth2/authorize?client_id=${systemBotId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&disable_guild_select=true`;
                     serverList.innerHTML += `
-                        <div class="w-full flex items-center justify-between p-3 rounded-lg text-left text-xs font-medium border border-transparent bg-zinc-950/20 text-zinc-600 mb-1">
-                            <div class="flex items-center space-x-3 truncate opacity-50">
-                                <div class="h-6 w-6 rounded bg-zinc-900 text-zinc-500 flex items-center justify-center font-bold uppercase text-[10px] shrink-0">${guild.name.charAt(0)}</div>
-                                <span class="truncate">${guild.name}</span>
+                        <div class="w-full flex items-center p-2 rounded-xl text-left border border-transparent bg-white/[0.02] text-zinc-500">
+                            <div class="opacity-50 grayscale">${iconHtml}</div>
+                            <div class="ml-3 flex-1 overflow-hidden">
+                                <p class="text-sm font-medium truncate">${guild.name}</p>
+                                <a href="${inviteLink}" target="_blank" class="inline-block mt-1 text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-widest transition">Add Bot +</a>
                             </div>
-                            <a href="${inviteLink}" target="_blank" class="text-[9px] font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-widest bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/50 transition">Link Bot</a>
                         </div>
                     `;
                 }
             });
         }
 
-        // Activates dashboard panel controls for chosen server terminal
         async function selectServer(guildId, name) {
-            document.querySelectorAll('#server-list button').forEach(b => b.classList.remove('bg-zinc-900', 'border-zinc-800', 'text-white'));
-            
+            document.querySelectorAll('#server-list button').forEach(b => b.classList.remove('bg-white/10', 'border-white/10'));
             const selectedBtn = document.getElementById(`btn-${guildId}`);
-            if (selectedBtn) selectedBtn.classList.add('bg-zinc-900', 'border-zinc-800', 'text-white');
+            if (selectedBtn) selectedBtn.classList.add('bg-white/10', 'border-white/10');
 
             activeGuildId = guildId;
             document.getElementById('active-server-name').innerText = name;
@@ -324,31 +377,20 @@
             await loadConfig(guildId);
         }
 
-        // Pulls server configurations via API endpoints (or LocalStorage in Sandbox)
         async function loadConfig(guildId) {
             try {
                 let config;
                 if (isSandboxMode) {
                     const localBackup = localStorage.getItem(`sandbox_conf_${guildId}`);
                     config = localBackup ? JSON.parse(localBackup) : {
-                        masterSwitch: true,
-                        linksEnabled: true,
-                        linkTimeout: 30,
-                        linkAvoids: ["discord.gg/invite", "youtube.com"],
-                        imagesEnabled: true,
-                        maxImages: 1,
-                        imageTimeout: 4320,
-                        raidEnabled: true,
-                        fileShieldEnabled: true,
-                        logDeletedEnabled: false,
-                        allowedAccess: ["1284247278957367337"]
+                        masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [],
+                        imagesEnabled: true, maxImages: 1, imageTimeout: 4320,
+                        raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, allowedAccess: []
                     };
                 } else {
                     const res = await fetch(resolveUrl(`/api/config/${guildId}`));
                     const contentType = res.headers.get("content-type");
-                    if (!contentType || !contentType.includes("application/json")) {
-                        throw new TypeError("Server returned non-JSON data");
-                    }
+                    if (!contentType || !contentType.includes("application/json")) throw new TypeError("Invalid format");
                     config = await res.json();
                 }
 
@@ -364,11 +406,10 @@
                 document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
                 document.getElementById('allowedAccess').value = config.allowedAccess.join(', ');
             } catch (err) {
-                showNotification('Failed to sync node parameters', 'error');
+                showNotification('Failed to sync parameters', 'error');
             }
         }
 
-        // Submits/saves config adjustments directly to active node storage
         async function saveConfig() {
             if (!activeGuildId) return;
 
@@ -389,41 +430,34 @@
             try {
                 if (isSandboxMode) {
                     localStorage.setItem(`sandbox_conf_${activeGuildId}`, JSON.stringify(payload));
-                    showNotification('Changes stored to sandbox browser memory.');
+                    showNotification('Changes stored locally.');
                 } else {
                     const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-
-                    if (res.ok) {
-                        showNotification('Changes committed successfully.');
-                    } else {
-                        throw new Error();
-                    }
+                    if (res.ok) showNotification('Changes committed successfully.');
+                    else throw new Error();
                 }
             } catch (err) {
-                showNotification('Could not save terminal parameters', 'error');
+                showNotification('Could not save parameters', 'error');
             }
         }
 
-        // Custom modal confirmation wrapper to handle configuration resets
         function confirmReset() {
             showConfirm('Reset terminal configuration? This reverts all active shield profiles.', async () => {
                 try {
                     if (isSandboxMode) {
                         localStorage.removeItem(`sandbox_conf_${activeGuildId}`);
-                        showNotification('Configuration wiped from sandbox memory.');
+                        showNotification('Configuration wiped from cache.');
                         await loadConfig(activeGuildId);
                     } else {
                         const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), { method: 'DELETE' });
                         if (res.ok) {
                             showNotification('Configuration wiped.');
                             await loadConfig(activeGuildId);
-                        } else {
-                            throw new Error();
-                        }
+                        } else throw new Error();
                     }
                 } catch (err) {
                     showNotification('Wipe operations unsuccessful', 'error');
