@@ -325,16 +325,13 @@ app.use((req, res, next) => {
     next();
 });
 
-const isProduction = process.env.PUBLIC_URL && process.env.PUBLIC_URL.includes('https');
 app.use(session({
     secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
     resave: false,
     saveUninitialized: false,
-    proxy: true,
     cookie: { 
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        maxAge: 600000 * 6 
+        secure: 'auto',
+        maxAge: 1000 * 60 * 60 * 24
     }
 }));
 
