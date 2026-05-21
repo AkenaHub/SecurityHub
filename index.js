@@ -313,29 +313,11 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
-
-const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
-
 app.use(session({
     secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
-    resave: true,
-    saveUninitialized: true,
-    proxy: true,
-    name: 'servsecurity.sid',
+    resave: false,
+    saveUninitialized: false,
     cookie: { 
-        secure: usingHttps,
-        sameSite: usingHttps ? 'none' : 'lax',
         maxAge: 1000 * 60 * 60 * 24
     }
 }));
