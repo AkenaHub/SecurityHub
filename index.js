@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const fs = require('fs');
 
 const client = new Client({
@@ -52,7 +52,7 @@ const INDIGO_BLUE = 0x4f46e5;
 const buildMainMenu = (settings) => {
     const embed = new EmbedBuilder()
         .setTitle('🛡️ ServSecurity | Central Matrix')
-        .setDescription('Welcome to the automated perimeter defense system. Select a module from the dropdown menu to configure your node.')
+        .setDescription('Welcome to the automated perimeter defense system. Use the control panel buttons below to manage your node settings.')
         .setColor(INDIGO_BLUE)
         .addFields(
             { 
@@ -86,20 +86,18 @@ const buildMainMenu = (settings) => {
         .setFooter({ text: 'ServSecurity • Advanced Operations' })
         .setTimestamp();
 
-    const selectMenu = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-            .setCustomId('config_menu')
-            .setPlaceholder('Configure Defense Modules...')
-            .addOptions([
-                { label: 'Core System', description: 'Toggle the master shield override', value: 'menu_core', emoji: '🌐' },
-                { label: 'Link Shield', description: 'Configure URL anti-spam filters', value: 'menu_links', emoji: '🔗' },
-                { label: 'Image Shield', description: 'Configure media containment limits', value: 'menu_images', emoji: '🖼️' },
-                { label: 'Structural Defenses', description: 'Toggle raid, file, and log modules', value: 'menu_structural', emoji: '⚔️' },
-                { label: 'System Logs', description: 'Configure the active logging channel', value: 'menu_logs', emoji: '📡' },
-            ])
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('btn_core').setLabel('Global Power').setStyle(settings.masterSwitch ? ButtonStyle.Success : ButtonStyle.Danger).setEmoji('🌐'),
+        new ButtonBuilder().setCustomId('btn_links').setLabel('Link Shield').setStyle(ButtonStyle.Primary).setEmoji('🔗'),
+        new ButtonBuilder().setCustomId('btn_images').setLabel('Image Shield').setStyle(ButtonStyle.Primary).setEmoji('🖼️')
     );
 
-    return { embeds: [embed], components: [selectMenu] };
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('btn_structural').setLabel('Structural Defenses').setStyle(ButtonStyle.Secondary).setEmoji('⚔️'),
+        new ButtonBuilder().setCustomId('btn_logs').setLabel('System Logs').setStyle(ButtonStyle.Secondary).setEmoji('📡')
+    );
+
+    return { embeds: [embed], components: [row1, row2] };
 };
 
 const buildLinkMenu = (settings) => {
@@ -215,30 +213,23 @@ client.on(Events.InteractionCreate, async interaction => {
             return;
         }
 
-        if (interaction.isStringSelectMenu() && interaction.customId === 'config_menu') {
-            const choice = interaction.values;
-            
-            if (choice === 'menu_core') {
-                settings.masterSwitch = !settings.masterSwitch;
-                saveDatabase();
-                await interaction.update(buildMainMenu(settings));
-            } else if (choice === 'menu_links') {
-                await interaction.update(buildLinkMenu(settings));
-            } else if (choice === 'menu_images') {
-                await interaction.update(buildImageMenu(settings));
-            } else if (choice === 'menu_structural') {
-                await interaction.update(buildStructuralMenu(settings));
-            } else if (choice === 'menu_logs') {
-                await interaction.update(buildLogsMenu(settings));
-            }
-            return;
-        }
-
         if (interaction.isButton()) {
             const id = interaction.customId;
 
             if (id === 'back_main') {
                 await interaction.update(buildMainMenu(settings));
+            } else if (id === 'btn_core') {
+                settings.masterSwitch = !settings.masterSwitch;
+                saveDatabase();
+                await interaction.update(buildMainMenu(settings));
+            } else if (id === 'btn_links') {
+                await interaction.update(buildLinkMenu(settings));
+            } else if (id === 'btn_images') {
+                await interaction.update(buildImageMenu(settings));
+            } else if (id === 'btn_structural') {
+                await interaction.update(buildStructuralMenu(settings));
+            } else if (id === 'btn_logs') {
+                await interaction.update(buildLogsMenu(settings));
             } else if (id === 'toggle_links') {
                 settings.linksEnabled = !settings.linksEnabled;
                 saveDatabase();
