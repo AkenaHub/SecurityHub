@@ -73,6 +73,8 @@ const saveLocalDatabase = () => {
 };
 
 const getSettings = async (guildId) => {
+    if (guildSettings[guildId]) return guildSettings[guildId];
+
     if (firestoreReady && firestoreDb) {
         try {
             const docRef = doc(firestoreDb, 'artifacts', appId, 'public', 'data', 'guilds', guildId);
@@ -85,24 +87,23 @@ const getSettings = async (guildId) => {
         } catch (e) {}
     }
 
-    if (!guildSettings[guildId]) {
-        guildSettings[guildId] = {
-            masterSwitch: true, 
-            linksEnabled: true,
-            linkTimeout: 30,
-            linkAvoids: [], 
-            allowedAccess: [],
-            imagesEnabled: true,
-            maxImages: 1,
-            imageTimeout: 4320,
-            raidEnabled: true,
-            fileShieldEnabled: true,
-            logDeletedEnabled: false,
-            logChannelId: null,
-            history: []
-        };
-        await saveSettings(guildId, guildSettings[guildId]);
-    }
+    guildSettings[guildId] = {
+        masterSwitch: true, 
+        linksEnabled: true,
+        linkTimeout: 30,
+        linkAvoids: [], 
+        allowedAccess: [],
+        imagesEnabled: true,
+        maxImages: 1,
+        imageTimeout: 4320,
+        raidEnabled: true,
+        fileShieldEnabled: true,
+        logDeletedEnabled: false,
+        logChannelId: null,
+        history: []
+    };
+    await saveSettings(guildId, guildSettings[guildId]);
+    
     return guildSettings[guildId];
 };
 
@@ -352,154 +353,181 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.guild) return;
 
-    const settings = await getSettings(interaction.guildId);
-    
-    const allowedUserId = '1284247278957367337';
-    const isServerOwner = interaction.user.id === interaction.guild.ownerId;
-    const isWhitelistedUser = interaction.user.id === allowedUserId;
-    
-    let hasAccess = isServerOwner || isWhitelistedUser;
-
-    if (!hasAccess && settings.allowedAccess.length > 0) {
-        if (settings.allowedAccess.includes(interaction.user.id)) {
-            hasAccess = true;
-        }
-        if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) {
-            hasAccess = true;
-        }
-    }
-
-    if (!hasAccess) {
-        return interaction.reply({
-            content: '❌ **Access Denied:** You do not have permission to use or view the security panel.',
-            ephemeral: true
-        });
-    }
-
-    if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
-        const dashboard = await generateDashboard(interaction.guildId, 1);
-        await interaction.reply(dashboard);
-    }
-
-    if (interaction.isButton()) {
-        if (interaction.customId === 'nav_page1') {
-            const dashboard = await generateDashboard(interaction.guildId, 1);
-            return interaction.update(dashboard);
-        }
-        if (interaction.customId === 'nav_page2') {
-            const dashboard = await generateDashboard(interaction.guildId, 2);
-            return interaction.update(dashboard);
-        }
-        if (interaction.customId === 'nav_page3') {
-            const dashboard = await generateDashboard(interaction.guildId, 3);
-            return interaction.update(dashboard);
-        }
-
-        if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
-            if (interaction.customId === 'toggle_master') await updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
-            if (interaction.customId === 'toggle_links') await updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
-            if (interaction.customId === 'toggle_images') await updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
-            if (interaction.customId === 'toggle_raid') await updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
-            if (interaction.customId === 'toggle_files') await updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
+    if (interaction.isChatInputCommand() || interaction.isButton() || interaction.isModalSubmit() || interaction.isChannelSelectMenu()) {
+        try {
+            const settings = await getSettings(interaction.guildId);
             
-            const dashboard = await generateDashboard(interaction.guildId, 1);
-            return interaction.update(dashboard);
-        }
+            const allowedUserId = '1284247278957367337';
+            const isServerOwner = interaction.user.id === interaction.guild.ownerId;
+            const isWhitelistedUser = interaction.user.id === allowedUserId;
+            
+            let hasAccess = isServerOwner || isWhitelistedUser;
 
-        if (interaction.customId === 'toggle_deleted') {
-            await updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
-            const dashboard = await generateDashboard(interaction.guildId, 2);
-            return interaction.update(dashboard);
-        }
+            if (!hasAccess && settings.allowedAccess.length > 0) {
+                if (settings.allowedAccess.includes(interaction.user.id)) {
+                    hasAccess = true;
+                }
+                if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) {
+                    hasAccess = true;
+                }
+            }
 
-        if (interaction.customId === 'edit_links') {
-            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
-            modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
-            await interaction.showModal(modal);
-        }
+            if (!hasAccess) {
+                if (!interaction.replied && !interaction.deferred) {
+                    return interaction.reply({
+                        content: '❌ **Access Denied:** You do not have permission to use or view the security panel.',
+                        ephemeral: true
+                    });
+                }
+                return;
+            }
 
-        if (interaction.customId === 'edit_avoids') {
-            const modal = new ModalBuilder().setCustomId('modal_avoids').setTitle('Configure Allowed Links');
-            modal.addComponents(new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('input_avoids')
-                    .setLabel('Enter domains/invites to AVOID (comma-sep)')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('discord.gg/yourserver, discord.com/invite/xyz')
-                    .setRequired(false)
-                    .setValue(settings.linkAvoids.join(', '))
-            ));
-            await interaction.showModal(modal);
-        }
+            if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
+                await interaction.deferReply({ ephemeral: true });
+                const dashboard = await generateDashboard(interaction.guildId, 1);
+                await interaction.editReply(dashboard);
+                return;
+            }
 
-        if (interaction.customId === 'edit_access') {
-            const modal = new ModalBuilder().setCustomId('modal_access').setTitle('Configure Panel Access');
-            modal.addComponents(new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('input_access')
-                    .setLabel('Enter User/Role IDs (Separate with commas)')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('123456789012345678, 987654321098765432')
-                    .setRequired(false)
-                    .setValue(settings.allowedAccess.join(', '))
-            ));
-            await interaction.showModal(modal);
-        }
+            if (interaction.isButton()) {
+                const modalButtons = ['edit_links', 'edit_avoids', 'edit_access', 'edit_images'];
+                
+                if (!modalButtons.includes(interaction.customId)) {
+                    await interaction.deferUpdate();
+                }
 
-        if (interaction.customId === 'edit_images') {
-            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_max').setLabel('Trigger limit (e.g. 1, 3, 5)').setStyle(TextInputStyle.Short).setRequired(true).setValue(settings.maxImages.toString())),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_timeout').setLabel('Timeout (e.g. 60m, 7d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.imageTimeout)))
-            );
-            await interaction.showModal(modal);
-        }
-    }
+                if (interaction.customId === 'nav_page1') {
+                    const dashboard = await generateDashboard(interaction.guildId, 1);
+                    return interaction.editReply(dashboard);
+                }
+                if (interaction.customId === 'nav_page2') {
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
+                    return interaction.editReply(dashboard);
+                }
+                if (interaction.customId === 'nav_page3') {
+                    const dashboard = await generateDashboard(interaction.guildId, 3);
+                    return interaction.editReply(dashboard);
+                }
 
-    if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'modal_links') {
-            const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
-            if (parsed) await updateSetting(interaction.guildId, 'linkTimeout', parsed);
-            const dashboard = await generateDashboard(interaction.guildId, 2);
-            await interaction.update(dashboard);
-        }
+                if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
+                    if (interaction.customId === 'toggle_master') await updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
+                    if (interaction.customId === 'toggle_links') await updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
+                    if (interaction.customId === 'toggle_images') await updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
+                    if (interaction.customId === 'toggle_raid') await updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
+                    if (interaction.customId === 'toggle_files') await updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
+                    
+                    const dashboard = await generateDashboard(interaction.guildId, 1);
+                    return interaction.editReply(dashboard);
+                }
 
-        if (interaction.customId === 'modal_avoids') {
-            const rawInput = interaction.fields.getTextInputValue('input_avoids');
-            const processedList = rawInput.split(',')
-                .map(item => item.trim().toLowerCase())
-                .filter(item => item.length > 0);
+                if (interaction.customId === 'toggle_deleted') {
+                    await updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
+                    return interaction.editReply(dashboard);
+                }
 
-            await updateSetting(interaction.guildId, 'linkAvoids', processedList);
-            const dashboard = await generateDashboard(interaction.guildId, 2);
-            await interaction.update(dashboard);
-        }
+                if (interaction.customId === 'edit_links') {
+                    const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
+                    modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
+                    await interaction.showModal(modal);
+                    return;
+                }
 
-        if (interaction.customId === 'modal_access') {
-            const rawInput = interaction.fields.getTextInputValue('input_access');
-            const processedList = rawInput.split(',')
-                .map(item => item.trim())
-                .filter(item => item.length > 0);
+                if (interaction.customId === 'edit_avoids') {
+                    const modal = new ModalBuilder().setCustomId('modal_avoids').setTitle('Configure Allowed Links');
+                    modal.addComponents(new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('input_avoids')
+                            .setLabel('Enter domains/invites to AVOID (comma-sep)')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('discord.gg/yourserver, discord.com/invite/xyz')
+                            .setRequired(false)
+                            .setValue(settings.linkAvoids.join(', '))
+                    ));
+                    await interaction.showModal(modal);
+                    return;
+                }
 
-            await updateSetting(interaction.guildId, 'allowedAccess', processedList);
-            const dashboard = await generateDashboard(interaction.guildId, 2);
-            await interaction.update(dashboard);
-        }
+                if (interaction.customId === 'edit_access') {
+                    const modal = new ModalBuilder().setCustomId('modal_access').setTitle('Configure Panel Access');
+                    modal.addComponents(new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('input_access')
+                            .setLabel('Enter User/Role IDs (Separate with commas)')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('123456789012345678, 987654321098765432')
+                            .setRequired(false)
+                            .setValue(settings.allowedAccess.join(', '))
+                    ));
+                    await interaction.showModal(modal);
+                    return;
+                }
 
-        if (interaction.customId === 'modal_images') {
-            const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
-            const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
-            if (!isNaN(max) && max > 0) await updateSetting(interaction.guildId, 'maxImages', max);
-            if (parsedTimeout) await updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
-            const dashboard = await generateDashboard(interaction.guildId, 2);
-            await interaction.update(dashboard);
-        }
-    }
+                if (interaction.customId === 'edit_images') {
+                    const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
+                    modal.addComponents(
+                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_max').setLabel('Trigger limit (e.g. 1, 3, 5)').setStyle(TextInputStyle.Short).setRequired(true).setValue(settings.maxImages.toString())),
+                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_timeout').setLabel('Timeout (e.g. 60m, 7d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.imageTimeout)))
+                    );
+                    await interaction.showModal(modal);
+                    return;
+                }
+            }
 
-    if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
-        await updateSetting(interaction.guildId, 'logChannelId', interaction.values);
-        const dashboard = await generateDashboard(interaction.guildId, 2);
-        await interaction.update(dashboard); 
+            if (interaction.isModalSubmit()) {
+                await interaction.deferUpdate();
+                
+                if (interaction.customId === 'modal_links') {
+                    const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
+                    if (parsed) await updateSetting(interaction.guildId, 'linkTimeout', parsed);
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
+                    await interaction.editReply(dashboard);
+                    return;
+                }
+
+                if (interaction.customId === 'modal_avoids') {
+                    const rawInput = interaction.fields.getTextInputValue('input_avoids');
+                    const processedList = rawInput.split(',')
+                        .map(item => item.trim().toLowerCase())
+                        .filter(item => item.length > 0);
+
+                    await updateSetting(interaction.guildId, 'linkAvoids', processedList);
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
+                    await interaction.editReply(dashboard);
+                    return;
+                }
+
+                if (interaction.customId === 'modal_access') {
+                    const rawInput = interaction.fields.getTextInputValue('input_access');
+                    const processedList = rawInput.split(',')
+                        .map(item => item.trim())
+                        .filter(item => item.length > 0);
+
+                    await updateSetting(interaction.guildId, 'allowedAccess', processedList);
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
+                    await interaction.editReply(dashboard);
+                    return;
+                }
+
+                if (interaction.customId === 'modal_images') {
+                    const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
+                    const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
+                    if (!isNaN(max) && max > 0) await updateSetting(interaction.guildId, 'maxImages', max);
+                    if (parsedTimeout) await updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
+                    await interaction.editReply(dashboard);
+                    return;
+                }
+            }
+
+            if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
+                await interaction.deferUpdate();
+                await updateSetting(interaction.guildId, 'logChannelId', interaction.values);
+                const dashboard = await generateDashboard(interaction.guildId, 2);
+                await interaction.editReply(dashboard); 
+                return;
+            }
+        } catch (error) {}
     }
 });
 
