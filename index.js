@@ -327,11 +327,9 @@ app.use((req, res, next) => {
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: { 
-        secure: true,
-        sameSite: 'none',
         maxAge: 1000 * 60 * 60 * 24
     }
 }));
