@@ -51,35 +51,37 @@ const INDIGO_BLUE = 0x4f46e5;
 
 const buildMainMenu = (settings) => {
     const embed = new EmbedBuilder()
-        .setTitle('❖ ServSecurity Command Matrix')
-        .setDescription('Select a module from the menu below to configure your defensive perimeters.')
+        .setTitle('🛡️ ServSecurity | Central Matrix')
+        .setDescription('Welcome to the automated perimeter defense system. Select a module from the dropdown menu to configure your node.')
         .setColor(INDIGO_BLUE)
         .addFields(
             { 
-                name: '🌐 Core System', 
-                value: `>>> **Master Shield:** ${settings.masterSwitch ? '🟢 ACTIVE' : '🔴 OFFLINE'}`,
+                name: '🌐 Global Override', 
+                value: `\`\`\`yaml\nStatus: ${settings.masterSwitch ? 'ONLINE 🟢' : 'OFFLINE 🔴'}\n\`\`\``,
                 inline: false
             },
             { 
                 name: '🔗 Link Shield', 
-                value: `>>> **Status:** ${settings.linksEnabled ? '🟢' : '🔴'}\n**Timeout:** ${settings.linkTimeout}m\n**Avoids:** ${settings.linkAvoids.length}`,
+                value: `> **Status:** ${settings.linksEnabled ? '🟢' : '🔴'}\n> **Timeout:** ${settings.linkTimeout}m\n> **Avoids:** ${settings.linkAvoids.length}`,
                 inline: true
             },
             { 
                 name: '🖼️ Image Shield', 
-                value: `>>> **Status:** ${settings.imagesEnabled ? '🟢' : '🔴'}\n**Limit:** ${settings.maxImages} imgs\n**Timeout:** ${settings.imageTimeout}m`,
+                value: `> **Status:** ${settings.imagesEnabled ? '🟢' : '🔴'}\n> **Limit:** ${settings.maxImages} imgs\n> **Timeout:** ${settings.imageTimeout}m`,
                 inline: true
             },
+            { name: '\u200B', value: '\u200B', inline: true },
             { 
                 name: '⚔️ Structural Defenses', 
-                value: `>>> **Raid Matrix:** ${settings.raidEnabled ? '🟢' : '🔴'}\n**Exec Sandbox:** ${settings.fileShieldEnabled ? '🟢' : '🔴'}\n**Log Deletions:** ${settings.logDeletedEnabled ? '🟢' : '🔴'}`,
-                inline: false
+                value: `> **Raid Blocker:** ${settings.raidEnabled ? '🟢' : '🔴'}\n> **File Sandbox:** ${settings.fileShieldEnabled ? '🟢' : '🔴'}\n> **Del Logs:** ${settings.logDeletedEnabled ? '🟢' : '🔴'}`,
+                inline: true
             },
             {
                 name: '📡 System Logs',
-                value: `>>> **Channel:** ${settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Set'}`,
-                inline: false
-            }
+                value: `> **Channel:**\n> ${settings.logChannelId ? `<#${settings.logChannelId}>` : '`Not Configured`'}`,
+                inline: true
+            },
+            { name: '\u200B', value: '\u200B', inline: true }
         )
         .setFooter({ text: 'ServSecurity • Advanced Operations' })
         .setTimestamp();
@@ -106,15 +108,15 @@ const buildLinkMenu = (settings) => {
         .setDescription('Purges unauthorized invites and domains matching prohibited definitions.')
         .setColor(INDIGO_BLUE)
         .addFields(
-            { name: 'Current Status', value: settings.linksEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
-            { name: 'Timeout Duration', value: `${settings.linkTimeout} Minutes`, inline: true },
-            { name: 'Avoids List', value: settings.linkAvoids.length > 0 ? `\`${settings.linkAvoids.join(', ')}\`` : 'None', inline: false }
+            { name: 'Network Status', value: `\`\`\`yaml\n${settings.linksEnabled ? 'ACTIVE 🟢' : 'OFFLINE 🔴'}\n\`\`\``, inline: false },
+            { name: 'Timeout Duration', value: `> **${settings.linkTimeout}** Minutes`, inline: true },
+            { name: 'Avoids List', value: settings.linkAvoids.length > 0 ? `> \`${settings.linkAvoids.join('`, `')}\`` : '> `None`', inline: true }
         );
 
     const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.linksEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.linksEnabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌'),
+        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary).setEmoji('⚙️'),
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
     );
 
     return { embeds: [embed], components: [buttons] };
@@ -126,15 +128,15 @@ const buildImageMenu = (settings) => {
         .setDescription('Filters mass-media and restricts high frequency image spam.')
         .setColor(INDIGO_BLUE)
         .addFields(
-            { name: 'Current Status', value: settings.imagesEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
-            { name: 'Max Burst Limit', value: `${settings.maxImages} Images`, inline: true },
-            { name: 'Timeout Duration', value: `${settings.imageTimeout} Minutes`, inline: false }
+            { name: 'Network Status', value: `\`\`\`yaml\n${settings.imagesEnabled ? 'ACTIVE 🟢' : 'OFFLINE 🔴'}\n\`\`\``, inline: false },
+            { name: 'Max Burst Limit', value: `> **${settings.maxImages}** Images`, inline: true },
+            { name: 'Timeout Duration', value: `> **${settings.imageTimeout}** Minutes`, inline: true }
         );
 
     const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌'),
+        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary).setEmoji('⚙️'),
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
     );
 
     return { embeds: [embed], components: [buttons] };
@@ -146,18 +148,18 @@ const buildStructuralMenu = (settings) => {
         .setDescription('Manage core perimeter defenses against raids and malicious files.')
         .setColor(INDIGO_BLUE)
         .addFields(
-            { name: 'Raid Matrix Blocker', value: settings.raidEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
-            { name: 'Executable Sandbox', value: settings.fileShieldEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
-            { name: 'Log Deleted Transmissions', value: settings.logDeletedEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: false }
+            { name: 'Raid Matrix Blocker', value: settings.raidEnabled ? '> 🟢 **ACTIVE**' : '> 🔴 **OFFLINE**', inline: true },
+            { name: 'Executable Sandbox', value: settings.fileShieldEnabled ? '> 🟢 **ACTIVE**' : '> 🔴 **OFFLINE**', inline: true },
+            { name: 'Log Deleted Trans.', value: settings.logDeletedEnabled ? '> 🟢 **ACTIVE**' : '> 🔴 **OFFLINE**', inline: true }
         );
 
     const buttons1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Toggle Raid').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('toggle_file').setLabel('Toggle Sandbox').setStyle(settings.fileShieldEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('toggle_logdel').setLabel('Toggle Del Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Toggle Raid').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🛡️'),
+        new ButtonBuilder().setCustomId('toggle_file').setLabel('Toggle Sandbox').setStyle(settings.fileShieldEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('📁'),
+        new ButtonBuilder().setCustomId('toggle_logdel').setLabel('Toggle Del Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️')
     );
     const buttons2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
     );
 
     return { embeds: [embed], components: [buttons1, buttons2] };
@@ -169,12 +171,12 @@ const buildLogsMenu = (settings) => {
         .setDescription('Set the destination for security alerts and transmission logs.')
         .setColor(INDIGO_BLUE)
         .addFields(
-            { name: 'Current Target Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Configured', inline: false }
+            { name: 'Current Target Channel', value: settings.logChannelId ? `>>> <#${settings.logChannelId}>` : '>>> `Not Configured`', inline: false }
         );
 
     const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('set_log_channel').setLabel('Set to Current Channel').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('set_log_channel').setLabel('Set to Current Channel').setStyle(ButtonStyle.Primary).setEmoji('📍'),
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
     );
 
     return { embeds: [embed], components: [buttons] };
