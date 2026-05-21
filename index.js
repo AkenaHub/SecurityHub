@@ -244,6 +244,7 @@ const generateDashboard = async (guildId, page = 1) => {
 
         const row3 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('create_db').setLabel('Create DB Channel').setStyle(ButtonStyle.Success).setEmoji('📦'),
             new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
         );
 
@@ -412,6 +413,32 @@ client.on('interactionCreate', async interaction => {
                 }
                 if (interaction.customId === 'nav_page3') {
                     const dashboard = await generateDashboard(interaction.guildId, 3);
+                    return interaction.editReply(dashboard);
+                }
+
+                if (interaction.customId === 'create_db') {
+                    let channel = interaction.guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
+                    if (!channel) {
+                        channel = await interaction.guild.channels.create({
+                            name: 'servsecurity-database',
+                            type: ChannelType.GuildText,
+                            permissionOverwrites: [
+                                {
+                                    id: interaction.guild.id,
+                                    deny: [PermissionFlagsBits.ViewChannel],
+                                },
+                                {
+                                    id: client.user.id,
+                                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                                }
+                            ]
+                        });
+                        await saveToCloud(interaction.guild, settings);
+                        await interaction.followUp({ content: '✅ **Database channel successfully created!** Settings synced.', ephemeral: true });
+                    } else {
+                        await interaction.followUp({ content: 'ℹ️ **Database channel already exists.**', ephemeral: true });
+                    }
+                    const dashboard = await generateDashboard(interaction.guildId, 2);
                     return interaction.editReply(dashboard);
                 }
 
