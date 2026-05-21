@@ -9,7 +9,6 @@ const {
     AuditLogEvent, Events, PermissionFlagsBits
 } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
 
 const client = new Client({
     intents: [
@@ -43,6 +42,22 @@ const saveLocalDatabase = () => {
 
 const syncWithDiscord = async (guild) => {
     try {
+        const channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
+        if (!channel) return; 
+
+        const messages = await channel.messages.fetch({ limit: 10 });
+        const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
+        
+        if (dbMessage) {
+            const rawJson = dbMessage.content.replace(/```json|```/g, '').trim();
+            guildSettings[guild.id] = JSON.parse(rawJson);
+            saveLocalDatabase();
+        }
+    } catch (e) {}
+};
+
+const saveToCloud = async (guild, settings) => {
+    try {
         let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
         
         if (!channel) {
@@ -65,17 +80,19 @@ const syncWithDiscord = async (guild) => {
         const messages = await channel.messages.fetch({ limit: 10 });
         const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
         
-        if (dbMessage) {
-            const rawJson = dbMessage.content.replace(/```json|```/g, '').trim();
-            const parsed = JSON.parse(rawJson);
-            guildSettings[guild.id] = parsed;
-            saveLocalDatabase();
-        } else {
-            await channel.send(`\`\`\`json\n${JSON.stringify(guildSettings[guild.id] || {}, null, 4)}\n\`\`\``);
+        let payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
+        
+        if (payload.length > 1950) {
+            settings.history = settings.history.slice(0, 4); 
+            payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
         }
-    } catch (e) {
-        console.error(e);
-    }
+
+        if (dbMessage) {
+            await dbMessage.edit(payload);
+        } else {
+            await channel.send(payload);
+        }
+    } catch (e) {}
 };
 
 const getSettings = async (guildId) => {
@@ -105,21 +122,7 @@ const updateSetting = async (guild, key, value) => {
     settings[key] = value;
     guildSettings[guild.id] = settings;
     saveLocalDatabase();
-
-    try {
-        const channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
-        if (channel) {
-            const messages = await channel.messages.fetch({ limit: 10 });
-            const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
-            
-            const payload = `\`\`\`json\n${JSON.stringify(settings, null, 4)}\n\`\`\``;
-            if (dbMessage) {
-                await dbMessage.edit(payload);
-            } else {
-                await channel.send(payload);
-            }
-        }
-    } catch (e) {}
+    await saveToCloud(guild, settings);
 };
 
 const logAction = async (guild, type, username, userId, reason) => {
@@ -137,7 +140,10 @@ const logAction = async (guild, type, username, userId, reason) => {
     if (settings.history.length > 10) {
         settings.history = settings.history.slice(0, 10);
     }
-    await updateSetting(guild, 'history', settings.history);
+    
+    guildSettings[guild.id] = settings;
+    saveLocalDatabase();
+    await saveToCloud(guild, settings);
 };
 
 const parseDuration = (input) => {
