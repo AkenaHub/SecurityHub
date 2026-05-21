@@ -6,13 +6,10 @@ const {
     ChannelSelectMenuBuilder, ChannelType, 
     ModalBuilder, TextInputBuilder, TextInputStyle,
     REST, Routes, SlashCommandBuilder,
-    AuditLogEvent, Events
+    AuditLogEvent, Events, PermissionFlagsBits
 } = require('discord.js');
 const fs = require('fs');
-
-const { initializeApp } = require('firebase/app');
-const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
-const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
+const path = require('path');
 
 const client = new Client({
     intents: [
@@ -27,36 +24,6 @@ const client = new Client({
 
 const dbFile = './database.json';
 let guildSettings = {};
-let firestoreDb = null;
-let firestoreReady = false;
-
-const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.APP_ID || 'servsecurity-app');
-
-const initRemoteStorage = async () => {
-    try {
-        const hasConfig = typeof __firebase_config !== 'undefined' || process.env.FIREBASE_CONFIG;
-        if (!hasConfig) return;
-
-        const config = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : JSON.parse(process.env.FIREBASE_CONFIG);
-
-        const app = initializeApp(config);
-        const auth = getAuth(app);
-        
-        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : process.env.FIREBASE_AUTH_TOKEN;
-        if (token) {
-            await signInWithCustomToken(auth, token);
-        } else {
-            await signInAnonymously(auth);
-        }
-
-        firestoreDb = getFirestore(app);
-        firestoreReady = true;
-    } catch (e) {
-        firestoreReady = false;
-    }
-};
 
 const loadLocalDatabase = () => {
     if (fs.existsSync(dbFile)) {
@@ -69,64 +36,94 @@ const loadLocalDatabase = () => {
 };
 
 const saveLocalDatabase = () => {
-    fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
+    try {
+        fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
+    } catch (e) {}
+};
+
+const syncWithDiscord = async (guild) => {
+    try {
+        let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
+        
+        if (!channel) {
+            channel = await guild.channels.create({
+                name: 'servsecurity-database',
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel],
+                    },
+                    {
+                        id: client.user.id,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                    }
+                ]
+            });
+        }
+
+        const messages = await channel.messages.fetch({ limit: 10 });
+        const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
+        
+        if (dbMessage) {
+            const rawJson = dbMessage.content.replace(/```json|```/g, '').trim();
+            const parsed = JSON.parse(rawJson);
+            guildSettings[guild.id] = parsed;
+            saveLocalDatabase();
+        } else {
+            await channel.send(`\`\`\`json\n${JSON.stringify(guildSettings[guild.id] || {}, null, 4)}\n\`\`\``);
+        }
+    } catch (e) {
+        console.error(e);
+    }
 };
 
 const getSettings = async (guildId) => {
-    if (guildSettings[guildId]) return guildSettings[guildId];
-
-    if (firestoreReady && firestoreDb) {
-        try {
-            const docRef = doc(firestoreDb, 'artifacts', appId, 'public', 'data', 'guilds', guildId);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                guildSettings[guildId] = data;
-                return data;
-            }
-        } catch (e) {}
+    if (!guildSettings[guildId]) {
+        guildSettings[guildId] = {
+            masterSwitch: true, 
+            linksEnabled: true,
+            linkTimeout: 30,
+            linkAvoids: [], 
+            allowedAccess: [],
+            imagesEnabled: true,
+            maxImages: 1,
+            imageTimeout: 4320,
+            raidEnabled: true,
+            fileShieldEnabled: true,
+            logDeletedEnabled: false,
+            logChannelId: null,
+            history: []
+        };
+        saveLocalDatabase();
     }
-
-    guildSettings[guildId] = {
-        masterSwitch: true, 
-        linksEnabled: true,
-        linkTimeout: 30,
-        linkAvoids: [], 
-        allowedAccess: [],
-        imagesEnabled: true,
-        maxImages: 1,
-        imageTimeout: 4320,
-        raidEnabled: true,
-        fileShieldEnabled: true,
-        logDeletedEnabled: false,
-        logChannelId: null,
-        history: []
-    };
-    await saveSettings(guildId, guildSettings[guildId]);
-    
     return guildSettings[guildId];
 };
 
-const saveSettings = async (guildId, settings) => {
-    guildSettings[guildId] = settings;
+const updateSetting = async (guild, key, value) => {
+    const settings = await getSettings(guild.id);
+    settings[key] = value;
+    guildSettings[guild.id] = settings;
     saveLocalDatabase();
 
-    if (firestoreReady && firestoreDb) {
-        try {
-            const docRef = doc(firestoreDb, 'artifacts', appId, 'public', 'data', 'guilds', guildId);
-            await setDoc(docRef, settings, { merge: true });
-        } catch (e) {}
-    }
+    try {
+        const channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
+        if (channel) {
+            const messages = await channel.messages.fetch({ limit: 10 });
+            const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
+            
+            const payload = `\`\`\`json\n${JSON.stringify(settings, null, 4)}\n\`\`\``;
+            if (dbMessage) {
+                await dbMessage.edit(payload);
+            } else {
+                await channel.send(payload);
+            }
+        }
+    } catch (e) {}
 };
 
-const updateSetting = async (guildId, key, value) => {
-    const settings = await getSettings(guildId);
-    settings[key] = value;
-    await saveSettings(guildId, settings);
-};
-
-const logAction = async (guildId, type, username, userId, reason) => {
-    const settings = await getSettings(guildId);
+const logAction = async (guild, type, username, userId, reason) => {
+    const settings = await getSettings(guild.id);
     if (!settings.history) settings.history = [];
     
     settings.history.unshift({
@@ -140,7 +137,7 @@ const logAction = async (guildId, type, username, userId, reason) => {
     if (settings.history.length > 10) {
         settings.history = settings.history.slice(0, 10);
     }
-    await saveSettings(guildId, settings);
+    await updateSetting(guild, 'history', settings.history);
 };
 
 const parseDuration = (input) => {
@@ -270,7 +267,7 @@ const generateDashboard = async (guildId, page = 1) => {
     }
 };
 
-const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
+const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/.+)|(discord\.com\/invite\/.+)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
@@ -280,7 +277,10 @@ const createLogEmbed = (title, description, color) => {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     loadLocalDatabase();
-    await initRemoteStorage();
+
+    for (const [id, guild] of client.guilds.cache) {
+        await syncWithDiscord(guild);
+    }
 
     try {
         console.log('🔄 Syncing global application (/) commands...');
@@ -297,9 +297,7 @@ client.once('ready', async () => {
             { body: commands }
         );
         console.log('✅ Global commands updated successfully across all servers!');
-    } catch (error) {
-        console.error('❌ Failed to deploy global commands on startup:', error);
-    }
+    } catch (error) {}
 });
 
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
@@ -332,7 +330,7 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     }
 
     if (actionType) {
-        await logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
+        await logAction(guild, actionType, target.username || target.tag, target.id, reason);
 
         if (settings.logChannelId) {
             try {
@@ -412,18 +410,18 @@ client.on('interactionCreate', async interaction => {
                 }
 
                 if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
-                    if (interaction.customId === 'toggle_master') await updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
-                    if (interaction.customId === 'toggle_links') await updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
-                    if (interaction.customId === 'toggle_images') await updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
-                    if (interaction.customId === 'toggle_raid') await updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
-                    if (interaction.customId === 'toggle_files') await updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
+                    if (interaction.customId === 'toggle_master') await updateSetting(interaction.guild, 'masterSwitch', !settings.masterSwitch);
+                    if (interaction.customId === 'toggle_links') await updateSetting(interaction.guild, 'linksEnabled', !settings.linksEnabled);
+                    if (interaction.customId === 'toggle_images') await updateSetting(interaction.guild, 'imagesEnabled', !settings.imagesEnabled);
+                    if (interaction.customId === 'toggle_raid') await updateSetting(interaction.guild, 'raidEnabled', !settings.raidEnabled);
+                    if (interaction.customId === 'toggle_files') await updateSetting(interaction.guild, 'fileShieldEnabled', !settings.fileShieldEnabled);
                     
                     const dashboard = await generateDashboard(interaction.guildId, 1);
                     return interaction.editReply(dashboard);
                 }
 
                 if (interaction.customId === 'toggle_deleted') {
-                    await updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
+                    await updateSetting(interaction.guild, 'logDeletedEnabled', !settings.logDeletedEnabled);
                     const dashboard = await generateDashboard(interaction.guildId, 2);
                     return interaction.editReply(dashboard);
                 }
@@ -481,7 +479,7 @@ client.on('interactionCreate', async interaction => {
                 
                 if (interaction.customId === 'modal_links') {
                     const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
-                    if (parsed) await updateSetting(interaction.guildId, 'linkTimeout', parsed);
+                    if (parsed) await updateSetting(interaction.guild, 'linkTimeout', parsed);
                     const dashboard = await generateDashboard(interaction.guildId, 2);
                     await interaction.editReply(dashboard);
                     return;
@@ -493,7 +491,7 @@ client.on('interactionCreate', async interaction => {
                         .map(item => item.trim().toLowerCase())
                         .filter(item => item.length > 0);
 
-                    await updateSetting(interaction.guildId, 'linkAvoids', processedList);
+                    await updateSetting(interaction.guild, 'linkAvoids', processedList);
                     const dashboard = await generateDashboard(interaction.guildId, 2);
                     await interaction.editReply(dashboard);
                     return;
@@ -505,7 +503,7 @@ client.on('interactionCreate', async interaction => {
                         .map(item => item.trim())
                         .filter(item => item.length > 0);
 
-                    await updateSetting(interaction.guildId, 'allowedAccess', processedList);
+                    await updateSetting(interaction.guild, 'allowedAccess', processedList);
                     const dashboard = await generateDashboard(interaction.guildId, 2);
                     await interaction.editReply(dashboard);
                     return;
@@ -514,8 +512,8 @@ client.on('interactionCreate', async interaction => {
                 if (interaction.customId === 'modal_images') {
                     const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
                     const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
-                    if (!isNaN(max) && max > 0) await updateSetting(interaction.guildId, 'maxImages', max);
-                    if (parsedTimeout) await updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
+                    if (!isNaN(max) && max > 0) await updateSetting(interaction.guild, 'maxImages', max);
+                    if (parsedTimeout) await updateSetting(interaction.guild, 'imageTimeout', parsedTimeout);
                     const dashboard = await generateDashboard(interaction.guildId, 2);
                     await interaction.editReply(dashboard);
                     return;
@@ -524,14 +522,12 @@ client.on('interactionCreate', async interaction => {
 
             if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
                 await interaction.deferUpdate();
-                await updateSetting(interaction.guildId, 'logChannelId', interaction.values);
+                await updateSetting(interaction.guild, 'logChannelId', interaction.values);
                 const dashboard = await generateDashboard(interaction.guildId, 2);
                 await interaction.editReply(dashboard); 
                 return;
             }
-        } catch (error) {
-            console.error("Interaction Handler Failed:", error);
-        }
+        } catch (error) {}
     }
 });
 
@@ -569,12 +565,20 @@ client.on('messageDelete', async message => {
 });
 
 client.on('messageCreate', async message => {
-    if (!message.guild || message.author.id === client.user.id) return; 
-
-    if (message.author.id === '1284247278957367337') return;
+    if (!message.guild) return; 
+    if (message.author.bot || message.webhookId) return;
+    if (message.author.id === client.user.id) return; 
 
     const settings = await getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
+
+    let hasBypass = message.author.id === message.guild.ownerId || (message.member && message.member.permissions.has('Administrator'));
+    if (!hasBypass && settings.allowedAccess.length > 0) {
+        if (settings.allowedAccess.includes(message.author.id)) hasBypass = true;
+        if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
+    }
+    
+    if (hasBypass) return; 
 
     let targetLogChannel = message.channel;
     
@@ -588,37 +592,23 @@ client.on('messageCreate', async message => {
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
         const isRaid = content.includes('﷽') || 
-                       (content.includes('@everyone') && inviteRegex.test(content)) ||
-                       (content.includes('@here') && inviteRegex.test(content));
+                       (content.includes('@everyone') && linkRegex.test(content)) ||
+                       (content.includes('@here') && linkRegex.test(content));
 
         if (isRaid) {
             try {
                 await message.delete().catch(() => {});
-                let culpritId = message.author.id;
-                let culpritTag = message.author.username;
-                
-                if (message.interactionMetadata) {
-                    culpritId = message.interactionMetadata.user.id;
-                    culpritTag = message.interactionMetadata.user.username;
-                } else if (message.interaction) {
-                    culpritId = message.interaction.user.id;
-                    culpritTag = message.interaction.user.username;
-                }
+                if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
 
-                const targetMember = await message.guild.members.fetch(culpritId).catch(() => null);
-                if (targetMember && targetMember.timeout) await targetMember.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
+                await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
+                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app!`);
 
-                await logAction(message.guild.id, 'TIMEOUT', culpritTag, culpritId, 'Malicious Raid App Activity');
-                await message.channel.send(`🚨 **RAID BLOCKED:** <@${culpritId}> tried to use a malicious raid app!`);
-
-                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
+                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
         }
     }
-
-    if (message.author.bot || message.webhookId) return;
 
     if (settings.fileShieldEnabled && message.attachments.size > 0) {
         const hasDangerousFile = message.attachments.some(attachment => {
@@ -629,9 +619,9 @@ client.on('messageCreate', async message => {
         if (hasDangerousFile) {
             try {
                 await message.delete();
-                if (message.member) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files');
+                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files').catch(() => {});
                 
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
+                await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
                 
                 const log = createLogEmbed('📁 File Sandbox Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
@@ -643,18 +633,19 @@ client.on('messageCreate', async message => {
 
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
-        const isDiscordInvite = inviteRegex.test(message.content);
+        const isLink = linkRegex.test(message.content);
         const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
 
-        if (isDiscordInvite && !isAvoided) {
+        if (isLink && !isAvoided) {
             try {
                 await message.delete();
-                if (message.member) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Invite Link');
+                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
                 
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Invite Link Spam');
+                await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
                 
-                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
+                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return;
             } catch (e) {}
         }
     }
@@ -662,9 +653,9 @@ client.on('messageCreate', async message => {
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
-            if (message.member) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account');
+            if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account').catch(() => {});
             
-            await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
+            await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
             await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
             
             const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
