@@ -325,11 +325,17 @@ app.use((req, res, next) => {
     next();
 });
 
+const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
     resave: true,
     saveUninitialized: true,
+    proxy: true,
+    name: 'servsecurity.sid',
     cookie: { 
+        secure: usingHttps,
+        sameSite: usingHttps ? 'none' : 'lax',
         maxAge: 1000 * 60 * 60 * 24
     }
 }));
@@ -394,7 +400,7 @@ app.get('/api/auth/callback', async (req, res) => {
 });
 
 app.get('/api/user-data', (req, res) => {
-    if (!req.session.user) return res.json({ loggedIn: false });
+    if (!req.session || !req.session.user) return res.json({ loggedIn: false });
 
     const adminGuilds = req.session.guilds.filter(guild => {
         const perms = BigInt(guild.permissions);
@@ -417,12 +423,12 @@ app.get('/api/user-data', (req, res) => {
 });
 
 app.get('/api/config/:guildId', (req, res) => {
-    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     res.json(getSettings(req.params.guildId));
 });
 
 app.post('/api/config/:guildId', (req, res) => {
-    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     
     guildSettings[req.params.guildId] = {
         ...getSettings(req.params.guildId),
@@ -433,7 +439,7 @@ app.post('/api/config/:guildId', (req, res) => {
 });
 
 app.delete('/api/config/:guildId', (req, res) => {
-    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     
     delete guildSettings[req.params.guildId];
     saveDatabase();
