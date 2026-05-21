@@ -47,11 +47,13 @@ const getSettings = (guildId) => {
     return guildSettings[guildId];
 };
 
+const INDIGO_BLUE = 0x4f46e5;
+
 const buildMainMenu = (settings) => {
     const embed = new EmbedBuilder()
         .setTitle('❖ ServSecurity Command Matrix')
         .setDescription('Select a module from the menu below to configure your defensive perimeters.')
-        .setColor(settings.masterSwitch ? 0x10b981 : 0xef4444)
+        .setColor(INDIGO_BLUE)
         .addFields(
             { 
                 name: '🌐 Core System', 
@@ -102,7 +104,7 @@ const buildLinkMenu = (settings) => {
     const embed = new EmbedBuilder()
         .setTitle('🔗 Link Shield Configuration')
         .setDescription('Purges unauthorized invites and domains matching prohibited definitions.')
-        .setColor(0x3b82f6)
+        .setColor(INDIGO_BLUE)
         .addFields(
             { name: 'Current Status', value: settings.linksEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
             { name: 'Timeout Duration', value: `${settings.linkTimeout} Minutes`, inline: true },
@@ -122,7 +124,7 @@ const buildImageMenu = (settings) => {
     const embed = new EmbedBuilder()
         .setTitle('🖼️ Image Shield Configuration')
         .setDescription('Filters mass-media and restricts high frequency image spam.')
-        .setColor(0x3b82f6)
+        .setColor(INDIGO_BLUE)
         .addFields(
             { name: 'Current Status', value: settings.imagesEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
             { name: 'Max Burst Limit', value: `${settings.maxImages} Images`, inline: true },
@@ -142,7 +144,7 @@ const buildStructuralMenu = (settings) => {
     const embed = new EmbedBuilder()
         .setTitle('⚔️ Structural Defenses')
         .setDescription('Manage core perimeter defenses against raids and malicious files.')
-        .setColor(0x8b5cf6)
+        .setColor(INDIGO_BLUE)
         .addFields(
             { name: 'Raid Matrix Blocker', value: settings.raidEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
             { name: 'Executable Sandbox', value: settings.fileShieldEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
@@ -165,7 +167,7 @@ const buildLogsMenu = (settings) => {
     const embed = new EmbedBuilder()
         .setTitle('📡 System Logs Configuration')
         .setDescription('Set the destination for security alerts and transmission logs.')
-        .setColor(0x6366f1)
+        .setColor(INDIGO_BLUE)
         .addFields(
             { name: 'Current Target Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Configured', inline: false }
         );
@@ -183,111 +185,121 @@ client.once('ready', () => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand() && !interaction.isMessageComponent() && !interaction.isModalSubmit()) return;
+    try {
+        if (!interaction.isChatInputCommand() && !interaction.isMessageComponent() && !interaction.isModalSubmit()) return;
 
-    const allowedUserId = '1284247278957367337';
-    const isServerOwner = interaction.guild && interaction.user.id === interaction.guild.ownerId;
-    const isWhitelistedUser = interaction.user.id === allowedUserId;
-    const isAdmin = interaction.member?.permissions.has('Administrator');
+        const allowedUserId = '1284247278957367337';
+        const isServerOwner = interaction.guild && interaction.user.id === interaction.guild.ownerId;
+        const isWhitelistedUser = interaction.user.id === allowedUserId;
+        const isAdmin = interaction.member?.permissions?.has('Administrator');
 
-    if (!isServerOwner && !isWhitelistedUser && !isAdmin) {
-        if (interaction.isRepliable()) {
-            return interaction.reply({ content: '❌ **Access Denied:** You lack the clearance to access the terminal.', ephemeral: true });
+        if (!isServerOwner && !isWhitelistedUser && !isAdmin) {
+            if (interaction.isRepliable()) {
+                return interaction.reply({
+                    content: '❌ **Access Denied:** You lack the clearance to access the terminal.',
+                    ephemeral: true
+                });
+            }
+            return;
         }
-        return;
-    }
 
-    const settings = getSettings(interaction.guildId);
+        const settings = getSettings(interaction.guildId);
 
-    if (interaction.isChatInputCommand() && interaction.commandName === 'dashboard') {
-        await interaction.reply(buildMainMenu(settings));
-        return;
-    }
-
-    if (interaction.isStringSelectMenu() && interaction.customId === 'config_menu') {
-        const choice = interaction.values;
-        
-        if (choice === 'menu_core') {
-            settings.masterSwitch = !settings.masterSwitch;
-            saveDatabase();
-            await interaction.update(buildMainMenu(settings));
-        } else if (choice === 'menu_links') {
-            await interaction.update(buildLinkMenu(settings));
-        } else if (choice === 'menu_images') {
-            await interaction.update(buildImageMenu(settings));
-        } else if (choice === 'menu_structural') {
-            await interaction.update(buildStructuralMenu(settings));
-        } else if (choice === 'menu_logs') {
-            await interaction.update(buildLogsMenu(settings));
+        if (interaction.isChatInputCommand() && interaction.commandName === 'dashboard') {
+            await interaction.reply({
+                ...buildMainMenu(settings),
+                ephemeral: true 
+            });
+            return;
         }
-        return;
-    }
 
-    if (interaction.isButton()) {
-        const id = interaction.customId;
-
-        if (id === 'back_main') {
-            await interaction.update(buildMainMenu(settings));
-        } else if (id === 'toggle_links') {
-            settings.linksEnabled = !settings.linksEnabled;
-            saveDatabase();
-            await interaction.update(buildLinkMenu(settings));
-        } else if (id === 'toggle_images') {
-            settings.imagesEnabled = !settings.imagesEnabled;
-            saveDatabase();
-            await interaction.update(buildImageMenu(settings));
-        } else if (id === 'toggle_raid') {
-            settings.raidEnabled = !settings.raidEnabled;
-            saveDatabase();
-            await interaction.update(buildStructuralMenu(settings));
-        } else if (id === 'toggle_file') {
-            settings.fileShieldEnabled = !settings.fileShieldEnabled;
-            saveDatabase();
-            await interaction.update(buildStructuralMenu(settings));
-        } else if (id === 'toggle_logdel') {
-            settings.logDeletedEnabled = !settings.logDeletedEnabled;
-            saveDatabase();
-            await interaction.update(buildStructuralMenu(settings));
-        } else if (id === 'set_log_channel') {
-            settings.logChannelId = interaction.channelId;
-            saveDatabase();
-            await interaction.update(buildLogsMenu(settings));
-        } else if (id === 'edit_links') {
-            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Parameters');
-            const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.linkTimeout.toString());
-            const avoidsInput = new TextInputBuilder().setCustomId('input_avoids').setLabel('Avoids List (Comma Separated)').setStyle(TextInputStyle.Paragraph).setValue(settings.linkAvoids.join(', ')).setRequired(false);
-            modal.addComponents(new ActionRowBuilder().addComponents(timeoutInput), new ActionRowBuilder().addComponents(avoidsInput));
-            await interaction.showModal(modal);
-        } else if (id === 'edit_images') {
-            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Parameters');
-            const burstInput = new TextInputBuilder().setCustomId('input_limit').setLabel('Max Images').setStyle(TextInputStyle.Short).setValue(settings.maxImages.toString());
-            const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.imageTimeout.toString());
-            modal.addComponents(new ActionRowBuilder().addComponents(burstInput), new ActionRowBuilder().addComponents(timeoutInput));
-            await interaction.showModal(modal);
-        }
-        return;
-    }
-
-    if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'modal_links') {
-            const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 30;
-            const avoidsRaw = interaction.fields.getTextInputValue('input_avoids');
-            const avoids = avoidsRaw ? avoidsRaw.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) : [];
+        if (interaction.isStringSelectMenu() && interaction.customId === 'config_menu') {
+            const choice = interaction.values;
             
-            settings.linkTimeout = timeout;
-            settings.linkAvoids = avoids;
-            saveDatabase();
-            await interaction.update(buildLinkMenu(settings));
-        } else if (interaction.customId === 'modal_images') {
-            const limit = parseInt(interaction.fields.getTextInputValue('input_limit')) || 1;
-            const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 4320;
-            
-            settings.maxImages = limit;
-            settings.imageTimeout = timeout;
-            saveDatabase();
-            await interaction.update(buildImageMenu(settings));
+            if (choice === 'menu_core') {
+                settings.masterSwitch = !settings.masterSwitch;
+                saveDatabase();
+                await interaction.update(buildMainMenu(settings));
+            } else if (choice === 'menu_links') {
+                await interaction.update(buildLinkMenu(settings));
+            } else if (choice === 'menu_images') {
+                await interaction.update(buildImageMenu(settings));
+            } else if (choice === 'menu_structural') {
+                await interaction.update(buildStructuralMenu(settings));
+            } else if (choice === 'menu_logs') {
+                await interaction.update(buildLogsMenu(settings));
+            }
+            return;
         }
-        return;
+
+        if (interaction.isButton()) {
+            const id = interaction.customId;
+
+            if (id === 'back_main') {
+                await interaction.update(buildMainMenu(settings));
+            } else if (id === 'toggle_links') {
+                settings.linksEnabled = !settings.linksEnabled;
+                saveDatabase();
+                await interaction.update(buildLinkMenu(settings));
+            } else if (id === 'toggle_images') {
+                settings.imagesEnabled = !settings.imagesEnabled;
+                saveDatabase();
+                await interaction.update(buildImageMenu(settings));
+            } else if (id === 'toggle_raid') {
+                settings.raidEnabled = !settings.raidEnabled;
+                saveDatabase();
+                await interaction.update(buildStructuralMenu(settings));
+            } else if (id === 'toggle_file') {
+                settings.fileShieldEnabled = !settings.fileShieldEnabled;
+                saveDatabase();
+                await interaction.update(buildStructuralMenu(settings));
+            } else if (id === 'toggle_logdel') {
+                settings.logDeletedEnabled = !settings.logDeletedEnabled;
+                saveDatabase();
+                await interaction.update(buildStructuralMenu(settings));
+            } else if (id === 'set_log_channel') {
+                settings.logChannelId = interaction.channelId;
+                saveDatabase();
+                await interaction.update(buildLogsMenu(settings));
+            } else if (id === 'edit_links') {
+                const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Parameters');
+                const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.linkTimeout.toString());
+                const avoidsInput = new TextInputBuilder().setCustomId('input_avoids').setLabel('Avoids List (Comma Separated)').setStyle(TextInputStyle.Paragraph).setValue(settings.linkAvoids.join(', ')).setRequired(false);
+                modal.addComponents(new ActionRowBuilder().addComponents(timeoutInput), new ActionRowBuilder().addComponents(avoidsInput));
+                await interaction.showModal(modal);
+            } else if (id === 'edit_images') {
+                const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Parameters');
+                const burstInput = new TextInputBuilder().setCustomId('input_limit').setLabel('Max Images').setStyle(TextInputStyle.Short).setValue(settings.maxImages.toString());
+                const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.imageTimeout.toString());
+                modal.addComponents(new ActionRowBuilder().addComponents(burstInput), new ActionRowBuilder().addComponents(timeoutInput));
+                await interaction.showModal(modal);
+            }
+            return;
+        }
+
+        if (interaction.isModalSubmit()) {
+            if (interaction.customId === 'modal_links') {
+                const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 30;
+                const avoidsRaw = interaction.fields.getTextInputValue('input_avoids');
+                const avoids = avoidsRaw ? avoidsRaw.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) : [];
+                
+                settings.linkTimeout = timeout;
+                settings.linkAvoids = avoids;
+                saveDatabase();
+                await interaction.update(buildLinkMenu(settings));
+            } else if (interaction.customId === 'modal_images') {
+                const limit = parseInt(interaction.fields.getTextInputValue('input_limit')) || 1;
+                const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 4320;
+                
+                settings.maxImages = limit;
+                settings.imageTimeout = timeout;
+                saveDatabase();
+                await interaction.update(buildImageMenu(settings));
+            }
+            return;
+        }
+    } catch (err) {
+        console.error("Interaction Handle Error:", err);
     }
 });
 
