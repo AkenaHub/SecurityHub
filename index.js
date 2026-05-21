@@ -1,3 +1,6 @@
+// Load environment variables at the very beginning
+require('dotenv').config();
+
 const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder } = require('discord.js');
 const express = require('express');
 const session = require('express-session');
@@ -23,7 +26,7 @@ if (fs.existsSync(dbFile)) {
     try { 
         guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8')); 
     } catch (e) { 
-        console.error(e); 
+        console.error("Failed to parse database file:", e.message); 
     }
 }
 
@@ -71,7 +74,6 @@ client.on(Events.InteractionCreate, async interaction => {
             });
         }
 
-        // Replace the URL below with your actual Railway app URL once deployed!
         const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
         
         await interaction.reply({
@@ -301,20 +303,34 @@ const logAction = (guildId, type, username, userId, reason) => {
     saveDatabase();
 };
 
-client.login(process.env.DISCORD_TOKEN);
+// Safe login handler to prevent application startup crashes
+if (!process.env.DISCORD_TOKEN) {
+    console.error("❌ CRITICAL ERROR: 'DISCORD_TOKEN' is missing from env variables. Bot is offline.");
+} else {
+    client.login(process.env.DISCORD_TOKEN).catch(err => {
+        console.error("❌ DISCORD LOGIN ERROR:", err.message);
+    });
+}
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'servsecurity-secure-fallback-secret-key-12345',
     resave: false,
     saveUninitialized: false,
     cookie: { secure: false, maxAge: 600000 * 6 }
 }));
 
 app.get('/api/auth/login', (req, res) => {
-    const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+    const clientId = process.env.DISCORD_CLIENT_ID;
+    const redirectUri = process.env.REDIRECT_URI;
+    
+    if (!clientId || !redirectUri) {
+        return res.status(500).send("Configuration error: Missing Discord credentials or callback URL.");
+    }
+    
+    const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
     res.redirect(authorizeUrl);
 });
 
@@ -324,8 +340,8 @@ app.get('/api/auth/callback', async (req, res) => {
 
     try {
         const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
-            client_id: process.env.CLIENT_ID,
-            client_secret: process.env.CLIENT_SECRET,
+            client_id: process.env.DISCORD_CLIENT_ID,
+            client_secret: process.env.DISCORD_CLIENT_SECRET,
             grant_type: 'authorization_code',
             code: code,
             redirect_uri: process.env.REDIRECT_URI,
@@ -346,7 +362,7 @@ app.get('/api/auth/callback', async (req, res) => {
 
         res.redirect('/');
     } catch (error) {
-        console.error(error);
+        console.error("OAuth Callback Error:", error.response?.data || error.message);
         res.redirect('/?error=Authentication_Failed');
     }
 });
@@ -370,7 +386,7 @@ app.get('/api/user-data', (req, res) => {
         loggedIn: true,
         user: req.session.user,
         guilds: mappedGuilds,
-        botClientId: process.env.CLIENT_ID
+        botClientId: process.env.DISCORD_CLIENT_ID
     });
 });
 
@@ -404,4 +420,5 @@ app.get('/api/auth/logout', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Web Dashboard active on port ${PORT}`));
+// Explicitly binding to 0.0.0.0 allows public routing inside container setups like Railway
+app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
