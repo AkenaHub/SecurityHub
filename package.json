@@ -4,8 +4,7 @@
   "description": "Discord moderation bot for Railway",
   "main": "index.js",
   "scripts": {
-    "start": "node deploy-commands.js && node index.js",
-    "register": "node deploy-commands.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
