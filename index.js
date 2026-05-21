@@ -1,4 +1,3 @@
-// Load environment variables at the very beginning
 require('dotenv').config();
 
 const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder } = require('discord.js');
@@ -303,7 +302,6 @@ const logAction = (guildId, type, username, userId, reason) => {
     saveDatabase();
 };
 
-// Safe login handler to prevent application startup crashes
 if (!process.env.DISCORD_TOKEN) {
     console.error("❌ CRITICAL ERROR: 'DISCORD_TOKEN' is missing from env variables. Bot is offline.");
 } else {
@@ -313,6 +311,10 @@ if (!process.env.DISCORD_TOKEN) {
 }
 
 const app = express();
+
+// Required for Railway to handle session cookies properly across HTTPS
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
@@ -433,5 +435,4 @@ app.get('/api/auth/logout', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-// Explicitly binding to 0.0.0.0 allows public routing inside container setups like Railway
 app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
