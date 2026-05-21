@@ -1,29 +1,27 @@
-const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const dotenv = require('dotenv');
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
-// Load environment variables
-dotenv.config();
-
+// Define your /setup command
 const commands = [
     new SlashCommandBuilder()
-        .setName('dashboard')
-        .setDescription('Get the link to the ServSecurity web control panel.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setName('setup')
+        .setDescription('Opens the Security Control Center dashboard.')
 ].map(command => command.toJSON());
 
+// Initialize the REST provider
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log('Started refreshing application (/) commands.');
+        console.log('🔄 Started refreshing global application (/) commands...');
 
+        // Routes.applicationCommands registers the command for ALL servers globally
         await rest.put(
-            Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
-            { body: commands },
+            Routes.applicationCommands(process.env.CLIENT_ID), 
+            { body: commands }
         );
 
-        console.log('Successfully loaded the /dashboard command globally.');
+        console.log('✅ Successfully reloaded global application (/) commands!');
     } catch (error) {
-        console.error(error);
+        console.error('❌ Error deploying commands:', error);
     }
 })();
