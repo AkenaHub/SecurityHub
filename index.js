@@ -355,13 +355,18 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.isChatInputCommand() || interaction.isButton() || interaction.isModalSubmit() || interaction.isChannelSelectMenu()) {
         try {
+            if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
+                await interaction.deferReply({ ephemeral: true });
+            }
+
             const settings = await getSettings(interaction.guildId);
             
             const allowedUserId = '1284247278957367337';
             const isServerOwner = interaction.user.id === interaction.guild.ownerId;
             const isWhitelistedUser = interaction.user.id === allowedUserId;
+            const isAdmin = interaction.member && interaction.member.permissions && interaction.member.permissions.has('Administrator');
             
-            let hasAccess = isServerOwner || isWhitelistedUser;
+            let hasAccess = isServerOwner || isWhitelistedUser || isAdmin;
 
             if (!hasAccess && settings.allowedAccess.length > 0) {
                 if (settings.allowedAccess.includes(interaction.user.id)) {
@@ -373,20 +378,17 @@ client.on('interactionCreate', async interaction => {
             }
 
             if (!hasAccess) {
-                if (!interaction.replied && !interaction.deferred) {
-                    return interaction.reply({
-                        content: '❌ **Access Denied:** You do not have permission to use or view the security panel.',
-                        ephemeral: true
-                    });
+                if (interaction.deferred) {
+                    return interaction.editReply({ content: '❌ **Access Denied:** You do not have permission to use or view the security panel.' });
+                } else if (!interaction.replied) {
+                    return interaction.reply({ content: '❌ **Access Denied:** You do not have permission to use or view the security panel.', ephemeral: true });
                 }
                 return;
             }
 
             if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
-                await interaction.deferReply({ ephemeral: true });
                 const dashboard = await generateDashboard(interaction.guildId, 1);
-                await interaction.editReply(dashboard);
-                return;
+                return interaction.editReply(dashboard);
             }
 
             if (interaction.isButton()) {
@@ -527,7 +529,9 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply(dashboard); 
                 return;
             }
-        } catch (error) {}
+        } catch (error) {
+            console.error("Interaction Handler Failed:", error);
+        }
     }
 });
 
