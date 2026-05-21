@@ -1,6 +1,11 @@
-require('dotenv').config();
-
-const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { 
+    Client, GatewayIntentBits, Partials, EmbedBuilder, 
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, 
+    ChannelSelectMenuBuilder, ChannelType, 
+    ModalBuilder, TextInputBuilder, TextInputStyle,
+    REST, Routes, SlashCommandBuilder,
+    AuditLogEvent, Events
+} = require('discord.js');
 const fs = require('fs');
 
 const client = new Client({
@@ -18,12 +23,16 @@ const dbFile = './database.json';
 let guildSettings = {};
 
 if (fs.existsSync(dbFile)) {
-    try { 
-        guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8')); 
-    } catch (e) {}
+    try {
+        guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
+    } catch (e) {
+        console.error("Failed to load database. Starting fresh.");
+    }
 }
 
-const saveDatabase = () => fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
+const saveDatabase = () => {
+    fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
+};
 
 const getSettings = (guildId) => {
     if (!guildSettings[guildId]) {
@@ -44,262 +53,203 @@ const getSettings = (guildId) => {
         };
         saveDatabase();
     }
+    
+    if (guildSettings[guildId].linkBlacklist) {
+        guildSettings[guildId].linkAvoids = guildSettings[guildId].linkBlacklist;
+        delete guildSettings[guildId].linkBlacklist;
+        saveDatabase();
+    }
+    if (!guildSettings[guildId].linkAvoids) guildSettings[guildId].linkAvoids = [];
+    if (!guildSettings[guildId].allowedAccess) guildSettings[guildId].allowedAccess = [];
+    
     return guildSettings[guildId];
 };
 
-const INDIGO_BLUE = 0x4f46e5;
-
-const buildMainMenu = (settings) => {
-    const embed = new EmbedBuilder()
-        .setTitle('🛡️ ServSecurity | Central Matrix')
-        .setDescription('Welcome to the automated perimeter defense system. Use the control panel buttons below to manage your node settings.')
-        .setColor(INDIGO_BLUE)
-        .addFields(
-            { 
-                name: '🌐 Global Override', 
-                value: `\`\`\`yaml\nStatus: ${settings.masterSwitch ? 'ONLINE 🟢' : 'OFFLINE 🔴'}\n\`\`\``,
-                inline: false
-            },
-            { 
-                name: '🔗 Link Shield', 
-                value: `> **Status:** ${settings.linksEnabled ? '🟢' : '🔴'}\n> **Timeout:** ${settings.linkTimeout}m\n> **Avoids:** ${settings.linkAvoids.length}`,
-                inline: true
-            },
-            { 
-                name: '🖼️ Image Shield', 
-                value: `> **Status:** ${settings.imagesEnabled ? '🟢' : '🔴'}\n> **Limit:** ${settings.maxImages} imgs\n> **Timeout:** ${settings.imageTimeout}m`,
-                inline: true
-            },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { 
-                name: '⚔️ Structural Defenses', 
-                value: `> **Raid Blocker:** ${settings.raidEnabled ? '🟢' : '🔴'}\n> **File Sandbox:** ${settings.fileShieldEnabled ? '🟢' : '🔴'}\n> **Del Logs:** ${settings.logDeletedEnabled ? '🟢' : '🔴'}`,
-                inline: true
-            },
-            {
-                name: '📡 System Logs',
-                value: `> **Channel:**\n> ${settings.logChannelId ? `<#${settings.logChannelId}>` : '`Not Configured`'}`,
-                inline: true
-            },
-            { name: '\u200B', value: '\u200B', inline: true }
-        )
-        .setFooter({ text: 'ServSecurity • Advanced Operations' })
-        .setTimestamp();
-
-    const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('btn_core').setLabel('Global Power').setStyle(settings.masterSwitch ? ButtonStyle.Success : ButtonStyle.Danger).setEmoji('🌐'),
-        new ButtonBuilder().setCustomId('btn_links').setLabel('Link Shield').setStyle(ButtonStyle.Primary).setEmoji('🔗'),
-        new ButtonBuilder().setCustomId('btn_images').setLabel('Image Shield').setStyle(ButtonStyle.Primary).setEmoji('🖼️')
-    );
-
-    const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('btn_structural').setLabel('Structural Defenses').setStyle(ButtonStyle.Secondary).setEmoji('⚔️'),
-        new ButtonBuilder().setCustomId('btn_logs').setLabel('System Logs').setStyle(ButtonStyle.Secondary).setEmoji('📡')
-    );
-
-    return { embeds: [embed], components: [row1, row2] };
+const updateSetting = (guildId, key, value) => {
+    const settings = getSettings(guildId);
+    settings[key] = value;
+    saveDatabase();
 };
 
-const buildLinkMenu = (settings) => {
-    const embed = new EmbedBuilder()
-        .setTitle('🔗 Link Shield Configuration')
-        .setDescription('Purges unauthorized invites and domains matching prohibited definitions.')
-        .setColor(INDIGO_BLUE)
-        .addFields(
-            { name: 'Network Status', value: `\`\`\`yaml\n${settings.linksEnabled ? 'ACTIVE 🟢' : 'OFFLINE 🔴'}\n\`\`\``, inline: false },
-            { name: 'Timeout Duration', value: `> **${settings.linkTimeout}** Minutes`, inline: true },
-            { name: 'Avoids List', value: settings.linkAvoids.length > 0 ? `> \`${settings.linkAvoids.join('`, `')}\`` : '> `None`', inline: true }
+const logAction = (guildId, type, username, userId, reason) => {
+    const settings = getSettings(guildId);
+    if (!settings.history) settings.history = [];
+    
+    settings.history.unshift({
+        type,
+        username,
+        userId,
+        reason,
+        timestamp: Math.floor(Date.now() / 1000)
+    });
+
+    if (settings.history.length > 10) {
+        settings.history = settings.history.slice(0, 10);
+    }
+    saveDatabase();
+};
+
+const parseDuration = (input) => {
+    const val = input.toLowerCase().trim();
+    const num = parseInt(val);
+    if (isNaN(num)) return null;
+    if (val.endsWith('d')) return num * 1440;
+    return num; 
+};
+
+const formatDuration = (mins) => {
+    if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440} Days`;
+    return `${mins} Minutes`;
+};
+
+const toShortFormat = (mins) => {
+    if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440}d`;
+    return `${mins}m`;
+};
+
+const generateDashboard = (guildId, page = 1) => {
+    const settings = getSettings(guildId);
+    
+    const statusColor = settings.masterSwitch ? '#00ffcc' : '#2b2d31';
+    const statusEmoji = settings.masterSwitch ? '🔹' : '🔸';
+    const statusText = settings.masterSwitch ? 'SYSTEMS ACTIVE' : 'SYSTEMS DISARMED';
+
+    if (page === 1) {
+        const embed = new EmbedBuilder()
+            .setTitle('⚙️ SYSTEM CONTROL CENTER')
+            .setColor(statusColor)
+            .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nManage your automated defensive shields below. Use the navigation buttons to jump between configuration views and moderation histories.`)
+            .addFields(
+                { name: '🔗 LINK SHIELD', value: `\`\`\`yaml\nStatus: ${settings.linksEnabled ? 'ENABLED' : 'DISABLED'}\nTimeout: ${formatDuration(settings.linkTimeout)}\nAvoids: ${settings.linkAvoids.length} Items\`\`\``, inline: true },
+                { name: '🖼️ IMAGE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.imagesEnabled ? 'ENABLED' : 'DISABLED'}\nLimit: ${settings.maxImages} Msg\nTimeout: ${formatDuration(settings.imageTimeout)}\`\`\``, inline: true },
+                { name: '⚔️ RAID SHIELD', value: `\`\`\`yaml\nStatus: ${settings.raidEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 24h Timeout\`\`\``, inline: true },
+                { name: '📁 FILE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.fileShieldEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 1d Timeout\`\`\``, inline: true }
+            )
+            .setTimestamp()
+            .setFooter({ text: 'Main Defenses • Page 1 of 3' });
+
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'DISARM SYSTEM' : 'ARM SYSTEM').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌')
         );
 
-    const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.linksEnabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌'),
-        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary).setEmoji('⚙️'),
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
-    );
-
-    return { embeds: [embed], components: [buttons] };
-};
-
-const buildImageMenu = (settings) => {
-    const embed = new EmbedBuilder()
-        .setTitle('🖼️ Image Shield Configuration')
-        .setDescription('Filters mass-media and restricts high frequency image spam.')
-        .setColor(INDIGO_BLUE)
-        .addFields(
-            { name: 'Network Status', value: `\`\`\`yaml\n${settings.imagesEnabled ? 'ACTIVE 🟢' : 'OFFLINE 🔴'}\n\`\`\``, inline: false },
-            { name: 'Max Burst Limit', value: `> **${settings.maxImages}** Images`, inline: true },
-            { name: 'Timeout Duration', value: `> **${settings.imageTimeout}** Minutes`, inline: true }
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🔗'),
+            new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🖼️'),
+            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('⚔️'),
+            new ButtonBuilder().setCustomId('toggle_files').setLabel('File Shield').setStyle(settings.fileShieldEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('📁')
         );
 
-    const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌'),
-        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary).setEmoji('⚙️'),
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
-    );
-
-    return { embeds: [embed], components: [buttons] };
-};
-
-const buildStructuralMenu = (settings) => {
-    const embed = new EmbedBuilder()
-        .setTitle('⚔️ Structural Defenses')
-        .setDescription('Manage core perimeter defenses against raids and malicious files.')
-        .setColor(INDIGO_BLUE)
-        .addFields(
-            { name: 'Raid Matrix Blocker', value: settings.raidEnabled ? '> 🟢 **ACTIVE**' : '> 🔴 **OFFLINE**', inline: true },
-            { name: 'Executable Sandbox', value: settings.fileShieldEnabled ? '> 🟢 **ACTIVE**' : '> 🔴 **OFFLINE**', inline: true },
-            { name: 'Log Deleted Trans.', value: settings.logDeletedEnabled ? '> 🟢 **ACTIVE**' : '> 🔴 **OFFLINE**', inline: true }
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('nav_page2').setLabel('Logs & Config ➡️').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
         );
 
-    const buttons1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Toggle Raid').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🛡️'),
-        new ButtonBuilder().setCustomId('toggle_file').setLabel('Toggle Sandbox').setStyle(settings.fileShieldEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('📁'),
-        new ButtonBuilder().setCustomId('toggle_logdel').setLabel('Toggle Del Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️')
-    );
-    const buttons2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
-    );
+        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
+    } 
+    
+    if (page === 2) {
+        const avoidsSummary = settings.linkAvoids.length > 0 
+            ? settings.linkAvoids.map(d => `\`${d}\``).join(', ')
+            : '_No links avoided._';
+            
+        const accessSummary = settings.allowedAccess.length > 0 
+            ? settings.allowedAccess.map(d => `\`${d}\``).join(', ')
+            : '_Only Owner & Main Admin._';
 
-    return { embeds: [embed], components: [buttons1, buttons2] };
-};
+        const embed = new EmbedBuilder()
+            .setTitle('📝 LOGGING & ADVANCED CONFIG')
+            .setColor(statusColor)
+            .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nFine-tune thresholds, action criteria, and designated tracking channels for server modifications.`)
+            .addFields(
+                { name: '🗑️ Deleted Message Logs', value: `> State: ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Applies to all texts, files, and images.*`, inline: false },
+                { name: '🟢 Allowed Links (Avoids)', value: `> ${avoidsSummary}`, inline: false },
+                { name: '🔑 Panel Access (IDs)', value: `> ${accessSummary}`, inline: false },
+                { name: '🗂️ Target Logging Channel', value: settings.logChannelId ? `> Destination: <#${settings.logChannelId}>` : '> Destination: `Not Set (Sends to source channel)`', inline: false }
+            )
+            .setTimestamp()
+            .setFooter({ text: 'Configuration • Page 2 of 3' });
 
-const buildLogsMenu = (settings) => {
-    const embed = new EmbedBuilder()
-        .setTitle('📡 System Logs Configuration')
-        .setDescription('Set the destination for security alerts and transmission logs.')
-        .setColor(INDIGO_BLUE)
-        .addFields(
-            { name: 'Current Target Channel', value: settings.logChannelId ? `>>> <#${settings.logChannelId}>` : '>>> `Not Configured`', inline: false }
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('toggle_deleted').setLabel('Delete Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️'),
+            new ButtonBuilder().setCustomId('edit_links').setLabel('Setup Links').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
+            new ButtonBuilder().setCustomId('edit_avoids').setLabel('Edit Avoids').setStyle(ButtonStyle.Secondary).setEmoji('🟢'),
+            new ButtonBuilder().setCustomId('edit_images').setLabel('Setup Images').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
+            new ButtonBuilder().setCustomId('edit_access').setLabel('Edit Access').setStyle(ButtonStyle.Secondary).setEmoji('🔑')
         );
 
-    const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('set_log_channel').setLabel('Set to Current Channel').setStyle(ButtonStyle.Primary).setEmoji('📍'),
-        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary).setEmoji('◀️')
-    );
+        const row2 = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Select channel for server security logs...').addChannelTypes(ChannelType.GuildText)
+        );
 
-    return { embeds: [embed], components: [buttons] };
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
+        );
+
+        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
+    }
+
+    if (page === 3) {
+        const embed = new EmbedBuilder()
+            .setTitle('📜 RECENT MODERATION ACTIONS')
+            .setColor('#ffcc00')
+            .setDescription('Displaying the last 10 automated and manual moderation actions tracked by this system.')
+            .setTimestamp()
+            .setFooter({ text: 'Incident History • Page 3 of 3' });
+
+        const historyList = settings.history && settings.history.length > 0
+            ? settings.history.map((log, index) => `**${index + 1}. [${log.type}]** \`${log.username}\` (${log.userId})\n🔹 **When:** <t:${log.timestamp}:F> (<t:${log.timestamp}:R>)\n🔹 **Reason:** \`${log.reason}\``).join('\n\n—\n\n')
+            : '*No recent actions have been logged.*';
+
+        embed.addFields({ name: '🚨 Active Incident Feed', value: historyList });
+
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('nav_page2').setLabel('Logs & Config ➡️').setStyle(ButtonStyle.Secondary)
+        );
+
+        return { embeds: [embed], components: [row1], ephemeral: true };
+    }
 };
 
-client.once('ready', () => {
-    console.log(`Ready: ${client.user.tag}`);
-});
+const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
+const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
-client.on(Events.InteractionCreate, async interaction => {
+const createLogEmbed = (title, description, color) => {
+    return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
+};
+
+client.once('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+    console.log('Database Loaded Successfully.');
+
     try {
-        if (!interaction.isChatInputCommand() && !interaction.isMessageComponent() && !interaction.isModalSubmit()) return;
+        console.log('🔄 Syncing global application (/) commands...');
+        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+        
+        const commands = [
+            new SlashCommandBuilder()
+                .setName('setup')
+                .setDescription('Opens the Security Control Center dashboard.')
+        ].map(cmd => cmd.toJSON());
 
-        const allowedUserId = '1284247278957367337';
-        const isServerOwner = interaction.guild && interaction.user.id === interaction.guild.ownerId;
-        const isWhitelistedUser = interaction.user.id === allowedUserId;
-        const isAdmin = interaction.member?.permissions?.has('Administrator');
-
-        if (!isServerOwner && !isWhitelistedUser && !isAdmin) {
-            if (interaction.isRepliable()) {
-                return interaction.reply({
-                    content: '❌ **Access Denied:** You lack the clearance to access the terminal.',
-                    ephemeral: true
-                });
-            }
-            return;
-        }
-
-        const settings = getSettings(interaction.guildId);
-
-        if (interaction.isChatInputCommand() && interaction.commandName === 'dashboard') {
-            await interaction.reply({
-                ...buildMainMenu(settings),
-                ephemeral: true 
-            });
-            return;
-        }
-
-        if (interaction.isButton()) {
-            const id = interaction.customId;
-
-            if (id === 'back_main') {
-                await interaction.update(buildMainMenu(settings));
-            } else if (id === 'btn_core') {
-                settings.masterSwitch = !settings.masterSwitch;
-                saveDatabase();
-                await interaction.update(buildMainMenu(settings));
-            } else if (id === 'btn_links') {
-                await interaction.update(buildLinkMenu(settings));
-            } else if (id === 'btn_images') {
-                await interaction.update(buildImageMenu(settings));
-            } else if (id === 'btn_structural') {
-                await interaction.update(buildStructuralMenu(settings));
-            } else if (id === 'btn_logs') {
-                await interaction.update(buildLogsMenu(settings));
-            } else if (id === 'toggle_links') {
-                settings.linksEnabled = !settings.linksEnabled;
-                saveDatabase();
-                await interaction.update(buildLinkMenu(settings));
-            } else if (id === 'toggle_images') {
-                settings.imagesEnabled = !settings.imagesEnabled;
-                saveDatabase();
-                await interaction.update(buildImageMenu(settings));
-            } else if (id === 'toggle_raid') {
-                settings.raidEnabled = !settings.raidEnabled;
-                saveDatabase();
-                await interaction.update(buildStructuralMenu(settings));
-            } else if (id === 'toggle_file') {
-                settings.fileShieldEnabled = !settings.fileShieldEnabled;
-                saveDatabase();
-                await interaction.update(buildStructuralMenu(settings));
-            } else if (id === 'toggle_logdel') {
-                settings.logDeletedEnabled = !settings.logDeletedEnabled;
-                saveDatabase();
-                await interaction.update(buildStructuralMenu(settings));
-            } else if (id === 'set_log_channel') {
-                settings.logChannelId = interaction.channelId;
-                saveDatabase();
-                await interaction.update(buildLogsMenu(settings));
-            } else if (id === 'edit_links') {
-                const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Parameters');
-                const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.linkTimeout.toString());
-                const avoidsInput = new TextInputBuilder().setCustomId('input_avoids').setLabel('Avoids List (Comma Separated)').setStyle(TextInputStyle.Paragraph).setValue(settings.linkAvoids.join(', ')).setRequired(false);
-                modal.addComponents(new ActionRowBuilder().addComponents(timeoutInput), new ActionRowBuilder().addComponents(avoidsInput));
-                await interaction.showModal(modal);
-            } else if (id === 'edit_images') {
-                const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Parameters');
-                const burstInput = new TextInputBuilder().setCustomId('input_limit').setLabel('Max Images').setStyle(TextInputStyle.Short).setValue(settings.maxImages.toString());
-                const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.imageTimeout.toString());
-                modal.addComponents(new ActionRowBuilder().addComponents(burstInput), new ActionRowBuilder().addComponents(timeoutInput));
-                await interaction.showModal(modal);
-            }
-            return;
-        }
-
-        if (interaction.isModalSubmit()) {
-            if (interaction.customId === 'modal_links') {
-                const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 30;
-                const avoidsRaw = interaction.fields.getTextInputValue('input_avoids');
-                const avoids = avoidsRaw ? avoidsRaw.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) : [];
-                
-                settings.linkTimeout = timeout;
-                settings.linkAvoids = avoids;
-                saveDatabase();
-                await interaction.update(buildLinkMenu(settings));
-            } else if (interaction.customId === 'modal_images') {
-                const limit = parseInt(interaction.fields.getTextInputValue('input_limit')) || 1;
-                const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 4320;
-                
-                settings.maxImages = limit;
-                settings.imageTimeout = timeout;
-                saveDatabase();
-                await interaction.update(buildImageMenu(settings));
-            }
-            return;
-        }
-    } catch (err) {
-        console.error("Interaction Handle Error:", err);
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: commands }
+        );
+        console.log('✅ Global commands updated successfully across all servers!');
+    } catch (error) {
+        console.error('❌ Failed to deploy global commands on startup:', error);
     }
 });
 
+// WATCH AUDIT LOGS FOR MANUAL ACTIONS
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     if (!guild) return;
     const settings = getSettings(guild.id);
     if (!settings.masterSwitch) return;
+
+    // Ignore if the bot did it (to prevent double logging)
     if (auditLog.executorId === client.user.id) return;
 
     const target = auditLog.target;
@@ -325,20 +275,159 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     }
 
     if (actionType) {
+        // Save to internal database (Page 3 of dashboard)
         logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
+
+        // Forward to the logging channel if one is set up
         if (settings.logChannelId) {
             try {
                 const logChannel = await guild.channels.fetch(settings.logChannelId);
                 if (logChannel) {
-                    const embed = new EmbedBuilder()
-                        .setTitle(`🔨 Manual ${actionType} Executed`)
-                        .setDescription(`**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`)
-                        .setColor(color)
-                        .setTimestamp();
+                    const embed = createLogEmbed(
+                        `🔨 Manual ${actionType} Executed`, 
+                        `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, 
+                        color
+                    );
                     await logChannel.send({ embeds: [embed] }).catch(() => {});
                 }
             } catch (e) {}
         }
+    }
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.guild) return;
+
+    const settings = getSettings(interaction.guildId);
+    
+    const allowedUserId = '1284247278957367337';
+    const isServerOwner = interaction.user.id === interaction.guild.ownerId;
+    const isWhitelistedUser = interaction.user.id === allowedUserId;
+    
+    let hasAccess = isServerOwner || isWhitelistedUser;
+
+    if (!hasAccess && settings.allowedAccess.length > 0) {
+        if (settings.allowedAccess.includes(interaction.user.id)) {
+            hasAccess = true;
+        }
+        if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) {
+            hasAccess = true;
+        }
+    }
+
+    if (!hasAccess) {
+        return interaction.reply({
+            content: '❌ **Access Denied:** You do not have permission to use or view the security panel.',
+            ephemeral: true
+        });
+    }
+
+    if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
+        await interaction.reply(generateDashboard(interaction.guildId, 1));
+    }
+
+    if (interaction.isButton()) {
+        if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
+        if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
+        if (interaction.customId === 'nav_page3') return interaction.update(generateDashboard(interaction.guildId, 3));
+
+        if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
+            if (interaction.customId === 'toggle_master') updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
+            if (interaction.customId === 'toggle_links') updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
+            if (interaction.customId === 'toggle_images') updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
+            if (interaction.customId === 'toggle_raid') updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
+            if (interaction.customId === 'toggle_files') updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
+            return interaction.update(generateDashboard(interaction.guildId, 1));
+        }
+
+        if (interaction.customId === 'toggle_deleted') {
+            updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
+            return interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+
+        if (interaction.customId === 'edit_links') {
+            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
+            modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
+            await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'edit_avoids') {
+            const modal = new ModalBuilder().setCustomId('modal_avoids').setTitle('Configure Allowed Links');
+            modal.addComponents(new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('input_avoids')
+                    .setLabel('Enter domains/invites to AVOID (comma-sep)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('discord.gg/yourserver, discord.com/invite/xyz')
+                    .setRequired(false)
+                    .setValue(settings.linkAvoids.join(', '))
+            ));
+            await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'edit_access') {
+            const modal = new ModalBuilder().setCustomId('modal_access').setTitle('Configure Panel Access');
+            modal.addComponents(new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('input_access')
+                    .setLabel('Enter User/Role IDs (Separate with commas)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('123456789012345678, 987654321098765432')
+                    .setRequired(false)
+                    .setValue(settings.allowedAccess.join(', '))
+            ));
+            await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'edit_images') {
+            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_max').setLabel('Trigger limit (e.g. 1, 3, 5)').setStyle(TextInputStyle.Short).setRequired(true).setValue(settings.maxImages.toString())),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_timeout').setLabel('Timeout (e.g. 60m, 7d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.imageTimeout)))
+            );
+            await interaction.showModal(modal);
+        }
+    }
+
+    if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'modal_links') {
+            const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
+            if (parsed) updateSetting(interaction.guildId, 'linkTimeout', parsed);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+
+        if (interaction.customId === 'modal_avoids') {
+            const rawInput = interaction.fields.getTextInputValue('input_avoids');
+            const processedList = rawInput.split(',')
+                .map(item => item.trim().toLowerCase())
+                .filter(item => item.length > 0);
+
+            updateSetting(interaction.guildId, 'linkAvoids', processedList);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+
+        if (interaction.customId === 'modal_access') {
+            const rawInput = interaction.fields.getTextInputValue('input_access');
+            const processedList = rawInput.split(',')
+                .map(item => item.trim())
+                .filter(item => item.length > 0);
+
+            updateSetting(interaction.guildId, 'allowedAccess', processedList);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+
+        if (interaction.customId === 'modal_images') {
+            const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
+            const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
+            if (!isNaN(max) && max > 0) updateSetting(interaction.guildId, 'maxImages', max);
+            if (parsedTimeout) updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
+            await interaction.update(generateDashboard(interaction.guildId, 2));
+        }
+    }
+
+    if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
+        updateSetting(interaction.guildId, 'logChannelId', interaction.values);
+        await interaction.update(generateDashboard(interaction.guildId, 2)); 
     }
 });
 
@@ -375,11 +464,9 @@ client.on('messageDelete', async message => {
     } catch (e) {}
 });
 
-const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
-const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
-
 client.on('messageCreate', async message => {
     if (!message.guild || message.author.id === client.user.id) return; 
+
     if (message.author.id === '1284247278957367337') return;
 
     const settings = getSettings(message.guild.id);
@@ -420,11 +507,7 @@ client.on('messageCreate', async message => {
                 logAction(message.guild.id, 'TIMEOUT', culpritTag, culpritId, 'Malicious Raid App Activity');
                 await message.channel.send(`🚨 **RAID BLOCKED:** <@${culpritId}> tried to use a malicious raid app!`);
 
-                const log = new EmbedBuilder()
-                    .setTitle('🛡️ Raid App Blocked')
-                    .setDescription(`**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`)
-                    .setColor('#800080')
-                    .setTimestamp();
+                const log = createLogEmbed('🛡️ Raid App Blocked', `**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -447,11 +530,7 @@ client.on('messageCreate', async message => {
                 logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
                 
-                const log = new EmbedBuilder()
-                    .setTitle('📁 Dangerous File Blocked')
-                    .setDescription(`**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`)
-                    .setColor('#ff0000')
-                    .setTimestamp();
+                const log = createLogEmbed('📁 Dangerous File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -470,11 +549,7 @@ client.on('messageCreate', async message => {
                 
                 logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Invite Link Spam');
                 
-                const log = new EmbedBuilder()
-                    .setTitle('🛡️ Link Blocked')
-                    .setDescription(`**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout} Minutes)`)
-                    .setColor('#ffcc00')
-                    .setTimestamp();
+                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
             } catch (e) {}
         }
@@ -488,36 +563,10 @@ client.on('messageCreate', async message => {
             logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
             await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
             
-            const log = new EmbedBuilder()
-                .setTitle('🚨 Image Spam Blocked')
-                .setDescription(`**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout} Minutes)`)
-                .setColor('#ff0000')
-                .setTimestamp();
+            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
             await targetLogChannel.send({ embeds: [log] }).catch(() => {});
         } catch (e) {}
     }
 });
 
-const logAction = (guildId, type, username, userId, reason) => {
-    const settings = getSettings(guildId);
-    if (!settings.history) settings.history = [];
-    
-    settings.history.unshift({
-        type,
-        username,
-        userId,
-        reason,
-        timestamp: Math.floor(Date.now() / 1000)
-    });
-
-    if (settings.history.length > 10) {
-        settings.history = settings.history.slice(0, 10);
-    }
-    saveDatabase();
-};
-
-if (!process.env.DISCORD_TOKEN) {
-    console.error("Missing DISCORD_TOKEN");
-} else {
-    client.login(process.env.DISCORD_TOKEN).catch(err => {});
-}
+client.login(process.env.DISCORD_TOKEN);
