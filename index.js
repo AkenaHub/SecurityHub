@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const { 
     Client, GatewayIntentBits, Partials, EmbedBuilder, 
     ActionRowBuilder, ButtonBuilder, ButtonStyle, 
@@ -7,6 +9,10 @@ const {
     AuditLogEvent, Events
 } = require('discord.js');
 const fs = require('fs');
+
+const { initializeApp } = require('firebase/app');
+const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
+const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
 const client = new Client({
     intents: [
@@ -21,20 +27,64 @@ const client = new Client({
 
 const dbFile = './database.json';
 let guildSettings = {};
+let firestoreDb = null;
+let firestoreReady = false;
 
-if (fs.existsSync(dbFile)) {
+const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.APP_ID || 'servsecurity-app');
+
+const initRemoteStorage = async () => {
     try {
-        guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
-    } catch (e) {
-        console.error("Failed to load database. Starting fresh.");
-    }
-}
+        const hasConfig = typeof __firebase_config !== 'undefined' || process.env.FIREBASE_CONFIG;
+        if (!hasConfig) return;
 
-const saveDatabase = () => {
+        const config = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : JSON.parse(process.env.FIREBASE_CONFIG);
+
+        const app = initializeApp(config);
+        const auth = getAuth(app);
+        
+        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : process.env.FIREBASE_AUTH_TOKEN;
+        if (token) {
+            await signInWithCustomToken(auth, token);
+        } else {
+            await signInAnonymously(auth);
+        }
+
+        firestoreDb = getFirestore(app);
+        firestoreReady = true;
+    } catch (e) {
+        firestoreReady = false;
+    }
+};
+
+const loadLocalDatabase = () => {
+    if (fs.existsSync(dbFile)) {
+        try {
+            guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
+        } catch (e) {
+            guildSettings = {};
+        }
+    }
+};
+
+const saveLocalDatabase = () => {
     fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
 };
 
-const getSettings = (guildId) => {
+const getSettings = async (guildId) => {
+    if (firestoreReady && firestoreDb) {
+        try {
+            const docRef = doc(firestoreDb, 'artifacts', appId, 'public', 'data', 'guilds', guildId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                guildSettings[guildId] = data;
+                return data;
+            }
+        } catch (e) {}
+    }
+
     if (!guildSettings[guildId]) {
         guildSettings[guildId] = {
             masterSwitch: true, 
@@ -51,28 +101,31 @@ const getSettings = (guildId) => {
             logChannelId: null,
             history: []
         };
-        saveDatabase();
+        await saveSettings(guildId, guildSettings[guildId]);
     }
-    
-    if (guildSettings[guildId].linkBlacklist) {
-        guildSettings[guildId].linkAvoids = guildSettings[guildId].linkBlacklist;
-        delete guildSettings[guildId].linkBlacklist;
-        saveDatabase();
-    }
-    if (!guildSettings[guildId].linkAvoids) guildSettings[guildId].linkAvoids = [];
-    if (!guildSettings[guildId].allowedAccess) guildSettings[guildId].allowedAccess = [];
-    
     return guildSettings[guildId];
 };
 
-const updateSetting = (guildId, key, value) => {
-    const settings = getSettings(guildId);
-    settings[key] = value;
-    saveDatabase();
+const saveSettings = async (guildId, settings) => {
+    guildSettings[guildId] = settings;
+    saveLocalDatabase();
+
+    if (firestoreReady && firestoreDb) {
+        try {
+            const docRef = doc(firestoreDb, 'artifacts', appId, 'public', 'data', 'guilds', guildId);
+            await setDoc(docRef, settings, { merge: true });
+        } catch (e) {}
+    }
 };
 
-const logAction = (guildId, type, username, userId, reason) => {
-    const settings = getSettings(guildId);
+const updateSetting = async (guildId, key, value) => {
+    const settings = await getSettings(guildId);
+    settings[key] = value;
+    await saveSettings(guildId, settings);
+};
+
+const logAction = async (guildId, type, username, userId, reason) => {
+    const settings = await getSettings(guildId);
     if (!settings.history) settings.history = [];
     
     settings.history.unshift({
@@ -86,7 +139,7 @@ const logAction = (guildId, type, username, userId, reason) => {
     if (settings.history.length > 10) {
         settings.history = settings.history.slice(0, 10);
     }
-    saveDatabase();
+    await saveSettings(guildId, settings);
 };
 
 const parseDuration = (input) => {
@@ -94,36 +147,40 @@ const parseDuration = (input) => {
     const num = parseInt(val);
     if (isNaN(num)) return null;
     if (val.endsWith('d')) return num * 1440;
+    if (val.endsWith('h')) return num * 60;
     return num; 
 };
 
 const formatDuration = (mins) => {
     if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440} Days`;
+    if (mins >= 60 && mins % 60 === 0) return `${mins / 60} Hours`;
     return `${mins} Minutes`;
 };
 
 const toShortFormat = (mins) => {
     if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440}d`;
+    if (mins >= 60 && mins % 60 === 0) return `${mins / 60}h`;
     return `${mins}m`;
 };
 
-const generateDashboard = (guildId, page = 1) => {
-    const settings = getSettings(guildId);
+const INDIGO_BLUE = 0x4f46e5;
+
+const generateDashboard = async (guildId, page = 1) => {
+    const settings = await getSettings(guildId);
     
-    const statusColor = settings.masterSwitch ? '#00ffcc' : '#2b2d31';
-    const statusEmoji = settings.masterSwitch ? '🔹' : '🔸';
-    const statusText = settings.masterSwitch ? 'SYSTEMS ACTIVE' : 'SYSTEMS DISARMED';
+    const statusEmoji = settings.masterSwitch ? '🟢' : '🔴';
+    const statusText = settings.masterSwitch ? 'CORE DEFENSES ARMED' : 'CORE DEFENSES DISARMED';
 
     if (page === 1) {
         const embed = new EmbedBuilder()
-            .setTitle('⚙️ SYSTEM CONTROL CENTER')
-            .setColor(statusColor)
-            .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nManage your automated defensive shields below. Use the navigation buttons to jump between configuration views and moderation histories.`)
+            .setTitle('🛡️ ServSecurity Control Center')
+            .setColor(INDIGO_BLUE)
+            .setDescription(`**Current Matrix State:** ${statusEmoji} \`${statusText}\`\n\nManage your automated defensive shields below. Use the navigation buttons to jump between configuration views and moderation histories.`)
             .addFields(
                 { name: '🔗 LINK SHIELD', value: `\`\`\`yaml\nStatus: ${settings.linksEnabled ? 'ENABLED' : 'DISABLED'}\nTimeout: ${formatDuration(settings.linkTimeout)}\nAvoids: ${settings.linkAvoids.length} Items\`\`\``, inline: true },
                 { name: '🖼️ IMAGE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.imagesEnabled ? 'ENABLED' : 'DISABLED'}\nLimit: ${settings.maxImages} Msg\nTimeout: ${formatDuration(settings.imageTimeout)}\`\`\``, inline: true },
-                { name: '⚔️ RAID SHIELD', value: `\`\`\`yaml\nStatus: ${settings.raidEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 24h Timeout\`\`\``, inline: true },
-                { name: '📁 FILE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.fileShieldEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 1d Timeout\`\`\``, inline: true }
+                { name: '⚔️ ANTI RAID', value: `\`\`\`yaml\nStatus: ${settings.raidEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 24h Timeout\`\`\``, inline: true },
+                { name: '📁 FILE SANDBOX', value: `\`\`\`yaml\nStatus: ${settings.fileShieldEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 1d Timeout\`\`\``, inline: true }
             )
             .setTimestamp()
             .setFooter({ text: 'Main Defenses • Page 1 of 3' });
@@ -135,8 +192,8 @@ const generateDashboard = (guildId, page = 1) => {
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🔗'),
             new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🖼️'),
-            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('⚔️'),
-            new ButtonBuilder().setCustomId('toggle_files').setLabel('File Shield').setStyle(settings.fileShieldEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('📁')
+            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Anti Raid').setStyle(settings.raidEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('⚔️'),
+            new ButtonBuilder().setCustomId('toggle_files').setLabel('File Sandbox').setStyle(settings.fileShieldEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('📁')
         );
 
         const row3 = new ActionRowBuilder().addComponents(
@@ -157,9 +214,9 @@ const generateDashboard = (guildId, page = 1) => {
             : '_Only Owner & Main Admin._';
 
         const embed = new EmbedBuilder()
-            .setTitle('📝 LOGGING & ADVANCED CONFIG')
-            .setColor(statusColor)
-            .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nFine-tune thresholds, action criteria, and designated tracking channels for server modifications.`)
+            .setTitle('📡 LOGGING & ADVANCED CONFIG')
+            .setColor(INDIGO_BLUE)
+            .setDescription(`**Current Matrix State:** ${statusEmoji} \`${statusText}\`\n\nFine-tune thresholds, action criteria, and designated tracking channels for server modifications.`)
             .addFields(
                 { name: '🗑️ Deleted Message Logs', value: `> State: ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Applies to all texts, files, and images.*`, inline: false },
                 { name: '🟢 Allowed Links (Avoids)', value: `> ${avoidsSummary}`, inline: false },
@@ -192,7 +249,7 @@ const generateDashboard = (guildId, page = 1) => {
     if (page === 3) {
         const embed = new EmbedBuilder()
             .setTitle('📜 RECENT MODERATION ACTIONS')
-            .setColor('#ffcc00')
+            .setColor(INDIGO_BLUE)
             .setDescription('Displaying the last 10 automated and manual moderation actions tracked by this system.')
             .setTimestamp()
             .setFooter({ text: 'Incident History • Page 3 of 3' });
@@ -221,7 +278,8 @@ const createLogEmbed = (title, description, color) => {
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
-    console.log('Database Loaded Successfully.');
+    loadLocalDatabase();
+    await initRemoteStorage();
 
     try {
         console.log('🔄 Syncing global application (/) commands...');
@@ -243,13 +301,11 @@ client.once('ready', async () => {
     }
 });
 
-// WATCH AUDIT LOGS FOR MANUAL ACTIONS
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     if (!guild) return;
-    const settings = getSettings(guild.id);
+    const settings = await getSettings(guild.id);
     if (!settings.masterSwitch) return;
 
-    // Ignore if the bot did it (to prevent double logging)
     if (auditLog.executorId === client.user.id) return;
 
     const target = auditLog.target;
@@ -275,10 +331,8 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     }
 
     if (actionType) {
-        // Save to internal database (Page 3 of dashboard)
-        logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
+        await logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
 
-        // Forward to the logging channel if one is set up
         if (settings.logChannelId) {
             try {
                 const logChannel = await guild.channels.fetch(settings.logChannelId);
@@ -298,7 +352,7 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.guild) return;
 
-    const settings = getSettings(interaction.guildId);
+    const settings = await getSettings(interaction.guildId);
     
     const allowedUserId = '1284247278957367337';
     const isServerOwner = interaction.user.id === interaction.guild.ownerId;
@@ -323,26 +377,39 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
-        await interaction.reply(generateDashboard(interaction.guildId, 1));
+        const dashboard = await generateDashboard(interaction.guildId, 1);
+        await interaction.reply(dashboard);
     }
 
     if (interaction.isButton()) {
-        if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
-        if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
-        if (interaction.customId === 'nav_page3') return interaction.update(generateDashboard(interaction.guildId, 3));
+        if (interaction.customId === 'nav_page1') {
+            const dashboard = await generateDashboard(interaction.guildId, 1);
+            return interaction.update(dashboard);
+        }
+        if (interaction.customId === 'nav_page2') {
+            const dashboard = await generateDashboard(interaction.guildId, 2);
+            return interaction.update(dashboard);
+        }
+        if (interaction.customId === 'nav_page3') {
+            const dashboard = await generateDashboard(interaction.guildId, 3);
+            return interaction.update(dashboard);
+        }
 
         if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
-            if (interaction.customId === 'toggle_master') updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
-            if (interaction.customId === 'toggle_links') updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
-            if (interaction.customId === 'toggle_images') updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
-            if (interaction.customId === 'toggle_raid') updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
-            if (interaction.customId === 'toggle_files') updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
-            return interaction.update(generateDashboard(interaction.guildId, 1));
+            if (interaction.customId === 'toggle_master') await updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
+            if (interaction.customId === 'toggle_links') await updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
+            if (interaction.customId === 'toggle_images') await updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
+            if (interaction.customId === 'toggle_raid') await updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
+            if (interaction.customId === 'toggle_files') await updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
+            
+            const dashboard = await generateDashboard(interaction.guildId, 1);
+            return interaction.update(dashboard);
         }
 
         if (interaction.customId === 'toggle_deleted') {
-            updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
-            return interaction.update(generateDashboard(interaction.guildId, 2));
+            await updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
+            const dashboard = await generateDashboard(interaction.guildId, 2);
+            return interaction.update(dashboard);
         }
 
         if (interaction.customId === 'edit_links') {
@@ -392,8 +459,9 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isModalSubmit()) {
         if (interaction.customId === 'modal_links') {
             const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
-            if (parsed) updateSetting(interaction.guildId, 'linkTimeout', parsed);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
+            if (parsed) await updateSetting(interaction.guildId, 'linkTimeout', parsed);
+            const dashboard = await generateDashboard(interaction.guildId, 2);
+            await interaction.update(dashboard);
         }
 
         if (interaction.customId === 'modal_avoids') {
@@ -402,8 +470,9 @@ client.on('interactionCreate', async interaction => {
                 .map(item => item.trim().toLowerCase())
                 .filter(item => item.length > 0);
 
-            updateSetting(interaction.guildId, 'linkAvoids', processedList);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
+            await updateSetting(interaction.guildId, 'linkAvoids', processedList);
+            const dashboard = await generateDashboard(interaction.guildId, 2);
+            await interaction.update(dashboard);
         }
 
         if (interaction.customId === 'modal_access') {
@@ -412,29 +481,32 @@ client.on('interactionCreate', async interaction => {
                 .map(item => item.trim())
                 .filter(item => item.length > 0);
 
-            updateSetting(interaction.guildId, 'allowedAccess', processedList);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
+            await updateSetting(interaction.guildId, 'allowedAccess', processedList);
+            const dashboard = await generateDashboard(interaction.guildId, 2);
+            await interaction.update(dashboard);
         }
 
         if (interaction.customId === 'modal_images') {
             const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
             const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
-            if (!isNaN(max) && max > 0) updateSetting(interaction.guildId, 'maxImages', max);
-            if (parsedTimeout) updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
+            if (!isNaN(max) && max > 0) await updateSetting(interaction.guildId, 'maxImages', max);
+            if (parsedTimeout) await updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
+            const dashboard = await generateDashboard(interaction.guildId, 2);
+            await interaction.update(dashboard);
         }
     }
 
     if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
-        updateSetting(interaction.guildId, 'logChannelId', interaction.values);
-        await interaction.update(generateDashboard(interaction.guildId, 2)); 
+        await updateSetting(interaction.guildId, 'logChannelId', interaction.values);
+        const dashboard = await generateDashboard(interaction.guildId, 2);
+        await interaction.update(dashboard); 
     }
 });
 
 client.on('messageDelete', async message => {
     if (!message.guild || !message.author || message.author.bot) return; 
 
-    const settings = getSettings(message.guild.id);
+    const settings = await getSettings(message.guild.id);
     if (!settings.masterSwitch || !settings.logDeletedEnabled || !settings.logChannelId) return;
 
     try {
@@ -469,7 +541,7 @@ client.on('messageCreate', async message => {
 
     if (message.author.id === '1284247278957367337') return;
 
-    const settings = getSettings(message.guild.id);
+    const settings = await getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
 
     let targetLogChannel = message.channel;
@@ -504,10 +576,10 @@ client.on('messageCreate', async message => {
                 const targetMember = await message.guild.members.fetch(culpritId).catch(() => null);
                 if (targetMember && targetMember.timeout) await targetMember.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
 
-                logAction(message.guild.id, 'TIMEOUT', culpritTag, culpritId, 'Malicious Raid App Activity');
+                await logAction(message.guild.id, 'TIMEOUT', culpritTag, culpritId, 'Malicious Raid App Activity');
                 await message.channel.send(`🚨 **RAID BLOCKED:** <@${culpritId}> tried to use a malicious raid app!`);
 
-                const log = createLogEmbed('🛡️ Raid App Blocked', `**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
+                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -527,10 +599,10 @@ client.on('messageCreate', async message => {
                 await message.delete();
                 if (message.member) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files');
                 
-                logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
                 
-                const log = createLogEmbed('📁 Dangerous File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
+                const log = createLogEmbed('📁 File Sandbox Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -547,7 +619,7 @@ client.on('messageCreate', async message => {
                 await message.delete();
                 if (message.member) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Invite Link');
                 
-                logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Invite Link Spam');
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Invite Link Spam');
                 
                 const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
@@ -560,7 +632,7 @@ client.on('messageCreate', async message => {
             await message.delete();
             if (message.member) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account');
             
-            logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
+            await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
             await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
             
             const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
