@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServSecurity Control Center</title>
+    <title>ServSecurity</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { 
-            background-color: #0b0c10;
+            background-color: #06070a;
             font-family: 'Inter', sans-serif;
             color: #fafafa;
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        ::-webkit-scrollbar-thumb { background: #1a1b23; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d2f3d; }
         
         .input-base { 
-            background: #13141a; 
-            border: 1px solid #23242a; 
+            background: #111218; 
+            border: 1px solid #1f2029; 
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
         }
         .input-base:focus { 
@@ -32,33 +32,33 @@
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
         
         .outline-card {
-            background-color: rgba(17, 18, 24, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.4s ease;
+            background-color: rgba(13, 14, 20, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .outline-card:hover {
             border-color: rgba(16, 185, 129, 0.2);
-            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5), 0 0 20px -5px rgba(16, 185, 129, 0.05);
+            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7), 0 0 30px -10px rgba(16, 185, 129, 0.08);
             transform: translateY(-2px);
         }
         
         .inner-row {
-            background-color: rgba(11, 12, 16, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.03);
+            background-color: rgba(9, 10, 14, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.02);
             transition: all 0.3s ease;
         }
         .inner-row:hover {
-            border-color: rgba(255, 255, 255, 0.08);
-            background-color: rgba(15, 16, 20, 0.9);
+            border-color: rgba(255, 255, 255, 0.06);
+            background-color: rgba(12, 13, 18, 0.9);
         }
 
-        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
+        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
         
-        .delay-100 { animation-delay: 100ms; }
-        .delay-200 { animation-delay: 200ms; }
-        .delay-300 { animation-delay: 300ms; }
+        .delay-75 { animation-delay: 75ms; }
+        .delay-150 { animation-delay: 150ms; }
+        .delay-225 { animation-delay: 225ms; }
 
         @keyframes fadeIn {
             to { opacity: 1; }
@@ -67,109 +67,95 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .glow-text { text-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
-        
-        .btn-hover {
-            position: relative;
-            overflow: hidden;
-        }
-        .btn-hover::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(255,255,255,0.1), transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .btn-hover:hover::after { opacity: 1; }
+        .glow-text { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden bg-[#0b0c10]">
+<body class="flex h-screen overflow-hidden bg-[#06070a]">
 
-    <div class="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-[#10b981]/5 to-transparent pointer-events-none z-0"></div>
+    <div class="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-[#10b981]/5 to-transparent pointer-events-none z-0"></div>
 
-    <aside class="w-72 border-r border-white/5 bg-[#0b0c10]/80 backdrop-blur-xl flex flex-col z-20 shrink-0">
-        <div class="h-20 flex flex-col justify-center px-6 border-b border-white/5 relative overflow-hidden">
-            <div class="absolute -left-6 -top-6 w-20 h-20 bg-[#10b981]/20 rounded-full blur-2xl"></div>
+    <aside class="w-80 border-r border-white/5 bg-[#06070a]/90 backdrop-blur-2xl flex flex-col z-20 shrink-0">
+        <div class="h-20 flex flex-col justify-center px-8 border-b border-white/5 relative overflow-hidden">
+            <div class="absolute -left-8 -top-8 w-24 h-24 bg-[#10b981]/20 rounded-full blur-3xl"></div>
             <div class="flex items-center relative z-10">
-                <div class="relative flex items-center justify-center w-6 h-6 mr-3">
-                    <div class="absolute inset-0 bg-[#10b981] rounded-full blur-[6px] opacity-60"></div>
-                    <svg class="w-4 h-4 text-white relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                <div class="relative flex items-center justify-center w-7 h-7 mr-3.5">
+                    <div class="absolute inset-0 bg-[#10b981] rounded-full blur-[8px] opacity-70"></div>
+                    <svg class="w-4.5 h-4.5 text-white relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                 </div>
-                <span class="text-sm font-bold text-white tracking-widest uppercase glow-text">ServSecurity</span>
+                <span class="text-base font-extrabold text-white tracking-widest uppercase glow-text">ServSecurity</span>
             </div>
-            <span class="text-[9px] text-[#10b981] font-semibold mt-1 ml-9 tracking-widest uppercase">Admin Terminal</span>
+            <span class="text-[9px] text-[#10b981] font-bold mt-1.5 ml-11 tracking-widest uppercase">Admin Terminal</span>
         </div>
 
-        <div class="p-5 border-b border-white/5 bg-white/[0.01]">
+        <div class="p-6 border-b border-white/5">
             <div id="auth-zone" class="animate-fade-in">
                 <div class="flex items-center space-x-3 text-zinc-500">
                     <div class="w-4 h-4 rounded-full border-2 border-zinc-600 border-t-transparent animate-spin"></div>
-                    <span class="text-xs">Connecting...</span>
+                    <span class="text-xs font-semibold">Connecting network...</span>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-1 relative">
-            <div class="flex items-center justify-between px-3 mb-3 mt-2">
-                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Managed Nodes</span>
-                <span id="sandbox-indicator" class="hidden text-[8px] font-bold text-amber-400 uppercase bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Sandbox</span>
+        <div class="flex-1 overflow-y-auto p-5 space-y-1 relative">
+            <div class="flex items-center justify-between px-3 mb-4 mt-2">
+                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Active Channels</span>
+                <span id="sandbox-indicator" class="hidden text-[8px] font-bold text-amber-400 uppercase bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20">Sandbox</span>
             </div>
             
-            <div id="server-list" class="space-y-1.5 animate-slide-up delay-100">
-                <div class="h-10 bg-white/5 rounded-lg animate-pulse mx-2"></div>
-                <div class="h-10 bg-white/5 rounded-lg animate-pulse mx-2 opacity-70"></div>
-                <div class="h-10 bg-white/5 rounded-lg animate-pulse mx-2 opacity-40"></div>
+            <div id="server-list" class="space-y-2 animate-slide-up delay-75">
+                <div class="h-11 bg-white/5 rounded-xl animate-pulse mx-2"></div>
+                <div class="h-11 bg-white/5 rounded-xl animate-pulse mx-2 opacity-70"></div>
+                <div class="h-11 bg-white/5 rounded-xl animate-pulse mx-2 opacity-40"></div>
             </div>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col relative overflow-hidden bg-transparent z-10">
         
-        <header class="h-20 border-b border-white/5 flex items-center justify-between px-10 bg-[#0b0c10]/60 backdrop-blur-xl z-20 shrink-0">
+        <header class="h-20 border-b border-white/5 flex items-center justify-between px-12 bg-[#06070a]/60 backdrop-blur-2xl z-20 shrink-0">
             <div class="animate-fade-in">
                 <div class="text-[10px] text-[#10b981] font-bold tracking-widest uppercase mb-1 flex items-center">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#10b981] mr-2 animate-pulse"></span>
-                    Protection Matrix
+                    Terminal Protection Suite
                 </div>
                 <h2 id="active-server-name" class="text-xl font-bold tracking-tight text-white drop-shadow-md">Node Selection Required</h2>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-8 relative scroll-smooth">
+        <div class="flex-1 overflow-y-auto p-10 relative scroll-smooth">
             
             <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-slide-up">
-                <div class="w-16 h-16 rounded-2xl bg-[#111218] border border-white/5 flex items-center justify-center mb-5 shadow-2xl relative overflow-hidden">
+                <div class="w-20 h-20 rounded-2xl bg-[#111218] border border-white/5 flex items-center justify-center mb-6 shadow-2xl relative overflow-hidden">
                     <div class="absolute inset-0 bg-[#10b981]/10 blur-xl"></div>
-                    <svg class="w-6 h-6 text-[#10b981] relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                    <svg class="w-8 h-8 text-[#10b981] relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
                 </div>
                 <h3 class="text-lg font-semibold text-zinc-300">Awaiting Target Parameters</h3>
                 <p class="text-sm text-zinc-500 mt-2 max-w-sm text-center">Select an operational terminal from the sidebar to initialize defense configuration.</p>
             </div>
 
-            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-8 pb-16">
+            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-8 pb-20">
                 
                 <div class="flex flex-col md:flex-row md:items-end justify-between pb-6 border-b border-white/5 gap-4 animate-slide-up">
                     <div>
-                        <h1 class="text-2xl font-bold text-white tracking-tight">Active Matrix Parameters</h1>
-                        <p class="text-sm text-zinc-400 mt-1">Configure automated containment grids and punishment thresholds.</p>
+                        <h1 class="text-3xl font-extrabold text-white tracking-tight">Active Matrix Parameters</h1>
+                        <p class="text-sm text-zinc-400 mt-1.5">Configure automated containment grids and punishment thresholds.</p>
                     </div>
                     <div class="flex space-x-3">
-                        <button onclick="confirmReset()" class="bg-[#111218] hover:bg-zinc-800/80 text-zinc-300 border border-white/10 px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all duration-300 hover:shadow-lg">Wipe Config</button>
-                        <button onclick="saveConfig()" class="bg-[#10b981] hover:bg-[#059669] text-white px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all duration-300 btn-hover shadow-[0_0_20px_rgba(16,185,129,0.3)] transform hover:-translate-y-0.5">Deploy Changes</button>
+                        <button onclick="confirmReset()" class="bg-[#111218] hover:bg-zinc-800/80 text-zinc-300 border border-white/10 px-6 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300 hover:shadow-lg">Wipe Config</button>
+                        <button onclick="saveConfig()" class="bg-[#10b981] hover:bg-[#059669] text-white px-6 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300 shadow-[0_0_30px_rgba(16,185,129,0.35)] transform hover:-translate-y-0.5">Deploy Changes</button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     
-                    <div class="outline-card rounded-2xl p-6 lg:col-span-2 animate-slide-up delay-100 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
-                        <div class="absolute right-0 top-0 w-64 h-64 bg-[#10b981]/10 rounded-full blur-[80px] pointer-events-none -mr-20 -mt-20"></div>
+                    <div class="outline-card rounded-2xl p-6 lg:col-span-2 animate-slide-up delay-75 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-80 h-80 bg-[#10b981]/10 rounded-full blur-[100px] pointer-events-none -mr-24 -mt-24"></div>
                         <div class="relative z-10">
-                            <h3 class="text-lg font-bold text-white tracking-wide">Master Shield Integration</h3>
-                            <p class="text-xs text-zinc-400 mt-1">Globally arm or disarm all active system shield modules simultaneously.</p>
+                            <h3 class="text-xl font-bold text-white tracking-wide">Master Shield Integration</h3>
+                            <p class="text-xs text-zinc-400 mt-1.5">Globally arm or disarm all active system shield modules simultaneously.</p>
                         </div>
-                        <div class="flex items-center space-x-5 relative z-10 bg-[#050508] p-3 rounded-xl border border-white/5 shadow-inner">
-                            <span class="text-[10px] font-bold px-2.5 py-1.5 rounded-md bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 uppercase tracking-widest transition-all duration-300" id="masterBadge">ACTIVE</span>
+                        <div class="flex items-center space-x-6 relative z-10 bg-[#050508] p-3.5 rounded-2xl border border-white/5 shadow-inner">
+                            <span class="text-[10px] font-bold px-3 py-2 rounded-lg bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 uppercase tracking-widest transition-all duration-300" id="masterBadge">ACTIVE</span>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="masterSwitch" class="sr-only peer">
                                 <div class="w-12 h-6 bg-[#23242a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all duration-300 ease-in-out peer-checked:bg-[#10b981] shadow-inner"></div>
@@ -177,13 +163,13 @@
                         </div>
                     </div>
 
-                    <div class="outline-card rounded-2xl p-6 animate-slide-up delay-200 flex flex-col h-full">
+                    <div class="outline-card rounded-2xl p-6 animate-slide-up delay-150 flex flex-col h-full">
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center space-x-3">
-                                <div class="p-2.5 bg-[#10b981]/10 rounded-xl border border-[#10b981]/20"><svg class="w-4 h-4 text-[#10b981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
+                                <div class="p-3 bg-[#10b981]/10 rounded-xl border border-[#10b981]/20"><svg class="w-5 h-5 text-[#10b981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
                                 <div>
                                     <h4 class="text-sm font-bold text-white uppercase tracking-wider">Link Shield</h4>
-                                    <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 block">Anti-Spam Filter</span>
+                                    <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1 block">Anti-Spam Filter</span>
                                 </div>
                             </div>
                             <div class="flex items-center space-x-3">
@@ -194,25 +180,25 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="space-y-4 flex-1">
-                            <div class="space-y-1.5">
+                        <div class="space-y-5 flex-1">
+                            <div class="space-y-2">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Timeout Duration (Mins)</label>
-                                <input type="number" id="linkTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200">
+                                <input type="number" id="linkTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm text-zinc-200">
                             </div>
-                            <div class="space-y-1.5 flex-1">
+                            <div class="space-y-2 flex-1">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Allowed Domain Exemptions</label>
-                                <textarea id="linkAvoids" rows="2" placeholder="discord.gg/yourinvite, github.com" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200 resize-none h-full min-h-[80px]"></textarea>
+                                <textarea id="linkAvoids" rows="2" placeholder="discord.gg/yourinvite, github.com" class="w-full input-base rounded-xl px-4 py-3 text-sm text-zinc-200 resize-none h-full min-h-[100px]"></textarea>
                             </div>
                         </div>
                     </div>
 
-                    <div class="outline-card rounded-2xl p-6 animate-slide-up delay-300 flex flex-col h-full">
+                    <div class="outline-card rounded-2xl p-6 animate-slide-up delay-225 flex flex-col h-full">
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center space-x-3">
-                                <div class="p-2.5 bg-[#10b981]/10 rounded-xl border border-[#10b981]/20"><svg class="w-4 h-4 text-[#10b981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                                <div class="p-3 bg-[#10b981]/10 rounded-xl border border-[#10b981]/20"><svg class="w-5 h-5 text-[#10b981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
                                 <div>
                                     <h4 class="text-sm font-bold text-white uppercase tracking-wider">Image Shield</h4>
-                                    <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 block">Media Containment</span>
+                                    <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1 block">Media Containment</span>
                                 </div>
                             </div>
                             <div class="flex items-center space-x-3">
@@ -223,31 +209,31 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="space-y-4 flex-1">
-                            <div class="space-y-1.5">
+                        <div class="space-y-5 flex-1">
+                            <div class="space-y-2">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Maximum Image Burst</label>
-                                <input type="number" id="maxImages" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200">
+                                <input type="number" id="maxImages" class="w-full input-base rounded-xl px-4 py-3 text-sm text-zinc-200">
                             </div>
-                            <div class="space-y-1.5 flex-1">
+                            <div class="space-y-2 flex-1">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Containment Timeout (Mins)</label>
-                                <input type="number" id="imageTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200">
+                                <input type="number" id="imageTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm text-zinc-200">
                             </div>
                         </div>
                     </div>
 
-                    <div class="outline-card rounded-2xl p-6 lg:col-span-2 animate-slide-up delay-[400ms]">
+                    <div class="outline-card rounded-2xl p-6 lg:col-span-2 animate-slide-up delay-300">
                         <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-6 flex items-center">
-                            <svg class="w-4 h-4 text-zinc-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <svg class="w-4.5 h-4.5 text-zinc-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                             Structural Architecture
                         </h4>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="inner-row rounded-xl p-5 flex flex-col justify-between h-full group hover:border-[#10b981]/30 transition-colors duration-300">
-                                <div class="mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div class="inner-row rounded-2xl p-5 flex flex-col justify-between h-full group hover:border-[#10b981]/30 transition-colors duration-300">
+                                <div class="mb-5">
                                     <p class="text-sm font-bold text-white">Raid Matrix Blocker</p>
-                                    <p class="text-[10px] text-zinc-500 mt-1">Isolates automated joins</p>
+                                    <p class="text-[11px] text-zinc-500 mt-1.5">Isolates automated joins</p>
                                 </div>
-                                <div class="flex items-center justify-between mt-auto">
+                                <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
                                     <span class="text-[9px] font-bold px-2 py-1 rounded bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 uppercase tracking-widest" id="raidBadge">ACTIVE</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="raidEnabled" class="sr-only peer">
@@ -256,12 +242,12 @@
                                 </div>
                             </div>
 
-                            <div class="inner-row rounded-xl p-5 flex flex-col justify-between h-full group hover:border-[#10b981]/30 transition-colors duration-300">
-                                <div class="mb-4">
+                            <div class="inner-row rounded-2xl p-5 flex flex-col justify-between h-full group hover:border-[#10b981]/30 transition-colors duration-300">
+                                <div class="mb-5">
                                     <p class="text-sm font-bold text-white">Executable Sandbox</p>
-                                    <p class="text-[10px] text-zinc-500 mt-1">Purges malicious scripts</p>
+                                    <p class="text-[11px] text-zinc-500 mt-1.5">Purges malicious scripts</p>
                                 </div>
-                                <div class="flex items-center justify-between mt-auto">
+                                <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
                                     <span class="text-[9px] font-bold px-2 py-1 rounded bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 uppercase tracking-widest" id="fileBadge">ACTIVE</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="fileShieldEnabled" class="sr-only peer">
@@ -270,12 +256,12 @@
                                 </div>
                             </div>
 
-                            <div class="inner-row rounded-xl p-5 flex flex-col justify-between h-full group hover:border-[#10b981]/30 transition-colors duration-300">
-                                <div class="mb-4">
+                            <div class="inner-row rounded-2xl p-5 flex flex-col justify-between h-full group hover:border-[#10b981]/30 transition-colors duration-300">
+                                <div class="mb-5">
                                     <p class="text-sm font-bold text-white">Transmission Logs</p>
-                                    <p class="text-[10px] text-zinc-500 mt-1">Tracks deleted feeds</p>
+                                    <p class="text-[11px] text-zinc-500 mt-1.5">Tracks deleted feeds</p>
                                 </div>
-                                <div class="flex items-center justify-between mt-auto">
+                                <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
                                     <span class="text-[9px] font-bold px-2 py-1 rounded bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 uppercase tracking-widest" id="logBadge">ACTIVE</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="logDeletedEnabled" class="sr-only peer">
@@ -286,11 +272,11 @@
                         </div>
                     </div>
 
-                    <div class="outline-card rounded-2xl p-6 lg:col-span-2 animate-slide-up delay-[500ms]">
+                    <div class="outline-card rounded-2xl p-6 lg:col-span-2 animate-slide-up delay-[375ms]">
                         <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Operations Access Keys</h4>
-                        <div class="space-y-2">
+                        <div class="space-y-3">
                             <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Authorized Bypass IDs (Users / Roles)</label>
-                            <textarea id="allowedAccess" rows="2" placeholder="Comma separated IDs..." class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 resize-none h-20"></textarea>
+                            <textarea id="allowedAccess" rows="2" placeholder="Comma separated IDs..." class="w-full input-base rounded-xl px-4 py-3.5 text-sm text-zinc-200 resize-none h-20"></textarea>
                         </div>
                     </div>
 
@@ -427,7 +413,7 @@
 
             if (!data.loggedIn) {
                 authZone.innerHTML = `
-                    <a href="/api/auth/login" class="bg-[#10b981] hover:bg-[#059669] text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 w-full block text-center shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:-translate-y-0.5 btn-hover animate-fade-in">Authenticate Identity</a>
+                    <a href="/api/auth/login" class="bg-[#10b981] hover:bg-[#059669] text-white px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 w-full block text-center shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:-translate-y-0.5 animate-fade-in">Authenticate Identity</a>
                 `;
                 serverList.innerHTML = `<p class="text-xs text-zinc-600 px-3 py-3 animate-fade-in">Login required for access.</p>`;
                 return;
@@ -435,18 +421,18 @@
 
             systemBotId = data.botClientId;
             authZone.innerHTML = `
-                <div class="flex items-center justify-between w-full bg-[#111218] p-3 rounded-xl border border-white/5 shadow-inner animate-fade-in group">
+                <div class="flex items-center justify-between w-full bg-[#111218]/40 border border-white/5 p-3 rounded-2xl animate-fade-in">
                     <div class="flex items-center space-x-3 overflow-hidden">
                         <div class="relative shrink-0">
-                            <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-[#23242a] shadow-md object-cover">
+                            <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-xl border border-white/5 shadow-md object-cover">
                             <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#10b981] rounded-full border-[2.5px] border-[#111218]"></div>
                         </div>
                         <div class="flex-1 overflow-hidden pr-2">
                             <h4 class="text-sm font-bold text-white truncate w-full">${data.user.username}</h4>
-                            <span class="text-[9px] text-[#10b981] uppercase tracking-widest font-bold">Verified Admin</span>
+                            <span class="text-[9px] text-[#10b981] uppercase tracking-widest font-extrabold glow-text">Authorized Admin</span>
                         </div>
                     </div>
-                    <a href="${isSandboxMode ? '#' : '/api/auth/logout'}" onclick="if(isSandboxMode){location.reload()}" class="p-2.5 text-zinc-500 hover:text-white transition-all duration-300 rounded-lg hover:bg-red-500/20 hover:text-red-400 shrink-0">
+                    <a href="${isSandboxMode ? '#' : '/api/auth/logout'}" onclick="if(isSandboxMode){location.reload()}" class="p-2.5 text-zinc-500 hover:text-white transition-all duration-300 rounded-lg hover:bg-red-500/15 hover:text-red-400 shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     </a>
                 </div>
@@ -495,14 +481,14 @@
 
         async function selectServer(guildId, name) {
             document.querySelectorAll('#server-list button').forEach(b => {
-                b.classList.remove('bg-white/[0.05]', 'border-white/10', 'shadow-md');
+                b.classList.remove('bg-white/[0.04]', 'border-white/10', 'shadow-md');
                 b.classList.add('border-transparent');
                 b.querySelector('p:first-child').classList.remove('text-white');
             });
             const selectedBtn = document.getElementById(`btn-${guildId}`);
             if (selectedBtn) {
                 selectedBtn.classList.remove('border-transparent');
-                selectedBtn.classList.add('bg-white/[0.05]', 'border-white/10', 'shadow-md');
+                selectedBtn.classList.add('bg-white/[0.04]', 'border-white/10', 'shadow-md');
                 selectedBtn.querySelector('p:first-child').classList.add('text-white');
             }
 
