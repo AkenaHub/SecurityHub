@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServSecurity</title>
+    <title>ServSecurity Control Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { 
-            background-color: #06070a;
+            background-color: #0b0c10;
             font-family: 'Inter', sans-serif;
             color: #fafafa;
         }
@@ -304,19 +304,6 @@
         let systemBotId = '';
         let isSandboxMode = false;
 
-        function resolveUrl(path) {
-            let base = window.location.origin;
-            if (base === 'null' || window.location.protocol === 'blob:') {
-                try {
-                    const urlObj = new URL(window.location.href);
-                    if (urlObj.protocol === 'blob:') base = new URL(urlObj.pathname).origin;
-                } catch (e) {
-                    base = (window.location.ancestorOrigins && window.location.ancestorOrigins) || '';
-                }
-            }
-            return new URL(path, base).toString();
-        }
-
         function showNotification(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -391,7 +378,7 @@
             const serverList = document.getElementById('server-list');
             
             try {
-                const response = await fetch(resolveUrl('/api/user-data'), { credentials: 'same-origin' });
+                const response = await fetch('/api/user-data');
                 const contentType = response.headers.get("content-type");
                 if (!contentType || !contentType.includes("application/json")) throw new TypeError("Offline Payload");
                 
@@ -413,7 +400,7 @@
 
             if (!data.loggedIn) {
                 authZone.innerHTML = `
-                    <a href="/api/auth/login" class="bg-[#10b981] hover:bg-[#059669] text-white px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 w-full block text-center shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:-translate-y-0.5 animate-fade-in">Authenticate Identity</a>
+                    <a href="/api/auth/login" class="bg-[#10b981] hover:bg-[#059669] text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 w-full block text-center shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:-translate-y-0.5 btn-hover animate-fade-in">Authenticate Identity</a>
                 `;
                 serverList.innerHTML = `<p class="text-xs text-zinc-600 px-3 py-3 animate-fade-in">Login required for access.</p>`;
                 return;
@@ -421,7 +408,7 @@
 
             systemBotId = data.botClientId;
             authZone.innerHTML = `
-                <div class="flex items-center justify-between w-full bg-[#111218]/40 border border-white/5 p-3 rounded-2xl animate-fade-in">
+                <div class="flex items-center justify-between w-full bg-[#111218]/40 border border-white/5 p-3 rounded-2xl animate-fade-in group">
                     <div class="flex items-center space-x-3 overflow-hidden">
                         <div class="relative shrink-0">
                             <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-xl border border-white/5 shadow-md object-cover">
@@ -524,7 +511,7 @@
                         raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, allowedAccess: []
                     };
                 } else {
-                    const res = await fetch(resolveUrl(`/api/config/${guildId}`), { credentials: 'same-origin' });
+                    const res = await fetch(`/api/config/${guildId}`);
                     const contentType = res.headers.get("content-type");
                     if (!contentType || !contentType.includes("application/json")) throw new TypeError("Invalid format");
                     config = await res.json();
@@ -573,10 +560,9 @@
                     localStorage.setItem(`sandbox_conf_${activeGuildId}`, JSON.stringify(payload));
                     showNotification('Changes stored locally.');
                 } else {
-                    const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), {
+                    const res = await fetch(`/api/config/${activeGuildId}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        credentials: 'same-origin',
                         body: JSON.stringify(payload)
                     });
                     if (res.ok) showNotification('Changes committed successfully.');
@@ -595,7 +581,7 @@
                         showNotification('Configuration wiped from cache.');
                         await loadConfig(activeGuildId);
                     } else {
-                        const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), { method: 'DELETE', credentials: 'same-origin' });
+                        const res = await fetch(`/api/config/${activeGuildId}`, { method: 'DELETE' });
                         if (res.ok) {
                             showNotification('Configuration wiped.');
                             await loadConfig(activeGuildId);
