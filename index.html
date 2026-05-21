@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { 
-            background-color: #09090b;
+            background-color: #050508;
             font-family: 'Inter', sans-serif;
             color: #fafafa;
         }
@@ -17,180 +17,215 @@
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
         
-        .input-base { background: #0e0e11; border: 1px solid #1f1f22; transition: all 0.2s; }
+        .input-base { background: #0c0c0e; border: 1px solid #1c1c1f; transition: all 0.2s; }
         .input-base:focus { border-color: #3b82f6; outline: none; }
         
         .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
         .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+        
+        .outline-card {
+            background-color: #0b0b0d;
+            border: 1px solid #18181b;
+        }
+        .inner-row {
+            background-color: #050508;
+            border: 1px solid #141417;
+        }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden bg-[#09090b]">
+<body class="flex h-screen overflow-hidden bg-[#050508]">
 
-    <aside class="w-64 border-r border-[#1f1f22] bg-[#09090b] flex flex-col z-20 shrink-0">
-        <div class="h-20 flex flex-col justify-center px-6 border-b border-[#1f1f22]">
+    <aside class="w-64 border-r border-[#18181b] bg-[#050508] flex flex-col z-20 shrink-0">
+        <div class="h-20 flex flex-col justify-center px-6 border-b border-[#18181b]">
             <div class="flex items-center">
                 <svg class="w-4 h-4 text-[#3b82f6] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                <span class="text-sm font-bold text-white tracking-wide">ServSecurity</span>
+                <span class="text-xs font-bold text-white tracking-widest uppercase">ServSecurity</span>
             </div>
-            <span class="text-[10px] text-zinc-500 mt-0.5">Auth & Service Management</span>
+            <span class="text-[9px] text-zinc-500 tracking-wider uppercase mt-0.5">Auth & Service Management</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-1">
+        <div class="p-4 border-b border-[#18181b]">
+            <div id="auth-zone">
+                <div class="text-xs text-zinc-500">Loading authorization...</div>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-2">
             <div class="flex items-center justify-between px-2 mb-2">
-                <span id="sandbox-indicator" class="hidden text-[9px] font-bold text-amber-400 uppercase bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Offline UI</span>
+                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Dashboard</span>
+                <span id="sandbox-indicator" class="hidden text-[8px] font-bold text-amber-400 uppercase bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Sandbox</span>
             </div>
             
             <div id="server-list" class="space-y-1">
-                <p class="text-xs text-zinc-500 px-2 py-2">Loading authorization...</p>
+                <p class="text-xs text-zinc-500 px-2 py-2">No servers found</p>
             </div>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col relative overflow-hidden bg-[#09090b]">
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-[#050508]">
         
-        <header class="h-20 border-b border-[#1f1f22] flex items-center justify-between px-8 bg-[#0e0e11] z-10 shrink-0">
+        <header class="h-20 border-b border-[#18181b] flex items-center justify-between px-8 bg-[#050508] z-10 shrink-0">
             <div>
-                <div class="text-[11px] text-zinc-500 mb-1">ServSecurity / Terminals</div>
-                <h2 id="active-server-name" class="text-xl font-bold tracking-tight text-white">Terminal Configurations</h2>
+                <div class="text-[10px] text-zinc-500 tracking-wider uppercase mb-1">ServSecurity / Terminals</div>
+                <h2 id="active-server-name" class="text-lg font-bold tracking-tight text-white">Terminal Configurations</h2>
             </div>
-            <div class="flex items-center space-x-4">
-                <div id="auth-zone"></div>
+            <div class="flex items-center space-x-3">
+                <div class="h-8 w-8 rounded-full bg-[#18181b] flex items-center justify-center text-xs font-bold text-zinc-400 border border-[#27272a]">
+                    VA
+                </div>
             </div>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8 relative">
             
             <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <h3 class="text-lg font-semibold text-zinc-300">No Target Specified</h3>
-                <p class="text-sm text-zinc-500 mt-2 max-w-sm text-center">Select a terminal from the left panel.</p>
+                <h3 class="text-base font-semibold text-zinc-400">No Target Specified</h3>
+                <p class="text-xs text-zinc-500 mt-2 max-w-sm text-center">Select an operational terminal from the left sidebar panel.</p>
             </div>
 
             <div id="dashboard-view" class="hidden max-w-5xl flex-col space-y-6 pb-12">
                 
-                <div class="flex justify-end space-x-3 mb-2">
-                    <button onclick="confirmReset()" class="bg-[#0e0e11] text-zinc-300 border border-[#1f1f22] hover:bg-[#1f1f22] px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition">Wipe Config</button>
-                    <button onclick="saveConfig()" class="bg-[#3b82f6] hover:bg-blue-600 text-white px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition">+ Deploy Changes</button>
-                </div>
-
-                <div class="bg-[#0e0e11] border border-[#1f1f22] rounded-lg overflow-hidden">
-                    <div class="p-4 border-b border-[#1f1f22] flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold text-sm text-white">Master Shield Control</span>
-                        </div>
+                <div class="flex justify-between items-center pb-4 border-b border-[#18181b]">
+                    <div>
+                        <h1 class="text-xl font-bold text-white">Configure Node Settings</h1>
+                        <p class="text-xs text-zinc-500 mt-1">Manage active defensive parameters and containment configurations</p>
                     </div>
-                    <div class="p-4 bg-[#09090b] flex items-center justify-between">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="masterSwitch" class="sr-only peer">
-                            <div class="w-10 h-5 bg-[#1f1f22] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
-                        </label>
-                        <span class="text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]" id="masterBadge">ACTIVE</span>
+                    <div class="flex space-x-3">
+                        <button onclick="confirmReset()" class="bg-[#0b0b0d] hover:bg-zinc-900 text-zinc-300 border border-[#18181b] px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition">Wipe Config</button>
+                        <button onclick="saveConfig()" class="bg-[#2563eb] hover:bg-blue-600 text-white px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition shadow-lg shadow-blue-500/10">+ Deploy Changes</button>
                     </div>
                 </div>
 
-                <div class="bg-[#0e0e11] border border-[#1f1f22] rounded-lg overflow-hidden">
-                    <div class="p-4 border-b border-[#1f1f22] flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold text-sm text-white">Link Shield</span>
+                <div class="outline-card rounded-xl overflow-hidden p-6 space-y-6">
+                    
+                    <div class="flex items-center justify-between pb-4 border-b border-[#18181b]">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Master Shield Control</h3>
+                            <p class="text-[11px] text-zinc-500 mt-0.5">Globally arm or disarm all active system shield modules</p>
                         </div>
-                    </div>
-                    <div class="p-4 bg-[#09090b] grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <div class="flex items-center justify-between md:justify-start md:space-x-8 col-span-1">
+                        <div class="flex items-center space-x-4">
+                            <span class="text-[10px] font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399] border border-emerald-500/10 uppercase tracking-widest" id="masterBadge">ACTIVE</span>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="linksEnabled" class="sr-only peer">
-                                <div class="w-10 h-5 bg-[#1f1f22] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                <input type="checkbox" id="masterSwitch" class="sr-only peer">
+                                <div class="w-10 h-5 bg-[#18181b] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
                             </label>
-                            <span class="text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]" id="linksBadge">ACTIVE</span>
-                        </div>
-                        <div class="col-span-2 space-y-3">
-                            <div class="flex items-center space-x-4">
-                                <span class="text-xs text-zinc-500 w-24 shrink-0">Timeout (Mins)</span>
-                                <input type="number" id="linkTimeout" class="w-full input-base rounded px-3 py-1.5 text-sm text-zinc-200">
-                            </div>
-                            <div class="flex items-start space-x-4">
-                                <span class="text-xs text-zinc-500 w-24 shrink-0 pt-2">Avoids List</span>
-                                <textarea id="linkAvoids" rows="2" placeholder="discord.gg/invite, google.com" class="w-full input-base rounded px-3 py-1.5 text-sm text-zinc-200 resize-none"></textarea>
-                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="bg-[#0e0e11] border border-[#1f1f22] rounded-lg overflow-hidden">
-                    <div class="p-4 border-b border-[#1f1f22] flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold text-sm text-white">Image Shield</span>
-                        </div>
-                    </div>
-                    <div class="p-4 bg-[#09090b] grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <div class="flex items-center justify-between md:justify-start md:space-x-8 col-span-1">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="imagesEnabled" class="sr-only peer">
-                                <div class="w-10 h-5 bg-[#1f1f22] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
-                            </label>
-                            <span class="text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]" id="imagesBadge">ACTIVE</span>
-                        </div>
-                        <div class="col-span-2 space-y-3">
-                            <div class="flex items-center space-x-4">
-                                <span class="text-xs text-zinc-500 w-24 shrink-0">Max Images</span>
-                                <input type="number" id="maxImages" class="w-full input-base rounded px-3 py-1.5 text-sm text-zinc-200">
+                    <div class="space-y-4">
+                        
+                        <div class="inner-row rounded-lg p-5">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center space-x-3">
+                                        <h4 class="text-xs font-bold text-white uppercase tracking-wider">Link Shield</h4>
+                                        <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-[#064e3b] text-[#34d399] uppercase tracking-widest" id="linksBadge">ACTIVE</span>
+                                    </div>
+                                    <p class="text-[11px] text-zinc-500">Purges unauthorized invites and domains matching prohibited definitions</p>
+                                </div>
+                                <div class="flex items-center space-x-4 shrink-0">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="linksEnabled" class="sr-only peer">
+                                        <div class="w-10 h-5 bg-[#18181b] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                    </label>
+                                </div>
                             </div>
-                            <div class="flex items-center space-x-4">
-                                <span class="text-xs text-zinc-500 w-24 shrink-0">Timeout (Mins)</span>
-                                <input type="number" id="imageTimeout" class="w-full input-base rounded px-3 py-1.5 text-sm text-zinc-200">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#141417]">
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Timeout (Minutes)</label>
+                                    <input type="number" id="linkTimeout" class="w-full input-base rounded px-3 py-2 text-xs text-zinc-200">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Allowed List (Avoids)</label>
+                                    <textarea id="linkAvoids" rows="1" placeholder="discord.gg/yourinvite, google.com" class="w-full input-base rounded px-3 py-2 text-xs text-zinc-200 resize-none h-9"></textarea>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <div class="bg-[#0e0e11] border border-[#1f1f22] rounded-lg overflow-hidden">
-                    <div class="p-4 border-b border-[#1f1f22] flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold text-sm text-white">Structural Defenses</span>
-                        </div>
-                    </div>
-                    <div class="p-4 bg-[#09090b] space-y-4">
-                        <div class="flex items-center justify-between border-b border-[#1f1f22] pb-4">
-                            <span class="text-sm text-zinc-300">Raid Matrix Blocker</span>
-                            <div class="flex items-center space-x-6">
-                                <span class="text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]" id="raidBadge">ACTIVE</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="raidEnabled" class="sr-only peer">
-                                    <div class="w-10 h-5 bg-[#1f1f22] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
-                                </label>
+                        <div class="inner-row rounded-lg p-5">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center space-x-3">
+                                        <h4 class="text-xs font-bold text-white uppercase tracking-wider">Image Shield</h4>
+                                        <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-[#064e3b] text-[#34d399] uppercase tracking-widest" id="imagesBadge">ACTIVE</span>
+                                    </div>
+                                    <p class="text-[11px] text-zinc-500">Filters mass-media and restricts high frequency image spam</p>
+                                </div>
+                                <div class="flex items-center space-x-4 shrink-0">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="imagesEnabled" class="sr-only peer">
+                                        <div class="w-10 h-5 bg-[#18181b] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#141417]">
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Max Images Allowed</label>
+                                    <input type="number" id="maxImages" class="w-full input-base rounded px-3 py-2 text-xs text-zinc-200">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Spam Timeout (Minutes)</label>
+                                    <input type="number" id="imageTimeout" class="w-full input-base rounded px-3 py-2 text-xs text-zinc-200">
+                                </div>
                             </div>
                         </div>
-                        <div class="flex items-center justify-between border-b border-[#1f1f22] pb-4">
-                            <span class="text-sm text-zinc-300">Executable File Sandbox</span>
-                            <div class="flex items-center space-x-6">
-                                <span class="text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]" id="fileBadge">ACTIVE</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="fileShieldEnabled" class="sr-only peer">
-                                    <div class="w-10 h-5 bg-[#1f1f22] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between pb-1">
-                            <span class="text-sm text-zinc-300">Log Deleted Transmissions</span>
-                            <div class="flex items-center space-x-6">
-                                <span class="text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]" id="logBadge">ACTIVE</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="logDeletedEnabled" class="sr-only peer">
-                                    <div class="w-10 h-5 bg-[#1f1f22] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="bg-[#0e0e11] border border-[#1f1f22] rounded-lg overflow-hidden">
-                    <div class="p-4 border-b border-[#1f1f22] flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold text-sm text-white">Operations Access Keys</span>
+                        <div class="inner-row rounded-lg p-5 space-y-4">
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider pb-2 border-b border-[#141417]">Structural Defenses</h4>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="space-y-0.5">
+                                    <p class="text-xs text-zinc-300">Raid Matrix Blocker</p>
+                                    <p class="text-[10px] text-zinc-500">Auto-isolates and punishes instant raid-app automated joins</p>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-[#064e3b] text-[#34d399] uppercase tracking-widest" id="raidBadge">ACTIVE</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="raidEnabled" class="sr-only peer">
+                                        <div class="w-10 h-5 bg-[#18181b] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-[#141417]">
+                                <div class="space-y-0.5">
+                                    <p class="text-xs text-zinc-300">Executable File Sandbox</p>
+                                    <p class="text-[10px] text-zinc-500">Flags and purges harmful script files, batch scripts and DLL executable content</p>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-[#064e3b] text-[#34d399] uppercase tracking-widest" id="fileBadge">ACTIVE</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="fileShieldEnabled" class="sr-only peer">
+                                        <div class="w-10 h-5 bg-[#18181b] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-[#141417]">
+                                <div class="space-y-0.5">
+                                    <p class="text-xs text-zinc-300">Log Deleted Transmissions</p>
+                                    <p class="text-[10px] text-zinc-500">Tracks deleted user files, message attachments and media feeds inside operations logs</p>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-[#064e3b] text-[#34d399] uppercase tracking-widest" id="logBadge">ACTIVE</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="logDeletedEnabled" class="sr-only peer">
+                                        <div class="w-10 h-5 bg-[#18181b] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
+
+                        <div class="inner-row rounded-lg p-5 space-y-3">
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Operations Access Keys</h4>
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Authorized User & Role IDs (Comma Separated)</label>
+                                <textarea id="allowedAccess" rows="2" placeholder="User IDs, Role IDs" class="w-full input-base rounded px-3 py-2 text-xs text-zinc-200 resize-none h-14"></textarea>
+                            </div>
+                        </div>
+
                     </div>
-                    <div class="p-4 bg-[#09090b] flex items-start space-x-4">
-                        <span class="text-xs text-zinc-500 w-24 shrink-0 pt-2">Authorized IDs</span>
-                        <textarea id="allowedAccess" rows="3" placeholder="User IDs, Role IDs (Comma Separated)" class="w-full input-base rounded px-3 py-1.5 text-sm text-zinc-200 resize-none"></textarea>
-                    </div>
+
                 </div>
 
             </div>
@@ -200,12 +235,12 @@
     <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-3 pointer-events-none"></div>
 
     <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4 transition-opacity">
-        <div class="bg-[#0e0e11] border border-[#1f1f22] rounded-lg max-w-sm w-full p-6 shadow-2xl transform scale-95 transition-transform" id="modal-box">
-            <h3 class="text-white font-bold text-lg mb-2">Confirm Action</h3>
-            <p id="confirm-text" class="text-sm text-zinc-400">Are you sure you want to proceed?</p>
+        <div class="bg-[#0e0e11] border border-[#18181b] rounded-lg max-w-sm w-full p-6 shadow-2xl transform scale-95 transition-transform" id="modal-box">
+            <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Confirm Action</h3>
+            <p id="confirm-text" class="text-xs text-zinc-400">Are you sure you want to proceed?</p>
             <div class="flex justify-end space-x-3 mt-8">
-                <button id="confirm-cancel" class="bg-[#1f1f22] text-white hover:bg-zinc-800 px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition">Cancel</button>
-                <button id="confirm-proceed" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition">Reset Node</button>
+                <button id="confirm-cancel" class="bg-[#18181b] text-white hover:bg-zinc-800 px-4 py-2 rounded text-[10px] font-bold uppercase tracking-wider transition">Cancel</button>
+                <button id="confirm-proceed" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-[10px] font-bold uppercase tracking-wider transition">Reset Node</button>
             </div>
         </div>
     </div>
@@ -231,8 +266,8 @@
         function showNotification(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg border transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-auto flex items-center space-x-3 ${
-                type === 'success' ? 'bg-[#0e0e11] border-[#1f1f22] text-[#34d399]' : 'bg-[#0e0e11] border-[#1f1f22] text-red-400'
+            toast.className = `px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg border transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-auto flex items-center space-x-3 bg-[#0e0e11] border-[#18181b] ${
+                type === 'success' ? 'text-[#34d399]' : 'text-red-400'
             }`;
             toast.innerHTML = `
                 <div class="h-2 w-2 rounded-full ${type === 'success' ? 'bg-[#34d399]' : 'bg-red-400'}"></div>
@@ -273,10 +308,10 @@
             if (!badge) return;
             if (isChecked) {
                 badge.innerText = 'ACTIVE';
-                badge.className = 'text-xs font-bold px-2 py-1 rounded bg-[#064e3b] text-[#34d399]';
+                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded bg-[#064e3b] text-[#34d399] uppercase tracking-widest';
             } else {
                 badge.innerText = 'INACTIVE';
-                badge.className = 'text-xs font-bold px-2 py-1 rounded bg-[#1f1f22] text-zinc-500';
+                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded bg-[#18181b] text-zinc-500 uppercase tracking-widest';
             }
         }
 
@@ -319,7 +354,7 @@
 
             if (!data.loggedIn) {
                 authZone.innerHTML = `
-                    <a href="/api/auth/login" class="bg-[#3b82f6] hover:bg-blue-600 text-white px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition">Login via Discord</a>
+                    <a href="/api/auth/login" class="bg-[#2563eb] hover:bg-blue-600 text-white px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition">Login via Discord</a>
                 `;
                 return;
             }
@@ -327,8 +362,9 @@
             systemBotId = data.botClientId;
             authZone.innerHTML = `
                 <div class="flex items-center space-x-3">
-                    <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-8 w-8 rounded-full border border-[#1f1f22]">
-                    <a href="${isSandboxMode ? '#' : '/api/auth/logout'}" onclick="if(isSandboxMode){location.reload()}" class="p-2 text-zinc-500 hover:text-white transition rounded-md hover:bg-[#1f1f22]">
+                    <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-8 w-8 rounded-full border border-[#18181b]">
+                    <span class="text-xs font-semibold text-zinc-300 truncate max-w-[120px]">${data.user.username}</span>
+                    <a href="${isSandboxMode ? '#' : '/api/auth/logout'}" onclick="if(isSandboxMode){location.reload()}" class="p-2 text-zinc-500 hover:text-white transition rounded-md hover:bg-[#18181b]">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     </a>
                 </div>
@@ -347,14 +383,14 @@
             data.guilds.forEach(guild => {
                 if (guild.botPresent) {
                     serverList.innerHTML += `
-                        <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="w-full flex items-center p-3 rounded text-left border-l-2 border-transparent hover:bg-[#1a1a2e] hover:border-[#3b82f6] hover:text-[#3b82f6] text-zinc-400 transition group mb-1">
+                        <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="w-full flex items-center p-3 rounded text-left border-l-2 border-transparent hover:bg-[#0c0c0e] hover:border-[#3b82f6] hover:text-[#3b82f6] text-zinc-400 transition group mb-1">
                             <span class="text-sm font-medium truncate">${guild.name}</span>
                         </button>
                     `;
                 } else {
                     const inviteLink = `https://discord.com/api/oauth2/authorize?client_id=${systemBotId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&disable_guild_select=true`;
                     serverList.innerHTML += `
-                        <div class="w-full flex items-center justify-between p-3 rounded text-left border-l-2 border-transparent bg-white/[0.02] text-zinc-600 mb-1">
+                        <div class="w-full flex items-center justify-between p-3 rounded text-left border-l-2 border-transparent bg-white/[0.01] text-zinc-600 mb-1">
                             <span class="text-sm font-medium truncate">${guild.name}</span>
                             <a href="${inviteLink}" target="_blank" class="inline-block text-[10px] text-[#3b82f6] hover:text-blue-400 font-bold uppercase tracking-widest transition shrink-0 ml-2">Add +</a>
                         </div>
@@ -365,13 +401,13 @@
 
         async function selectServer(guildId, name) {
             document.querySelectorAll('#server-list button').forEach(b => {
-                b.classList.remove('bg-[#1a1a2e]', 'border-[#3b82f6]', 'text-[#3b82f6]');
+                b.classList.remove('bg-[#0c0c0e]', 'border-[#3b82f6]', 'text-[#3b82f6]');
                 b.classList.add('text-zinc-400', 'border-transparent');
             });
             const selectedBtn = document.getElementById(`btn-${guildId}`);
             if (selectedBtn) {
                 selectedBtn.classList.remove('text-zinc-400', 'border-transparent');
-                selectedBtn.classList.add('bg-[#1a1a2e]', 'border-[#3b82f6]', 'text-[#3b82f6]');
+                selectedBtn.classList.add('bg-[#0c0c0e]', 'border-[#3b82f6]', 'text-[#3b82f6]');
             }
 
             activeGuildId = guildId;
