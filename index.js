@@ -322,6 +322,19 @@ app.use(session({
     cookie: { secure: false, maxAge: 600000 * 6 }
 }));
 
+app.get('/', (req, res) => {
+    const publicPath = path.join(__dirname, 'public', 'index.html');
+    const rootPath = path.join(__dirname, 'index.html');
+    
+    if (fs.existsSync(publicPath)) {
+        res.sendFile(publicPath);
+    } else if (fs.existsSync(rootPath)) {
+        res.sendFile(rootPath);
+    } else {
+        res.status(404).send("<h2>Error: Dashboard file missing!</h2><p>Please make sure your <code>index.html</code> file is saved in your project.</p>");
+    }
+});
+
 app.get('/api/auth/login', (req, res) => {
     const clientId = process.env.DISCORD_CLIENT_ID;
     const redirectUri = process.env.REDIRECT_URI;
