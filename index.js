@@ -1,11 +1,7 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder } = require('discord.js');
-const express = require('express');
-const session = require('express-session');
-const axios = require('axios');
+const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
 
 const client = new Client({
     intents: [
@@ -51,32 +47,247 @@ const getSettings = (guildId) => {
     return guildSettings[guildId];
 };
 
+const buildMainMenu = (settings) => {
+    const embed = new EmbedBuilder()
+        .setTitle('❖ ServSecurity Command Matrix')
+        .setDescription('Select a module from the menu below to configure your defensive perimeters.')
+        .setColor(settings.masterSwitch ? 0x10b981 : 0xef4444)
+        .addFields(
+            { 
+                name: '🌐 Core System', 
+                value: `>>> **Master Shield:** ${settings.masterSwitch ? '🟢 ACTIVE' : '🔴 OFFLINE'}`,
+                inline: false
+            },
+            { 
+                name: '🔗 Link Shield', 
+                value: `>>> **Status:** ${settings.linksEnabled ? '🟢' : '🔴'}\n**Timeout:** ${settings.linkTimeout}m\n**Avoids:** ${settings.linkAvoids.length}`,
+                inline: true
+            },
+            { 
+                name: '🖼️ Image Shield', 
+                value: `>>> **Status:** ${settings.imagesEnabled ? '🟢' : '🔴'}\n**Limit:** ${settings.maxImages} imgs\n**Timeout:** ${settings.imageTimeout}m`,
+                inline: true
+            },
+            { 
+                name: '⚔️ Structural Defenses', 
+                value: `>>> **Raid Matrix:** ${settings.raidEnabled ? '🟢' : '🔴'}\n**Exec Sandbox:** ${settings.fileShieldEnabled ? '🟢' : '🔴'}\n**Log Deletions:** ${settings.logDeletedEnabled ? '🟢' : '🔴'}`,
+                inline: false
+            },
+            {
+                name: '📡 System Logs',
+                value: `>>> **Channel:** ${settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Set'}`,
+                inline: false
+            }
+        )
+        .setFooter({ text: 'ServSecurity • Advanced Operations' })
+        .setTimestamp();
+
+    const selectMenu = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('config_menu')
+            .setPlaceholder('Configure Defense Modules...')
+            .addOptions([
+                { label: 'Core System', description: 'Toggle the master shield override', value: 'menu_core', emoji: '🌐' },
+                { label: 'Link Shield', description: 'Configure URL anti-spam filters', value: 'menu_links', emoji: '🔗' },
+                { label: 'Image Shield', description: 'Configure media containment limits', value: 'menu_images', emoji: '🖼️' },
+                { label: 'Structural Defenses', description: 'Toggle raid, file, and log modules', value: 'menu_structural', emoji: '⚔️' },
+                { label: 'System Logs', description: 'Configure the active logging channel', value: 'menu_logs', emoji: '📡' },
+            ])
+    );
+
+    return { embeds: [embed], components: [selectMenu] };
+};
+
+const buildLinkMenu = (settings) => {
+    const embed = new EmbedBuilder()
+        .setTitle('🔗 Link Shield Configuration')
+        .setDescription('Purges unauthorized invites and domains matching prohibited definitions.')
+        .setColor(0x3b82f6)
+        .addFields(
+            { name: 'Current Status', value: settings.linksEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
+            { name: 'Timeout Duration', value: `${settings.linkTimeout} Minutes`, inline: true },
+            { name: 'Avoids List', value: settings.linkAvoids.length > 0 ? `\`${settings.linkAvoids.join(', ')}\`` : 'None', inline: false }
+        );
+
+    const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('toggle_links').setLabel(settings.linksEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.linksEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('edit_links').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [buttons] };
+};
+
+const buildImageMenu = (settings) => {
+    const embed = new EmbedBuilder()
+        .setTitle('🖼️ Image Shield Configuration')
+        .setDescription('Filters mass-media and restricts high frequency image spam.')
+        .setColor(0x3b82f6)
+        .addFields(
+            { name: 'Current Status', value: settings.imagesEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
+            { name: 'Max Burst Limit', value: `${settings.maxImages} Images`, inline: true },
+            { name: 'Timeout Duration', value: `${settings.imageTimeout} Minutes`, inline: false }
+        );
+
+    const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('toggle_images').setLabel(settings.imagesEnabled ? 'Disable Shield' : 'Enable Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('edit_images').setLabel('Edit Parameters').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [buttons] };
+};
+
+const buildStructuralMenu = (settings) => {
+    const embed = new EmbedBuilder()
+        .setTitle('⚔️ Structural Defenses')
+        .setDescription('Manage core perimeter defenses against raids and malicious files.')
+        .setColor(0x8b5cf6)
+        .addFields(
+            { name: 'Raid Matrix Blocker', value: settings.raidEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
+            { name: 'Executable Sandbox', value: settings.fileShieldEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: true },
+            { name: 'Log Deleted Transmissions', value: settings.logDeletedEnabled ? '🟢 ACTIVE' : '🔴 OFFLINE', inline: false }
+        );
+
+    const buttons1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('toggle_raid').setLabel('Toggle Raid').setStyle(settings.raidEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('toggle_file').setLabel('Toggle Sandbox').setStyle(settings.fileShieldEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('toggle_logdel').setLabel('Toggle Del Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary)
+    );
+    const buttons2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [buttons1, buttons2] };
+};
+
+const buildLogsMenu = (settings) => {
+    const embed = new EmbedBuilder()
+        .setTitle('📡 System Logs Configuration')
+        .setDescription('Set the destination for security alerts and transmission logs.')
+        .setColor(0x6366f1)
+        .addFields(
+            { name: 'Current Target Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'Not Configured', inline: false }
+        );
+
+    const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('set_log_channel').setLabel('Set to Current Channel').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('back_main').setLabel('Back to Matrix').setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embeds: [embed], components: [buttons] };
+};
+
 client.once('ready', () => {
     console.log(`Ready: ${client.user.tag}`);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+    if (!interaction.isChatInputCommand() && !interaction.isMessageComponent() && !interaction.isModalSubmit()) return;
 
-    if (interaction.commandName === 'dashboard') {
-        const allowedUserId = '1284247278957367337';
-        const isServerOwner = interaction.user.id === interaction.guild?.ownerId;
-        const isWhitelistedUser = interaction.user.id === allowedUserId;
-        const isAdmin = interaction.member?.permissions.has('Administrator');
+    const allowedUserId = '1284247278957367337';
+    const isServerOwner = interaction.guild && interaction.user.id === interaction.guild.ownerId;
+    const isWhitelistedUser = interaction.user.id === allowedUserId;
+    const isAdmin = interaction.member?.permissions.has('Administrator');
 
-        if (!isServerOwner && !isWhitelistedUser && !isAdmin) {
-            return interaction.reply({
-                content: '❌ **Access Denied:** You do not have permission to view the security panel.',
-                ephemeral: true
-            });
+    if (!isServerOwner && !isWhitelistedUser && !isAdmin) {
+        if (interaction.isRepliable()) {
+            return interaction.reply({ content: '❌ **Access Denied:** You lack the clearance to access the terminal.', ephemeral: true });
         }
+        return;
+    }
 
-        const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
+    const settings = getSettings(interaction.guildId);
+
+    if (interaction.isChatInputCommand() && interaction.commandName === 'dashboard') {
+        await interaction.reply(buildMainMenu(settings));
+        return;
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'config_menu') {
+        const choice = interaction.values;
         
-        await interaction.reply({
-            content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`,
-            ephemeral: true
-        });
+        if (choice === 'menu_core') {
+            settings.masterSwitch = !settings.masterSwitch;
+            saveDatabase();
+            await interaction.update(buildMainMenu(settings));
+        } else if (choice === 'menu_links') {
+            await interaction.update(buildLinkMenu(settings));
+        } else if (choice === 'menu_images') {
+            await interaction.update(buildImageMenu(settings));
+        } else if (choice === 'menu_structural') {
+            await interaction.update(buildStructuralMenu(settings));
+        } else if (choice === 'menu_logs') {
+            await interaction.update(buildLogsMenu(settings));
+        }
+        return;
+    }
+
+    if (interaction.isButton()) {
+        const id = interaction.customId;
+
+        if (id === 'back_main') {
+            await interaction.update(buildMainMenu(settings));
+        } else if (id === 'toggle_links') {
+            settings.linksEnabled = !settings.linksEnabled;
+            saveDatabase();
+            await interaction.update(buildLinkMenu(settings));
+        } else if (id === 'toggle_images') {
+            settings.imagesEnabled = !settings.imagesEnabled;
+            saveDatabase();
+            await interaction.update(buildImageMenu(settings));
+        } else if (id === 'toggle_raid') {
+            settings.raidEnabled = !settings.raidEnabled;
+            saveDatabase();
+            await interaction.update(buildStructuralMenu(settings));
+        } else if (id === 'toggle_file') {
+            settings.fileShieldEnabled = !settings.fileShieldEnabled;
+            saveDatabase();
+            await interaction.update(buildStructuralMenu(settings));
+        } else if (id === 'toggle_logdel') {
+            settings.logDeletedEnabled = !settings.logDeletedEnabled;
+            saveDatabase();
+            await interaction.update(buildStructuralMenu(settings));
+        } else if (id === 'set_log_channel') {
+            settings.logChannelId = interaction.channelId;
+            saveDatabase();
+            await interaction.update(buildLogsMenu(settings));
+        } else if (id === 'edit_links') {
+            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Parameters');
+            const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.linkTimeout.toString());
+            const avoidsInput = new TextInputBuilder().setCustomId('input_avoids').setLabel('Avoids List (Comma Separated)').setStyle(TextInputStyle.Paragraph).setValue(settings.linkAvoids.join(', ')).setRequired(false);
+            modal.addComponents(new ActionRowBuilder().addComponents(timeoutInput), new ActionRowBuilder().addComponents(avoidsInput));
+            await interaction.showModal(modal);
+        } else if (id === 'edit_images') {
+            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Parameters');
+            const burstInput = new TextInputBuilder().setCustomId('input_limit').setLabel('Max Images').setStyle(TextInputStyle.Short).setValue(settings.maxImages.toString());
+            const timeoutInput = new TextInputBuilder().setCustomId('input_timeout').setLabel('Timeout (Minutes)').setStyle(TextInputStyle.Short).setValue(settings.imageTimeout.toString());
+            modal.addComponents(new ActionRowBuilder().addComponents(burstInput), new ActionRowBuilder().addComponents(timeoutInput));
+            await interaction.showModal(modal);
+        }
+        return;
+    }
+
+    if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'modal_links') {
+            const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 30;
+            const avoidsRaw = interaction.fields.getTextInputValue('input_avoids');
+            const avoids = avoidsRaw ? avoidsRaw.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) : [];
+            
+            settings.linkTimeout = timeout;
+            settings.linkAvoids = avoids;
+            saveDatabase();
+            await interaction.update(buildLinkMenu(settings));
+        } else if (interaction.customId === 'modal_images') {
+            const limit = parseInt(interaction.fields.getTextInputValue('input_limit')) || 1;
+            const timeout = parseInt(interaction.fields.getTextInputValue('input_timeout')) || 4320;
+            
+            settings.maxImages = limit;
+            settings.imageTimeout = timeout;
+            saveDatabase();
+            await interaction.update(buildImageMenu(settings));
+        }
+        return;
     }
 });
 
@@ -305,133 +516,3 @@ if (!process.env.DISCORD_TOKEN) {
 } else {
     client.login(process.env.DISCORD_TOKEN).catch(err => {});
 }
-
-const app = express();
-
-app.set('trust proxy', 1);
-
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        maxAge: 1000 * 60 * 60 * 24
-    }
-}));
-
-app.get('/', (req, res) => {
-    const publicPath = path.join(__dirname, 'public', 'index.html');
-    const rootPath = path.join(__dirname, 'index.html');
-    
-    if (fs.existsSync(publicPath)) {
-        res.sendFile(publicPath);
-    } else if (fs.existsSync(rootPath)) {
-        res.sendFile(rootPath);
-    } else {
-        res.status(404).send("File missing");
-    }
-});
-
-app.get('/api/auth/login', (req, res) => {
-    const clientId = process.env.DISCORD_CLIENT_ID;
-    const redirectUri = process.env.REDIRECT_URI;
-    
-    if (!clientId || !redirectUri) {
-        return res.status(500).send("Missing credentials");
-    }
-    
-    const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
-    res.redirect(authorizeUrl);
-});
-
-app.get('/api/auth/callback', async (req, res) => {
-    const { code } = req.query;
-    if (!code) return res.redirect('/?error=No_code');
-
-    try {
-        const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
-            client_id: process.env.DISCORD_CLIENT_ID,
-            client_secret: process.env.DISCORD_CLIENT_SECRET,
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: process.env.REDIRECT_URI,
-        }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-
-        const accessToken = tokenResponse.data.access_token;
-
-        const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-
-        const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-
-        req.session.user = userResponse.data;
-        req.session.guilds = guildsResponse.data;
-
-        req.session.save((err) => {
-            res.redirect('/');
-        });
-    } catch (error) {
-        res.redirect('/?error=Auth_Failed');
-    }
-});
-
-app.get('/api/user-data', (req, res) => {
-    if (!req.session || !req.session.user) return res.json({ loggedIn: false });
-
-    const adminGuilds = req.session.guilds.filter(guild => {
-        const perms = BigInt(guild.permissions);
-        return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
-    });
-
-    const mappedGuilds = adminGuilds.map(guild => ({
-        id: guild.id,
-        name: guild.name,
-        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
-        botPresent: client.guilds.cache.has(guild.id)
-    }));
-
-    res.json({
-        loggedIn: true,
-        user: req.session.user,
-        guilds: mappedGuilds,
-        botClientId: process.env.DISCORD_CLIENT_ID
-    });
-});
-
-app.get('/api/config/:guildId', (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    res.json(getSettings(req.params.guildId));
-});
-
-app.post('/api/config/:guildId', (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    guildSettings[req.params.guildId] = {
-        ...getSettings(req.params.guildId),
-        ...req.body
-    };
-    saveDatabase();
-    res.json({ success: true, config: guildSettings[req.params.guildId] });
-});
-
-app.delete('/api/config/:guildId', (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    delete guildSettings[req.params.guildId];
-    saveDatabase();
-    res.json({ success: true, message: 'Configuration reverted' });
-});
-
-app.get('/api/auth/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Active on ${PORT}`));
