@@ -55,6 +55,32 @@ client.once('ready', () => {
     console.log(`Ready: ${client.user.tag}`);
 });
 
+client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'dashboard') {
+        const allowedUserId = '1284247278957367337';
+        const isServerOwner = interaction.user.id === interaction.guild?.ownerId;
+        const isWhitelistedUser = interaction.user.id === allowedUserId;
+        const isAdmin = interaction.member?.permissions.has('Administrator');
+
+        if (!isServerOwner && !isWhitelistedUser && !isAdmin) {
+            return interaction.reply({
+                content: '❌ **Access Denied:** You do not have permission to view the security panel.',
+                ephemeral: true
+            });
+        }
+
+        // Replace the URL below with your actual Railway app URL once deployed!
+        const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
+        
+        await interaction.reply({
+            content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`,
+            ephemeral: true
+        });
+    }
+});
+
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     if (!guild) return;
     const settings = getSettings(guild.id);
@@ -377,6 +403,5 @@ app.get('/api/auth/logout', (req, res) => {
     res.redirect('/');
 });
 
-app.listen(3000, () => console.log('Web Dashboard active on http://localhost:3000'));
-```
-...
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Web Dashboard active on port ${PORT}`));
