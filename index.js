@@ -1,12 +1,9 @@
-const { 
-    Client, GatewayIntentBits, Partials, EmbedBuilder, 
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, 
-    ChannelSelectMenuBuilder, ChannelType, 
-    ModalBuilder, TextInputBuilder, TextInputStyle,
-    REST, Routes, SlashCommandBuilder,
-    AuditLogEvent, Events
-} = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Events, AuditLogEvent, EmbedBuilder } = require('discord.js');
+const express = require('express');
+const session = require('express-session');
+const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 const client = new Client({
     intents: [
@@ -23,16 +20,14 @@ const dbFile = './database.json';
 let guildSettings = {};
 
 if (fs.existsSync(dbFile)) {
-    try {
-        guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
-    } catch (e) {
-        console.error("Failed to load database. Starting fresh.");
+    try { 
+        guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8')); 
+    } catch (e) { 
+        console.error(e); 
     }
 }
 
-const saveDatabase = () => {
-    fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
-};
+const saveDatabase = () => fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
 
 const getSettings = (guildId) => {
     if (!guildSettings[guildId]) {
@@ -53,203 +48,17 @@ const getSettings = (guildId) => {
         };
         saveDatabase();
     }
-    
-    if (guildSettings[guildId].linkBlacklist) {
-        guildSettings[guildId].linkAvoids = guildSettings[guildId].linkBlacklist;
-        delete guildSettings[guildId].linkBlacklist;
-        saveDatabase();
-    }
-    if (!guildSettings[guildId].linkAvoids) guildSettings[guildId].linkAvoids = [];
-    if (!guildSettings[guildId].allowedAccess) guildSettings[guildId].allowedAccess = [];
-    
     return guildSettings[guildId];
 };
 
-const updateSetting = (guildId, key, value) => {
-    const settings = getSettings(guildId);
-    settings[key] = value;
-    saveDatabase();
-};
-
-const logAction = (guildId, type, username, userId, reason) => {
-    const settings = getSettings(guildId);
-    if (!settings.history) settings.history = [];
-    
-    settings.history.unshift({
-        type,
-        username,
-        userId,
-        reason,
-        timestamp: Math.floor(Date.now() / 1000)
-    });
-
-    if (settings.history.length > 10) {
-        settings.history = settings.history.slice(0, 10);
-    }
-    saveDatabase();
-};
-
-const parseDuration = (input) => {
-    const val = input.toLowerCase().trim();
-    const num = parseInt(val);
-    if (isNaN(num)) return null;
-    if (val.endsWith('d')) return num * 1440;
-    return num; 
-};
-
-const formatDuration = (mins) => {
-    if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440} Days`;
-    return `${mins} Minutes`;
-};
-
-const toShortFormat = (mins) => {
-    if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440}d`;
-    return `${mins}m`;
-};
-
-const generateDashboard = (guildId, page = 1) => {
-    const settings = getSettings(guildId);
-    
-    const statusColor = settings.masterSwitch ? '#00ffcc' : '#2b2d31';
-    const statusEmoji = settings.masterSwitch ? '🔹' : '🔸';
-    const statusText = settings.masterSwitch ? 'SYSTEMS ACTIVE' : 'SYSTEMS DISARMED';
-
-    if (page === 1) {
-        const embed = new EmbedBuilder()
-            .setTitle('⚙️ SYSTEM CONTROL CENTER')
-            .setColor(statusColor)
-            .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nManage your automated defensive shields below. Use the navigation buttons to jump between configuration views and moderation histories.`)
-            .addFields(
-                { name: '🔗 LINK SHIELD', value: `\`\`\`yaml\nStatus: ${settings.linksEnabled ? 'ENABLED' : 'DISABLED'}\nTimeout: ${formatDuration(settings.linkTimeout)}\nAvoids: ${settings.linkAvoids.length} Items\`\`\``, inline: true },
-                { name: '🖼️ IMAGE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.imagesEnabled ? 'ENABLED' : 'DISABLED'}\nLimit: ${settings.maxImages} Msg\nTimeout: ${formatDuration(settings.imageTimeout)}\`\`\``, inline: true },
-                { name: '⚔️ RAID SHIELD', value: `\`\`\`yaml\nStatus: ${settings.raidEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 24h Timeout\`\`\``, inline: true },
-                { name: '📁 FILE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.fileShieldEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 1d Timeout\`\`\``, inline: true }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Main Defenses • Page 1 of 3' });
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'DISARM SYSTEM' : 'ARM SYSTEM').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌')
-        );
-
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🔗'),
-            new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🖼️'),
-            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Raid Shield').setStyle(settings.raidEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('⚔️'),
-            new ButtonBuilder().setCustomId('toggle_files').setLabel('File Shield').setStyle(settings.fileShieldEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('📁')
-        );
-
-        const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('nav_page2').setLabel('Logs & Config ➡️').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
-        );
-
-        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
-    } 
-    
-    if (page === 2) {
-        const avoidsSummary = settings.linkAvoids.length > 0 
-            ? settings.linkAvoids.map(d => `\`${d}\``).join(', ')
-            : '_No links avoided._';
-            
-        const accessSummary = settings.allowedAccess.length > 0 
-            ? settings.allowedAccess.map(d => `\`${d}\``).join(', ')
-            : '_Only Owner & Main Admin._';
-
-        const embed = new EmbedBuilder()
-            .setTitle('📝 LOGGING & ADVANCED CONFIG')
-            .setColor(statusColor)
-            .setDescription(`**Current State:** ${statusEmoji} \`${statusText}\`\n\nFine-tune thresholds, action criteria, and designated tracking channels for server modifications.`)
-            .addFields(
-                { name: '🗑️ Deleted Message Logs', value: `> State: ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Applies to all texts, files, and images.*`, inline: false },
-                { name: '🟢 Allowed Links (Avoids)', value: `> ${avoidsSummary}`, inline: false },
-                { name: '🔑 Panel Access (IDs)', value: `> ${accessSummary}`, inline: false },
-                { name: '🗂️ Target Logging Channel', value: settings.logChannelId ? `> Destination: <#${settings.logChannelId}>` : '> Destination: `Not Set (Sends to source channel)`', inline: false }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Configuration • Page 2 of 3' });
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_deleted').setLabel('Delete Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️'),
-            new ButtonBuilder().setCustomId('edit_links').setLabel('Setup Links').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
-            new ButtonBuilder().setCustomId('edit_avoids').setLabel('Edit Avoids').setStyle(ButtonStyle.Secondary).setEmoji('🟢'),
-            new ButtonBuilder().setCustomId('edit_images').setLabel('Setup Images').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
-            new ButtonBuilder().setCustomId('edit_access').setLabel('Edit Access').setStyle(ButtonStyle.Secondary).setEmoji('🔑')
-        );
-
-        const row2 = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Select channel for server security logs...').addChannelTypes(ChannelType.GuildText)
-        );
-
-        const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
-        );
-
-        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
-    }
-
-    if (page === 3) {
-        const embed = new EmbedBuilder()
-            .setTitle('📜 RECENT MODERATION ACTIONS')
-            .setColor('#ffcc00')
-            .setDescription('Displaying the last 10 automated and manual moderation actions tracked by this system.')
-            .setTimestamp()
-            .setFooter({ text: 'Incident History • Page 3 of 3' });
-
-        const historyList = settings.history && settings.history.length > 0
-            ? settings.history.map((log, index) => `**${index + 1}. [${log.type}]** \`${log.username}\` (${log.userId})\n🔹 **When:** <t:${log.timestamp}:F> (<t:${log.timestamp}:R>)\n🔹 **Reason:** \`${log.reason}\``).join('\n\n—\n\n')
-            : '*No recent actions have been logged.*';
-
-        embed.addFields({ name: '🚨 Active Incident Feed', value: historyList });
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('nav_page2').setLabel('Logs & Config ➡️').setStyle(ButtonStyle.Secondary)
-        );
-
-        return { embeds: [embed], components: [row1], ephemeral: true };
-    }
-};
-
-const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
-const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
-
-const createLogEmbed = (title, description, color) => {
-    return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
-};
-
-client.once('ready', async () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-    console.log('Database Loaded Successfully.');
-
-    try {
-        console.log('🔄 Syncing global application (/) commands...');
-        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-        
-        const commands = [
-            new SlashCommandBuilder()
-                .setName('setup')
-                .setDescription('Opens the Security Control Center dashboard.')
-        ].map(cmd => cmd.toJSON());
-
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commands }
-        );
-        console.log('✅ Global commands updated successfully across all servers!');
-    } catch (error) {
-        console.error('❌ Failed to deploy global commands on startup:', error);
-    }
+client.once('ready', () => {
+    console.log(`Ready: ${client.user.tag}`);
 });
 
-// WATCH AUDIT LOGS FOR MANUAL ACTIONS
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     if (!guild) return;
     const settings = getSettings(guild.id);
     if (!settings.masterSwitch) return;
-
-    // Ignore if the bot did it (to prevent double logging)
     if (auditLog.executorId === client.user.id) return;
 
     const target = auditLog.target;
@@ -275,159 +84,20 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     }
 
     if (actionType) {
-        // Save to internal database (Page 3 of dashboard)
         logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
-
-        // Forward to the logging channel if one is set up
         if (settings.logChannelId) {
             try {
                 const logChannel = await guild.channels.fetch(settings.logChannelId);
                 if (logChannel) {
-                    const embed = createLogEmbed(
-                        `🔨 Manual ${actionType} Executed`, 
-                        `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, 
-                        color
-                    );
+                    const embed = new EmbedBuilder()
+                        .setTitle(`🔨 Manual ${actionType} Executed`)
+                        .setDescription(`**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`)
+                        .setColor(color)
+                        .setTimestamp();
                     await logChannel.send({ embeds: [embed] }).catch(() => {});
                 }
             } catch (e) {}
         }
-    }
-});
-
-client.on('interactionCreate', async interaction => {
-    if (!interaction.guild) return;
-
-    const settings = getSettings(interaction.guildId);
-    
-    const allowedUserId = '1284247278957367337';
-    const isServerOwner = interaction.user.id === interaction.guild.ownerId;
-    const isWhitelistedUser = interaction.user.id === allowedUserId;
-    
-    let hasAccess = isServerOwner || isWhitelistedUser;
-
-    if (!hasAccess && settings.allowedAccess.length > 0) {
-        if (settings.allowedAccess.includes(interaction.user.id)) {
-            hasAccess = true;
-        }
-        if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) {
-            hasAccess = true;
-        }
-    }
-
-    if (!hasAccess) {
-        return interaction.reply({
-            content: '❌ **Access Denied:** You do not have permission to use or view the security panel.',
-            ephemeral: true
-        });
-    }
-
-    if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
-        await interaction.reply(generateDashboard(interaction.guildId, 1));
-    }
-
-    if (interaction.isButton()) {
-        if (interaction.customId === 'nav_page1') return interaction.update(generateDashboard(interaction.guildId, 1));
-        if (interaction.customId === 'nav_page2') return interaction.update(generateDashboard(interaction.guildId, 2));
-        if (interaction.customId === 'nav_page3') return interaction.update(generateDashboard(interaction.guildId, 3));
-
-        if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
-            if (interaction.customId === 'toggle_master') updateSetting(interaction.guildId, 'masterSwitch', !settings.masterSwitch);
-            if (interaction.customId === 'toggle_links') updateSetting(interaction.guildId, 'linksEnabled', !settings.linksEnabled);
-            if (interaction.customId === 'toggle_images') updateSetting(interaction.guildId, 'imagesEnabled', !settings.imagesEnabled);
-            if (interaction.customId === 'toggle_raid') updateSetting(interaction.guildId, 'raidEnabled', !settings.raidEnabled);
-            if (interaction.customId === 'toggle_files') updateSetting(interaction.guildId, 'fileShieldEnabled', !settings.fileShieldEnabled);
-            return interaction.update(generateDashboard(interaction.guildId, 1));
-        }
-
-        if (interaction.customId === 'toggle_deleted') {
-            updateSetting(interaction.guildId, 'logDeletedEnabled', !settings.logDeletedEnabled);
-            return interaction.update(generateDashboard(interaction.guildId, 2));
-        }
-
-        if (interaction.customId === 'edit_links') {
-            const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
-            modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
-            await interaction.showModal(modal);
-        }
-
-        if (interaction.customId === 'edit_avoids') {
-            const modal = new ModalBuilder().setCustomId('modal_avoids').setTitle('Configure Allowed Links');
-            modal.addComponents(new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('input_avoids')
-                    .setLabel('Enter domains/invites to AVOID (comma-sep)')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('discord.gg/yourserver, discord.com/invite/xyz')
-                    .setRequired(false)
-                    .setValue(settings.linkAvoids.join(', '))
-            ));
-            await interaction.showModal(modal);
-        }
-
-        if (interaction.customId === 'edit_access') {
-            const modal = new ModalBuilder().setCustomId('modal_access').setTitle('Configure Panel Access');
-            modal.addComponents(new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('input_access')
-                    .setLabel('Enter User/Role IDs (Separate with commas)')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('123456789012345678, 987654321098765432')
-                    .setRequired(false)
-                    .setValue(settings.allowedAccess.join(', '))
-            ));
-            await interaction.showModal(modal);
-        }
-
-        if (interaction.customId === 'edit_images') {
-            const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_max').setLabel('Trigger limit (e.g. 1, 3, 5)').setStyle(TextInputStyle.Short).setRequired(true).setValue(settings.maxImages.toString())),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_timeout').setLabel('Timeout (e.g. 60m, 7d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.imageTimeout)))
-            );
-            await interaction.showModal(modal);
-        }
-    }
-
-    if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'modal_links') {
-            const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
-            if (parsed) updateSetting(interaction.guildId, 'linkTimeout', parsed);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
-        }
-
-        if (interaction.customId === 'modal_avoids') {
-            const rawInput = interaction.fields.getTextInputValue('input_avoids');
-            const processedList = rawInput.split(',')
-                .map(item => item.trim().toLowerCase())
-                .filter(item => item.length > 0);
-
-            updateSetting(interaction.guildId, 'linkAvoids', processedList);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
-        }
-
-        if (interaction.customId === 'modal_access') {
-            const rawInput = interaction.fields.getTextInputValue('input_access');
-            const processedList = rawInput.split(',')
-                .map(item => item.trim())
-                .filter(item => item.length > 0);
-
-            updateSetting(interaction.guildId, 'allowedAccess', processedList);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
-        }
-
-        if (interaction.customId === 'modal_images') {
-            const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
-            const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
-            if (!isNaN(max) && max > 0) updateSetting(interaction.guildId, 'maxImages', max);
-            if (parsedTimeout) updateSetting(interaction.guildId, 'imageTimeout', parsedTimeout);
-            await interaction.update(generateDashboard(interaction.guildId, 2));
-        }
-    }
-
-    if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
-        updateSetting(interaction.guildId, 'logChannelId', interaction.values);
-        await interaction.update(generateDashboard(interaction.guildId, 2)); 
     }
 });
 
@@ -464,9 +134,11 @@ client.on('messageDelete', async message => {
     } catch (e) {}
 });
 
+const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord\.com\/invite\/.+)/i;
+const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
+
 client.on('messageCreate', async message => {
     if (!message.guild || message.author.id === client.user.id) return; 
-
     if (message.author.id === '1284247278957367337') return;
 
     const settings = getSettings(message.guild.id);
@@ -507,7 +179,11 @@ client.on('messageCreate', async message => {
                 logAction(message.guild.id, 'TIMEOUT', culpritTag, culpritId, 'Malicious Raid App Activity');
                 await message.channel.send(`🚨 **RAID BLOCKED:** <@${culpritId}> tried to use a malicious raid app!`);
 
-                const log = createLogEmbed('🛡️ Raid App Blocked', `**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
+                const log = new EmbedBuilder()
+                    .setTitle('🛡️ Raid App Blocked')
+                    .setDescription(`**Culprit:** <@${culpritId}>\n**Action:** Message Deleted & User Timed Out for 24h.`)
+                    .setColor('#800080')
+                    .setTimestamp();
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -530,7 +206,11 @@ client.on('messageCreate', async message => {
                 logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
                 
-                const log = createLogEmbed('📁 Dangerous File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
+                const log = new EmbedBuilder()
+                    .setTitle('📁 Dangerous File Blocked')
+                    .setDescription(`**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`)
+                    .setColor('#ff0000')
+                    .setTimestamp();
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -549,7 +229,11 @@ client.on('messageCreate', async message => {
                 
                 logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Invite Link Spam');
                 
-                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
+                const log = new EmbedBuilder()
+                    .setTitle('🛡️ Link Blocked')
+                    .setDescription(`**User:** <@${message.author.id}>\n**Trigger:** \`Discord Invite Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout} Minutes)`)
+                    .setColor('#ffcc00')
+                    .setTimestamp();
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
             } catch (e) {}
         }
@@ -563,10 +247,136 @@ client.on('messageCreate', async message => {
             logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
             await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
             
-            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
+            const log = new EmbedBuilder()
+                .setTitle('🚨 Image Spam Blocked')
+                .setDescription(`**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout} Minutes)`)
+                .setColor('#ff0000')
+                .setTimestamp();
             await targetLogChannel.send({ embeds: [log] }).catch(() => {});
         } catch (e) {}
     }
 });
 
+const logAction = (guildId, type, username, userId, reason) => {
+    const settings = getSettings(guildId);
+    if (!settings.history) settings.history = [];
+    
+    settings.history.unshift({
+        type,
+        username,
+        userId,
+        reason,
+        timestamp: Math.floor(Date.now() / 1000)
+    });
+
+    if (settings.history.length > 10) {
+        settings.history = settings.history.slice(0, 10);
+    }
+    saveDatabase();
+};
+
 client.login(process.env.DISCORD_TOKEN);
+
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false, maxAge: 600000 * 6 }
+}));
+
+app.get('/api/auth/login', (req, res) => {
+    const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+    res.redirect(authorizeUrl);
+});
+
+app.get('/api/auth/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code) return res.redirect('/?error=No_code_provided');
+
+    try {
+        const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
+            client_id: process.env.CLIENT_ID,
+            client_secret: process.env.CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: process.env.REDIRECT_URI,
+        }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+
+        const accessToken = tokenResponse.data.access_token;
+
+        const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        req.session.user = userResponse.data;
+        req.session.guilds = guildsResponse.data;
+
+        res.redirect('/');
+    } catch (error) {
+        console.error(error);
+        res.redirect('/?error=Authentication_Failed');
+    }
+});
+
+app.get('/api/user-data', (req, res) => {
+    if (!req.session.user) return res.json({ loggedIn: false });
+
+    const adminGuilds = req.session.guilds.filter(guild => {
+        const perms = BigInt(guild.permissions);
+        return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
+    });
+
+    const mappedGuilds = adminGuilds.map(guild => ({
+        id: guild.id,
+        name: guild.name,
+        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
+        botPresent: client.guilds.cache.has(guild.id)
+    }));
+
+    res.json({
+        loggedIn: true,
+        user: req.session.user,
+        guilds: mappedGuilds,
+        botClientId: process.env.CLIENT_ID
+    });
+});
+
+app.get('/api/config/:guildId', (req, res) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    res.json(getSettings(req.params.guildId));
+});
+
+app.post('/api/config/:guildId', (req, res) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    guildSettings[req.params.guildId] = {
+        ...getSettings(req.params.guildId),
+        ...req.body
+    };
+    saveDatabase();
+    res.json({ success: true, config: guildSettings[req.params.guildId] });
+});
+
+app.delete('/api/config/:guildId', (req, res) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    delete guildSettings[req.params.guildId];
+    saveDatabase();
+    res.json({ success: true, message: 'Configuration reverted to defaults.' });
+});
+
+app.get('/api/auth/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
+
+app.listen(3000, () => console.log('Web Dashboard active on http://localhost:3000'));
+```
+...
