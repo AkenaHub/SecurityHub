@@ -24,9 +24,7 @@ let guildSettings = {};
 if (fs.existsSync(dbFile)) {
     try { 
         guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8')); 
-    } catch (e) { 
-        console.error("Failed to parse database file:", e.message); 
-    }
+    } catch (e) {}
 }
 
 const saveDatabase = () => fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
@@ -303,25 +301,22 @@ const logAction = (guildId, type, username, userId, reason) => {
 };
 
 if (!process.env.DISCORD_TOKEN) {
-    console.error("❌ CRITICAL ERROR: 'DISCORD_TOKEN' is missing from env variables. Bot is offline.");
+    console.error("Missing DISCORD_TOKEN");
 } else {
-    client.login(process.env.DISCORD_TOKEN).catch(err => {
-        console.error("❌ DISCORD LOGIN ERROR:", err.message);
-    });
+    client.login(process.env.DISCORD_TOKEN).catch(err => {});
 }
 
 const app = express();
 
-// Required for Railway to handle session cookies properly across HTTPS
 app.set('trust proxy', 1);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'servsecurity-secure-fallback-secret-key-12345',
+    secret: process.env.SESSION_SECRET || 'servsecurity-key-123',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, maxAge: 600000 * 6 }
+    cookie: { maxAge: 600000 * 6 }
 }));
 
 app.get('/', (req, res) => {
@@ -333,7 +328,7 @@ app.get('/', (req, res) => {
     } else if (fs.existsSync(rootPath)) {
         res.sendFile(rootPath);
     } else {
-        res.status(404).send("<h2>Error: Dashboard file missing!</h2><p>Please make sure your <code>index.html</code> file is saved in your project.</p>");
+        res.status(404).send("File missing");
     }
 });
 
@@ -342,7 +337,7 @@ app.get('/api/auth/login', (req, res) => {
     const redirectUri = process.env.REDIRECT_URI;
     
     if (!clientId || !redirectUri) {
-        return res.status(500).send("Configuration error: Missing Discord credentials or callback URL.");
+        return res.status(500).send("Missing credentials");
     }
     
     const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
@@ -351,7 +346,7 @@ app.get('/api/auth/login', (req, res) => {
 
 app.get('/api/auth/callback', async (req, res) => {
     const { code } = req.query;
-    if (!code) return res.redirect('/?error=No_code_provided');
+    if (!code) return res.redirect('/?error=No_code');
 
     try {
         const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
@@ -375,10 +370,11 @@ app.get('/api/auth/callback', async (req, res) => {
         req.session.user = userResponse.data;
         req.session.guilds = guildsResponse.data;
 
-        res.redirect('/');
+        req.session.save((err) => {
+            res.redirect('/');
+        });
     } catch (error) {
-        console.error("OAuth Callback Error:", error.response?.data || error.message);
-        res.redirect('/?error=Authentication_Failed');
+        res.redirect('/?error=Auth_Failed');
     }
 });
 
@@ -426,7 +422,7 @@ app.delete('/api/config/:guildId', (req, res) => {
     
     delete guildSettings[req.params.guildId];
     saveDatabase();
-    res.json({ success: true, message: 'Configuration reverted to defaults.' });
+    res.json({ success: true, message: 'Configuration reverted' });
 });
 
 app.get('/api/auth/logout', (req, res) => {
@@ -435,4 +431,4 @@ app.get('/api/auth/logout', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Active on ${PORT}`));
