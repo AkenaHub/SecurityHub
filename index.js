@@ -74,6 +74,22 @@ const saveLocalDatabase = () => {
     } catch (e) {}
 };
 
+const syncWithDiscord = async (guild) => {
+    try {
+        let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
+        if (!channel) return;
+
+        const messages = await channel.messages.fetch({ limit: 10 });
+        const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
+        
+        if (dbMessage) {
+            const rawJson = dbMessage.content.replace(/```json|```/g, '').trim();
+            guildSettings[guild.id] = JSON.parse(rawJson);
+            saveLocalDatabase();
+        }
+    } catch (e) {}
+};
+
 const saveToCloud = async (guildId, settings) => {
     try {
         const guild = client.guilds.cache.get(guildId);
@@ -153,8 +169,9 @@ const logAction = async (guildId, type, username, userId, reason) => {
     await saveToCloud(guildId, settings);
 };
 
-const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/.+)|(discord\.com\/invite\/.+)/i;
+const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/.+)|(discord\.com\/invite\/.+)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
+const imageMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 
 const createLogEmbed = (title, description, color) => {
     return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
@@ -164,6 +181,10 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     loadLocalDatabase();
     await initRemoteStorage();
+
+    for (const [id, guild] of client.guilds.cache) {
+        await syncWithDiscord(guild);
+    }
 
     try {
         const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -327,6 +348,11 @@ client.on('messageCreate', async message => {
             return dangerousExtensions.some(ext => fileName.endsWith(ext));
         });
 
+        const hasNonImageMedia = message.attachments.some(attachment => {
+            if (!attachment.contentType) return false;
+            return !imageMimeTypes.some(type => attachment.contentType.startsWith(type));
+        });
+
         if (hasDangerousFile) {
             try {
                 await message.delete();
@@ -342,10 +368,12 @@ client.on('messageCreate', async message => {
 
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
+        
+        const isTenorGif = messageContentLower.includes('tenor.com/view') || messageContentLower.includes('giphy.com/gifs');
         const isLink = linkRegex.test(message.content);
         const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
 
-        if (isLink && !isAvoided) {
+        if (isLink && !isAvoided && !isTenorGif) {
             try {
                 await message.delete();
                 if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
@@ -357,15 +385,22 @@ client.on('messageCreate', async message => {
         }
     }
 
-    if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
-        try {
-            await message.delete();
-            if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam').catch(() => {});
-            await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam');
-            await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
-            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
-            await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-        } catch (e) {}
+    if (settings.imagesEnabled && message.attachments.size > 0) {
+        const isImageOrGif = message.attachments.every(attachment => {
+            if (!attachment.contentType) return false;
+            return imageMimeTypes.some(type => attachment.contentType.startsWith(type));
+        });
+
+        if (isImageOrGif && message.attachments.size >= settings.maxImages) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image/GIF Spam').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image/GIF Spam');
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images/GIFs at once.`).catch(() => {});
+                const log = createLogEmbed('🚨 Image/GIF Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+            } catch (e) {}
+        }
     }
 });
 
@@ -412,10 +447,12 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/auth/login', (req, res) => {
-    const clientId = process.env.DISCORD_CLIENT_ID;
-    const redirectUri = process.env.REDIRECT_URI;
+    const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
+    const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
+    
     if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>Configuration Error</h2><p>You are missing the <code>REDIRECT_URI</code> or <code>DISCORD_CLIENT_ID</code> variable in your Railway variables.</p></div>");
-    const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
+    
+    const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
     res.redirect(authorizeUrl);
 });
 
@@ -424,12 +461,16 @@ app.get('/api/auth/callback', async (req, res) => {
     if (!code) return res.redirect('/?error=No_code');
 
     try {
+        const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
+        const clientSecret = process.env.DISCORD_CLIENT_SECRET?.replace(/['"]/g, '').trim();
+        const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
+
         const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
-            client_id: process.env.DISCORD_CLIENT_ID,
-            client_secret: process.env.DISCORD_CLIENT_SECRET,
+            client_id: clientId,
+            client_secret: clientSecret,
             grant_type: 'authorization_code',
             code: code,
-            redirect_uri: process.env.REDIRECT_URI,
+            redirect_uri: redirectUri,
         }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
         const accessToken = tokenResponse.data.access_token;
