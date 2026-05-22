@@ -424,7 +424,7 @@ app.get('/api/auth/callback', async (req, res) => {
     if (!code) return res.redirect('/?error=No_code');
 
     try {
-        const tokenResponse = await axios.post('[https://discord.com/api/v10/oauth2/token](https://discord.com/api/v10/oauth2/token)', new URLSearchParams({
+        const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
             client_id: process.env.DISCORD_CLIENT_ID,
             client_secret: process.env.DISCORD_CLIENT_SECRET,
             grant_type: 'authorization_code',
@@ -434,8 +434,8 @@ app.get('/api/auth/callback', async (req, res) => {
 
         const accessToken = tokenResponse.data.access_token;
 
-        const userResponse = await axios.get('[https://discord.com/api/v10/users/@me](https://discord.com/api/v10/users/@me)', { headers: { Authorization: `Bearer ${accessToken}` } });
-        const guildsResponse = await axios.get('[https://discord.com/api/v10/users/@me/guilds](https://discord.com/api/v10/users/@me/guilds)', { headers: { Authorization: `Bearer ${accessToken}` } });
+        const userResponse = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
+        const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${accessToken}` } });
 
         req.session.user = userResponse.data;
         req.session.guilds = guildsResponse.data;
@@ -444,6 +444,7 @@ app.get('/api/auth/callback', async (req, res) => {
             res.redirect('/');
         });
     } catch (error) {
+        console.error("OAuth Error:", error.response?.data || error.message);
         res.redirect('/?error=Auth_Failed');
     }
 });
