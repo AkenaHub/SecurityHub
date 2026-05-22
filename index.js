@@ -2,13 +2,17 @@ require('dotenv').config();
 
 const { 
     Client, GatewayIntentBits, Partials, EmbedBuilder, 
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, 
-    ChannelSelectMenuBuilder, ChannelType, 
-    ModalBuilder, TextInputBuilder, TextInputStyle,
-    REST, Routes, SlashCommandBuilder,
-    AuditLogEvent, Events, PermissionFlagsBits
+    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType
 } = require('discord.js');
+const express = require('express');
+const session = require('express-session');
+const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
+
+const { initializeApp } = require('firebase/app');
+const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
+const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
 const client = new Client({
     intents: [
@@ -23,6 +27,36 @@ const client = new Client({
 
 const dbFile = './database.json';
 let guildSettings = {};
+let firestoreDb = null;
+let firestoreReady = false;
+
+const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.APP_ID || 'servsecurity-app');
+
+const initRemoteStorage = async () => {
+    try {
+        const hasConfig = typeof __firebase_config !== 'undefined' || process.env.FIREBASE_CONFIG;
+        if (!hasConfig) return;
+
+        const config = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : JSON.parse(process.env.FIREBASE_CONFIG);
+
+        const app = initializeApp(config);
+        const auth = getAuth(app);
+        
+        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : process.env.FIREBASE_AUTH_TOKEN;
+        if (token) {
+            await signInWithCustomToken(auth, token);
+        } else {
+            await signInAnonymously(auth);
+        }
+
+        firestoreDb = getFirestore(app);
+        firestoreReady = true;
+    } catch (e) {
+        firestoreReady = false;
+    }
+};
 
 const loadLocalDatabase = () => {
     if (fs.existsSync(dbFile)) {
@@ -40,57 +74,32 @@ const saveLocalDatabase = () => {
     } catch (e) {}
 };
 
-const syncWithDiscord = async (guild) => {
+const saveToCloud = async (guildId, settings) => {
     try {
-        const channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
-        if (!channel) return; 
+        const guild = client.guilds.cache.get(guildId);
+        if (guild) {
+            let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
+            if (!channel) {
+                channel = await guild.channels.create({
+                    name: 'servsecurity-database',
+                    type: ChannelType.GuildText,
+                    permissionOverwrites: [
+                        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
+                    ]
+                });
+            }
+            const messages = await channel.messages.fetch({ limit: 10 });
+            const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
+            
+            let payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
+            if (payload.length > 1950) {
+                settings.history = settings.history.slice(0, 4); 
+                payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
+            }
 
-        const messages = await channel.messages.fetch({ limit: 10 });
-        const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
-        
-        if (dbMessage) {
-            const rawJson = dbMessage.content.replace(/```json|```/g, '').trim();
-            guildSettings[guild.id] = JSON.parse(rawJson);
-            saveLocalDatabase();
-        }
-    } catch (e) {}
-};
-
-const saveToCloud = async (guild, settings) => {
-    try {
-        let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
-        
-        if (!channel) {
-            channel = await guild.channels.create({
-                name: 'servsecurity-database',
-                type: ChannelType.GuildText,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel],
-                    },
-                    {
-                        id: client.user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                    }
-                ]
-            });
-        }
-
-        const messages = await channel.messages.fetch({ limit: 10 });
-        const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
-        
-        let payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
-        
-        if (payload.length > 1950) {
-            settings.history = settings.history.slice(0, 4); 
-            payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
-        }
-
-        if (dbMessage) {
-            await dbMessage.edit(payload);
-        } else {
-            await channel.send(payload);
+            if (dbMessage) await dbMessage.edit(payload);
+            else await channel.send(payload);
         }
     } catch (e) {}
 };
@@ -117,16 +126,16 @@ const getSettings = async (guildId) => {
     return guildSettings[guildId];
 };
 
-const updateSetting = async (guild, key, value) => {
-    const settings = await getSettings(guild.id);
+const updateSetting = async (guildId, key, value) => {
+    const settings = await getSettings(guildId);
     settings[key] = value;
-    guildSettings[guild.id] = settings;
+    guildSettings[guildId] = settings;
     saveLocalDatabase();
-    await saveToCloud(guild, settings);
+    await saveToCloud(guildId, settings);
 };
 
-const logAction = async (guild, type, username, userId, reason) => {
-    const settings = await getSettings(guild.id);
+const logAction = async (guildId, type, username, userId, reason) => {
+    const settings = await getSettings(guildId);
     if (!settings.history) settings.history = [];
     
     settings.history.unshift({
@@ -137,141 +146,11 @@ const logAction = async (guild, type, username, userId, reason) => {
         timestamp: Math.floor(Date.now() / 1000)
     });
 
-    if (settings.history.length > 10) {
-        settings.history = settings.history.slice(0, 10);
-    }
+    if (settings.history.length > 10) settings.history = settings.history.slice(0, 10);
     
-    guildSettings[guild.id] = settings;
+    guildSettings[guildId] = settings;
     saveLocalDatabase();
-    await saveToCloud(guild, settings);
-};
-
-const parseDuration = (input) => {
-    const val = input.toLowerCase().trim();
-    const num = parseInt(val);
-    if (isNaN(num)) return null;
-    if (val.endsWith('d')) return num * 1440;
-    if (val.endsWith('h')) return num * 60;
-    return num; 
-};
-
-const formatDuration = (mins) => {
-    if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440} Days`;
-    if (mins >= 60 && mins % 60 === 0) return `${mins / 60} Hours`;
-    return `${mins} Minutes`;
-};
-
-const toShortFormat = (mins) => {
-    if (mins >= 1440 && mins % 1440 === 0) return `${mins / 1440}d`;
-    if (mins >= 60 && mins % 60 === 0) return `${mins / 60}h`;
-    return `${mins}m`;
-};
-
-const INDIGO_BLUE = 0x4f46e5;
-
-const generateDashboard = async (guildId, page = 1) => {
-    const settings = await getSettings(guildId);
-    
-    const statusEmoji = settings.masterSwitch ? '🟢' : '🔴';
-    const statusText = settings.masterSwitch ? 'CORE DEFENSES ARMED' : 'CORE DEFENSES DISARMED';
-
-    if (page === 1) {
-        const embed = new EmbedBuilder()
-            .setTitle('🛡️ ServSecurity Control Center')
-            .setColor(INDIGO_BLUE)
-            .setDescription(`**Current Matrix State:** ${statusEmoji} \`${statusText}\`\n\nManage your automated defensive shields below. Use the navigation buttons to jump between configuration views and moderation histories.`)
-            .addFields(
-                { name: '🔗 LINK SHIELD', value: `\`\`\`yaml\nStatus: ${settings.linksEnabled ? 'ENABLED' : 'DISABLED'}\nTimeout: ${formatDuration(settings.linkTimeout)}\nAvoids: ${settings.linkAvoids.length} Items\`\`\``, inline: true },
-                { name: '🖼️ IMAGE SHIELD', value: `\`\`\`yaml\nStatus: ${settings.imagesEnabled ? 'ENABLED' : 'DISABLED'}\nLimit: ${settings.maxImages} Msg\nTimeout: ${formatDuration(settings.imageTimeout)}\`\`\``, inline: true },
-                { name: '⚔️ ANTI RAID', value: `\`\`\`yaml\nStatus: ${settings.raidEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 24h Timeout\`\`\``, inline: true },
-                { name: '📁 FILE SANDBOX', value: `\`\`\`yaml\nStatus: ${settings.fileShieldEnabled ? 'ENABLED' : 'DISABLED'}\nAction: 1d Timeout\`\`\``, inline: true }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Main Defenses • Page 1 of 3' });
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_master').setLabel(settings.masterSwitch ? 'DISARM SYSTEM' : 'ARM SYSTEM').setStyle(settings.masterSwitch ? ButtonStyle.Danger : ButtonStyle.Success).setEmoji('🔌')
-        );
-
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_links').setLabel('Link Shield').setStyle(settings.linksEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🔗'),
-            new ButtonBuilder().setCustomId('toggle_images').setLabel('Image Shield').setStyle(settings.imagesEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('🖼️'),
-            new ButtonBuilder().setCustomId('toggle_raid').setLabel('Anti Raid').setStyle(settings.raidEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('⚔️'),
-            new ButtonBuilder().setCustomId('toggle_files').setLabel('File Sandbox').setStyle(settings.fileShieldEnabled ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji('📁')
-        );
-
-        const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('nav_page2').setLabel('Logs & Config ➡️').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
-        );
-
-        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
-    } 
-    
-    if (page === 2) {
-        const avoidsSummary = settings.linkAvoids.length > 0 
-            ? settings.linkAvoids.map(d => `\`${d}\``).join(', ')
-            : '_No links avoided._';
-            
-        const accessSummary = settings.allowedAccess.length > 0 
-            ? settings.allowedAccess.map(d => `\`${d}\``).join(', ')
-            : '_Only Owner & Main Admin._';
-
-        const embed = new EmbedBuilder()
-            .setTitle('📡 LOGGING & ADVANCED CONFIG')
-            .setColor(INDIGO_BLUE)
-            .setDescription(`**Current Matrix State:** ${statusEmoji} \`${statusText}\`\n\nFine-tune thresholds, action criteria, and designated tracking channels for server modifications.`)
-            .addFields(
-                { name: '🗑️ Deleted Message Logs', value: `> State: ${settings.logDeletedEnabled ? '✅ `Enabled`' : '❌ `Disabled`'}\n> *Applies to all texts, files, and images.*`, inline: false },
-                { name: '🟢 Allowed Links (Avoids)', value: `> ${avoidsSummary}`, inline: false },
-                { name: '🔑 Panel Access (IDs)', value: `> ${accessSummary}`, inline: false },
-                { name: '🗂️ Target Logging Channel', value: settings.logChannelId ? `> Destination: <#${settings.logChannelId}>` : '> Destination: `Not Set (Sends to source channel)`', inline: false }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Configuration • Page 2 of 3' });
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('toggle_deleted').setLabel('Delete Logs').setStyle(settings.logDeletedEnabled ? ButtonStyle.Success : ButtonStyle.Secondary).setEmoji('🗑️'),
-            new ButtonBuilder().setCustomId('edit_links').setLabel('Setup Links').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
-            new ButtonBuilder().setCustomId('edit_avoids').setLabel('Edit Avoids').setStyle(ButtonStyle.Secondary).setEmoji('🟢'),
-            new ButtonBuilder().setCustomId('edit_images').setLabel('Setup Images').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
-            new ButtonBuilder().setCustomId('edit_access').setLabel('Edit Access').setStyle(ButtonStyle.Secondary).setEmoji('🔑')
-        );
-
-        const row2 = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('select_log').setPlaceholder('Select channel for server security logs...').addChannelTypes(ChannelType.GuildText)
-        );
-
-        const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('create_db').setLabel('Create DB Channel').setStyle(ButtonStyle.Success).setEmoji('📦'),
-            new ButtonBuilder().setCustomId('nav_page3').setLabel('Mod History 📜').setStyle(ButtonStyle.Secondary)
-        );
-
-        return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
-    }
-
-    if (page === 3) {
-        const embed = new EmbedBuilder()
-            .setTitle('📜 RECENT MODERATION ACTIONS')
-            .setColor(INDIGO_BLUE)
-            .setDescription('Displaying the last 10 automated and manual moderation actions tracked by this system.')
-            .setTimestamp()
-            .setFooter({ text: 'Incident History • Page 3 of 3' });
-
-        const historyList = settings.history && settings.history.length > 0
-            ? settings.history.map((log, index) => `**${index + 1}. [${log.type}]** \`${log.username}\` (${log.userId})\n🔹 **When:** <t:${log.timestamp}:F> (<t:${log.timestamp}:R>)\n🔹 **Reason:** \`${log.reason}\``).join('\n\n—\n\n')
-            : '*No recent actions have been logged.*';
-
-        embed.addFields({ name: '🚨 Active Incident Feed', value: historyList });
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('nav_page1').setLabel('⬅️ Main Defenses').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('nav_page2').setLabel('Logs & Config ➡️').setStyle(ButtonStyle.Secondary)
-        );
-
-        return { embeds: [embed], components: [row1], ephemeral: true };
-    }
+    await saveToCloud(guildId, settings);
 };
 
 const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/.+)|(discord\.com\/invite\/.+)/i;
@@ -284,34 +163,48 @@ const createLogEmbed = (title, description, color) => {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     loadLocalDatabase();
-
-    for (const [id, guild] of client.guilds.cache) {
-        await syncWithDiscord(guild);
-    }
+    await initRemoteStorage();
 
     try {
-        console.log('🔄 Syncing global application (/) commands...');
         const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-        
         const commands = [
-            new SlashCommandBuilder()
-                .setName('setup')
-                .setDescription('Opens the Security Control Center dashboard.')
+            new SlashCommandBuilder().setName('dashboard').setDescription('Get the link to the ServSecurity web control panel.')
         ].map(cmd => cmd.toJSON());
 
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commands }
-        );
-        console.log('✅ Global commands updated successfully across all servers!');
+        await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
     } catch (error) {}
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'dashboard') {
+        const settings = await getSettings(interaction.guildId);
+        const allowedUserId = '1284247278957367337';
+        const isServerOwner = interaction.user.id === interaction.guild?.ownerId;
+        const isWhitelistedUser = interaction.user.id === allowedUserId;
+        const isAdmin = interaction.member?.permissions.has('Administrator');
+        
+        let hasAccess = isServerOwner || isWhitelistedUser || isAdmin;
+
+        if (!hasAccess && settings.allowedAccess.length > 0) {
+            if (settings.allowedAccess.includes(interaction.user.id)) hasAccess = true;
+            if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return interaction.reply({ content: '❌ **Access Denied:** You do not have permission to view the security panel.', ephemeral: true });
+        }
+
+        const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
+        await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
+    }
 });
 
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     if (!guild) return;
     const settings = await getSettings(guild.id);
     if (!settings.masterSwitch) return;
-
     if (auditLog.executorId === client.user.id) return;
 
     const target = auditLog.target;
@@ -337,230 +230,17 @@ client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     }
 
     if (actionType) {
-        await logAction(guild, actionType, target.username || target.tag, target.id, reason);
+        await logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
 
         if (settings.logChannelId) {
             try {
                 const logChannel = await guild.channels.fetch(settings.logChannelId);
                 if (logChannel) {
-                    const embed = createLogEmbed(
-                        `🔨 Manual ${actionType} Executed`, 
-                        `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, 
-                        color
-                    );
+                    const embed = createLogEmbed(`🔨 Manual ${actionType} Executed`, `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, color);
                     await logChannel.send({ embeds: [embed] }).catch(() => {});
                 }
             } catch (e) {}
         }
-    }
-});
-
-client.on('interactionCreate', async interaction => {
-    if (!interaction.guild) return;
-
-    if (interaction.isChatInputCommand() || interaction.isButton() || interaction.isModalSubmit() || interaction.isChannelSelectMenu()) {
-        try {
-            if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
-                await interaction.deferReply({ ephemeral: true });
-            }
-
-            const settings = await getSettings(interaction.guildId);
-            
-            const allowedUserId = '1284247278957367337';
-            const isServerOwner = interaction.user.id === interaction.guild.ownerId;
-            const isWhitelistedUser = interaction.user.id === allowedUserId;
-            const isAdmin = interaction.member && interaction.member.permissions && interaction.member.permissions.has('Administrator');
-            
-            let hasAccess = isServerOwner || isWhitelistedUser || isAdmin;
-
-            if (!hasAccess && settings.allowedAccess.length > 0) {
-                if (settings.allowedAccess.includes(interaction.user.id)) {
-                    hasAccess = true;
-                }
-                if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) {
-                    hasAccess = true;
-                }
-            }
-
-            if (!hasAccess) {
-                if (interaction.deferred) {
-                    return interaction.editReply({ content: '❌ **Access Denied:** You do not have permission to use or view the security panel.' });
-                } else if (!interaction.replied) {
-                    return interaction.reply({ content: '❌ **Access Denied:** You do not have permission to use or view the security panel.', ephemeral: true });
-                }
-                return;
-            }
-
-            if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
-                const dashboard = await generateDashboard(interaction.guildId, 1);
-                return interaction.editReply(dashboard);
-            }
-
-            if (interaction.isButton()) {
-                const modalButtons = ['edit_links', 'edit_avoids', 'edit_access', 'edit_images'];
-                
-                if (!modalButtons.includes(interaction.customId)) {
-                    await interaction.deferUpdate();
-                }
-
-                if (interaction.customId === 'nav_page1') {
-                    const dashboard = await generateDashboard(interaction.guildId, 1);
-                    return interaction.editReply(dashboard);
-                }
-                if (interaction.customId === 'nav_page2') {
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    return interaction.editReply(dashboard);
-                }
-                if (interaction.customId === 'nav_page3') {
-                    const dashboard = await generateDashboard(interaction.guildId, 3);
-                    return interaction.editReply(dashboard);
-                }
-
-                if (interaction.customId === 'create_db') {
-                    let channel = interaction.guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
-                    if (!channel) {
-                        channel = await interaction.guild.channels.create({
-                            name: 'servsecurity-database',
-                            type: ChannelType.GuildText,
-                            permissionOverwrites: [
-                                {
-                                    id: interaction.guild.id,
-                                    deny: [PermissionFlagsBits.ViewChannel],
-                                },
-                                {
-                                    id: client.user.id,
-                                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                                }
-                            ]
-                        });
-                        await saveToCloud(interaction.guild, settings);
-                        await interaction.followUp({ content: '✅ **Database channel successfully created!** Settings synced.', ephemeral: true });
-                    } else {
-                        await interaction.followUp({ content: 'ℹ️ **Database channel already exists.**', ephemeral: true });
-                    }
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    return interaction.editReply(dashboard);
-                }
-
-                if (['toggle_master', 'toggle_links', 'toggle_images', 'toggle_raid', 'toggle_files'].includes(interaction.customId)) {
-                    if (interaction.customId === 'toggle_master') await updateSetting(interaction.guild, 'masterSwitch', !settings.masterSwitch);
-                    if (interaction.customId === 'toggle_links') await updateSetting(interaction.guild, 'linksEnabled', !settings.linksEnabled);
-                    if (interaction.customId === 'toggle_images') await updateSetting(interaction.guild, 'imagesEnabled', !settings.imagesEnabled);
-                    if (interaction.customId === 'toggle_raid') await updateSetting(interaction.guild, 'raidEnabled', !settings.raidEnabled);
-                    if (interaction.customId === 'toggle_files') await updateSetting(interaction.guild, 'fileShieldEnabled', !settings.fileShieldEnabled);
-                    
-                    const dashboard = await generateDashboard(interaction.guildId, 1);
-                    return interaction.editReply(dashboard);
-                }
-
-                if (interaction.customId === 'toggle_deleted') {
-                    await updateSetting(interaction.guild, 'logDeletedEnabled', !settings.logDeletedEnabled);
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    return interaction.editReply(dashboard);
-                }
-
-                if (interaction.customId === 'edit_links') {
-                    const modal = new ModalBuilder().setCustomId('modal_links').setTitle('Link Shield Settings');
-                    modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_link_timeout').setLabel('Timeout (e.g. 30m, 1d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.linkTimeout))));
-                    await interaction.showModal(modal);
-                    return;
-                }
-
-                if (interaction.customId === 'edit_avoids') {
-                    const modal = new ModalBuilder().setCustomId('modal_avoids').setTitle('Configure Allowed Links');
-                    modal.addComponents(new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('input_avoids')
-                            .setLabel('Enter domains/invites to AVOID (comma-sep)')
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder('discord.gg/yourserver, discord.com/invite/xyz')
-                            .setRequired(false)
-                            .setValue(settings.linkAvoids.join(', '))
-                    ));
-                    await interaction.showModal(modal);
-                    return;
-                }
-
-                if (interaction.customId === 'edit_access') {
-                    const modal = new ModalBuilder().setCustomId('modal_access').setTitle('Configure Panel Access');
-                    modal.addComponents(new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('input_access')
-                            .setLabel('Enter User/Role IDs (Separate with commas)')
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder('123456789012345678, 987654321098765432')
-                            .setRequired(false)
-                            .setValue(settings.allowedAccess.join(', '))
-                    ));
-                    await interaction.showModal(modal);
-                    return;
-                }
-
-                if (interaction.customId === 'edit_images') {
-                    const modal = new ModalBuilder().setCustomId('modal_images').setTitle('Image Shield Settings');
-                    modal.addComponents(
-                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_max').setLabel('Trigger limit (e.g. 1, 3, 5)').setStyle(TextInputStyle.Short).setRequired(true).setValue(settings.maxImages.toString())),
-                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_image_timeout').setLabel('Timeout (e.g. 60m, 7d)').setStyle(TextInputStyle.Short).setRequired(true).setValue(toShortFormat(settings.imageTimeout)))
-                    );
-                    await interaction.showModal(modal);
-                    return;
-                }
-            }
-
-            if (interaction.isModalSubmit()) {
-                await interaction.deferUpdate();
-                
-                if (interaction.customId === 'modal_links') {
-                    const parsed = parseDuration(interaction.fields.getTextInputValue('input_link_timeout'));
-                    if (parsed) await updateSetting(interaction.guild, 'linkTimeout', parsed);
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    await interaction.editReply(dashboard);
-                    return;
-                }
-
-                if (interaction.customId === 'modal_avoids') {
-                    const rawInput = interaction.fields.getTextInputValue('input_avoids');
-                    const processedList = rawInput.split(',')
-                        .map(item => item.trim().toLowerCase())
-                        .filter(item => item.length > 0);
-
-                    await updateSetting(interaction.guild, 'linkAvoids', processedList);
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    await interaction.editReply(dashboard);
-                    return;
-                }
-
-                if (interaction.customId === 'modal_access') {
-                    const rawInput = interaction.fields.getTextInputValue('input_access');
-                    const processedList = rawInput.split(',')
-                        .map(item => item.trim())
-                        .filter(item => item.length > 0);
-
-                    await updateSetting(interaction.guild, 'allowedAccess', processedList);
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    await interaction.editReply(dashboard);
-                    return;
-                }
-
-                if (interaction.customId === 'modal_images') {
-                    const max = parseInt(interaction.fields.getTextInputValue('input_image_max'));
-                    const parsedTimeout = parseDuration(interaction.fields.getTextInputValue('input_image_timeout'));
-                    if (!isNaN(max) && max > 0) await updateSetting(interaction.guild, 'maxImages', max);
-                    if (parsedTimeout) await updateSetting(interaction.guild, 'imageTimeout', parsedTimeout);
-                    const dashboard = await generateDashboard(interaction.guildId, 2);
-                    await interaction.editReply(dashboard);
-                    return;
-                }
-            }
-
-            if (interaction.isChannelSelectMenu() && interaction.customId === 'select_log') {
-                await interaction.deferUpdate();
-                await updateSetting(interaction.guild, 'logChannelId', interaction.values);
-                const dashboard = await generateDashboard(interaction.guildId, 2);
-                await interaction.editReply(dashboard); 
-                return;
-            }
-        } catch (error) {}
     }
 });
 
@@ -598,9 +278,9 @@ client.on('messageDelete', async message => {
 });
 
 client.on('messageCreate', async message => {
-    if (!message.guild) return; 
-    if (message.author.bot || message.webhookId) return;
-    if (message.author.id === client.user.id) return; 
+    if (!message.guild || message.author.bot || message.webhookId || message.author.id === client.user.id) return; 
+
+    if (message.author.id === '1284247278957367337') return;
 
     const settings = await getSettings(message.guild.id);
     if (!settings.masterSwitch) return;
@@ -632,10 +312,8 @@ client.on('messageCreate', async message => {
             try {
                 await message.delete().catch(() => {});
                 if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
-
-                await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
                 await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app!`);
-
                 const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
@@ -652,11 +330,9 @@ client.on('messageCreate', async message => {
         if (hasDangerousFile) {
             try {
                 await message.delete();
-                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous/malicious files').catch(() => {});
-                
-                await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
-                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type (Executable/Script).`).catch(() => {});
-                
+                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type.`).catch(() => {});
                 const log = createLogEmbed('📁 File Sandbox Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
@@ -673,10 +349,8 @@ client.on('messageCreate', async message => {
             try {
                 await message.delete();
                 if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
-                
-                await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
-                
-                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${formatDuration(settings.linkTimeout)})`, '#ffcc00');
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
+                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return;
             } catch (e) {}
@@ -686,15 +360,135 @@ client.on('messageCreate', async message => {
     if (settings.imagesEnabled && message.attachments.size >= settings.maxImages) {
         try {
             await message.delete();
-            if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam/Hacked Account').catch(() => {});
-            
-            await logAction(message.guild, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam/Mass Upload');
+            if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image Spam').catch(() => {});
+            await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image Spam');
             await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images at once.`).catch(() => {});
-            
-            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
+            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
             await targetLogChannel.send({ embeds: [log] }).catch(() => {});
         } catch (e) {}
     }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+const app = express();
+app.set('trust proxy', 1);
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+});
+
+const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
+
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'servsecurity-key-12345',
+    resave: true,
+    saveUninitialized: true,
+    proxy: true,
+    name: 'servsecurity.sid',
+    cookie: { 
+        secure: usingHttps,
+        sameSite: usingHttps ? 'none' : 'lax',
+        maxAge: 1000 * 60 * 60 * 24
+    }
+}));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/api/auth/login', (req, res) => {
+    const clientId = process.env.DISCORD_CLIENT_ID;
+    const redirectUri = process.env.REDIRECT_URI;
+    if (!clientId || !redirectUri) return res.status(500).send("Missing credentials");
+    const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
+    res.redirect(authorizeUrl);
+});
+
+app.get('/api/auth/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code) return res.redirect('/?error=No_code');
+
+    try {
+        const tokenResponse = await axios.post('[https://discord.com/api/v10/oauth2/token](https://discord.com/api/v10/oauth2/token)', new URLSearchParams({
+            client_id: process.env.DISCORD_CLIENT_ID,
+            client_secret: process.env.DISCORD_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: process.env.REDIRECT_URI,
+        }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+
+        const accessToken = tokenResponse.data.access_token;
+
+        const userResponse = await axios.get('[https://discord.com/api/v10/users/@me](https://discord.com/api/v10/users/@me)', { headers: { Authorization: `Bearer ${accessToken}` } });
+        const guildsResponse = await axios.get('[https://discord.com/api/v10/users/@me/guilds](https://discord.com/api/v10/users/@me/guilds)', { headers: { Authorization: `Bearer ${accessToken}` } });
+
+        req.session.user = userResponse.data;
+        req.session.guilds = guildsResponse.data;
+
+        req.session.save(() => {
+            res.redirect('/');
+        });
+    } catch (error) {
+        res.redirect('/?error=Auth_Failed');
+    }
+});
+
+app.get('/api/user-data', (req, res) => {
+    if (!req.session || !req.session.user) return res.json({ loggedIn: false });
+
+    const adminGuilds = req.session.guilds.filter(guild => {
+        const perms = BigInt(guild.permissions);
+        return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
+    });
+
+    const mappedGuilds = adminGuilds.map(guild => ({
+        id: guild.id,
+        name: guild.name,
+        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
+        botPresent: client.guilds.cache.has(guild.id)
+    }));
+
+    res.json({
+        loggedIn: true,
+        user: req.session.user,
+        guilds: mappedGuilds,
+        botClientId: process.env.DISCORD_CLIENT_ID
+    });
+});
+
+app.get('/api/config/:guildId', async (req, res) => {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    const settings = await getSettings(req.params.guildId);
+    res.json(settings);
+});
+
+app.post('/api/config/:guildId', async (req, res) => {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const current = await getSettings(req.params.guildId);
+    const newSettings = { ...current, ...req.body };
+    
+    guildSettings[req.params.guildId] = newSettings;
+    saveLocalDatabase();
+    await saveToCloud(req.params.guildId, newSettings);
+    
+    res.json({ success: true, config: newSettings });
+});
+
+app.get('/api/auth/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
+
+if (process.env.DISCORD_TOKEN) {
+    client.login(process.env.DISCORD_TOKEN).catch(() => {});
+}
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
