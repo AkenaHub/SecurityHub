@@ -163,6 +163,25 @@ const updateSetting = async (guildId, key, value) => {
     await saveToCloud(guildId, settings);
 };
 
+const logAction = async (guildId, type, username, userId, reason) => {
+    const settings = await getSettings(guildId);
+    if (!settings.history) settings.history = [];
+    
+    settings.history.unshift({
+        type,
+        username,
+        userId,
+        reason,
+        timestamp: Math.floor(Date.now() / 1000)
+    });
+
+    if (settings.history.length > 10) settings.history = settings.history.slice(0, 10);
+    
+    guildSettings[guildId] = settings;
+    saveLocalDatabase();
+    await saveToCloud(guildId, settings);
+};
+
 const sendChangelog = async (guild) => {
     if (guild.id !== '1499199296522944522') return;
 
@@ -234,3 +253,499 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'dashboard') {
+        const settings = await getSettings(interaction.guildId);
+        const allowedUserId = '1284247278957367337';
+        const isServerOwner = interaction.user.id === interaction.guild?.ownerId;
+        const isWhitelistedUser = interaction.user.id === allowedUserId;
+        const isAdmin = interaction.member?.permissions.has('Administrator');
+        
+        let hasAccess = isServerOwner || isWhitelistedUser || isAdmin;
+
+        if (!hasAccess && settings.allowedAccess.length > 0) {
+            if (settings.allowedAccess.includes(interaction.user.id)) hasAccess = true;
+            if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return interaction.reply({ content: '❌ **Access Denied:** You do not have permission to view the security panel.', ephemeral: true });
+        }
+
+        const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
+        await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
+    }
+});
+
+client.on('guildUpdate', async (oldGuild, newGuild) => {
+    const settings = await getSettings(newGuild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+    
+    if (oldGuild.name !== newGuild.name) {
+        try {
+            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || executor.id === newGuild.ownerId) return;
+
+            await newGuild.setName(oldGuild.name).catch(() => {});
+
+            const member = await newGuild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
+                await logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt');
+                
+                if (settings.logChannelId) {
+                    const logChannel = await newGuild.channels.fetch(settings.logChannelId).catch(()=>null);
+                    if (logChannel) {
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
+                        await logChannel.send({ embeds: [log] }).catch(() => {});
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!oldChannel.guild) return;
+    const settings = await getSettings(oldChannel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldChannel.name !== newChannel.name) {
+        try {
+            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || executor.id === oldChannel.guild.ownerId) return;
+
+            await newChannel.setName(oldChannel.name).catch(() => {});
+
+            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
+                await logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt');
+
+                if (settings.logChannelId) {
+                    const logChannel = await oldChannel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                    if (logChannel) {
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
+                        await logChannel.send({ embeds: [log] }).catch(() => {});
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelDelete', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || executor.id === channel.guild.ownerId) return;
+
+        await channel.clone().catch(()=>{});
+
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
+            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt');
+
+            if (settings.logChannelId) {
+                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                if (logChannel) {
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Channel Restored\n**Reason:** Attempted to delete channel.`, '#ff0000');
+                    await logChannel.send({ embeds: [log] }).catch(() => {});
+                }
+            }
+        }
+    } catch (e) {}
+});
+
+client.on('channelCreate', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || executor.id === channel.guild.ownerId) return;
+
+        await channel.delete().catch(()=>{});
+
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
+            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt');
+
+            if (settings.logChannelId) {
+                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                if (logChannel) {
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Channel Deleted\n**Reason:** Attempted to create channel.`, '#ff0000');
+                    await logChannel.send({ embeds: [log] }).catch(() => {});
+                }
+            }
+        }
+    } catch (e) {}
+});
+
+client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
+    if (!guild) return;
+    const settings = await getSettings(guild.id);
+    if (!settings.masterSwitch) return;
+    if (auditLog.executorId === client.user.id) return;
+
+    const target = auditLog.target;
+    const executor = auditLog.executor;
+    if (!target || !executor) return;
+
+    let actionType = null;
+    let color = '#000000';
+    const reason = auditLog.reason || `Action by admin: ${executor.username}`;
+
+    if (auditLog.action === AuditLogEvent.MemberKick) {
+        actionType = 'KICK';
+        color = '#ff5500';
+    } else if (auditLog.action === AuditLogEvent.MemberBanAdd) {
+        actionType = 'BAN';
+        color = '#ff0000';
+    } else if (auditLog.action === AuditLogEvent.MemberUpdate) {
+        const timeoutChange = auditLog.changes.find(c => c.key === 'communication_disabled_until');
+        if (timeoutChange && timeoutChange.new) {
+            actionType = 'TIMEOUT';
+            color = '#ffcc00';
+        }
+    }
+
+    if (actionType) {
+        await logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
+
+        if (settings.logChannelId) {
+            try {
+                const logChannel = await guild.channels.fetch(settings.logChannelId);
+                if (logChannel) {
+                    const embed = createLogEmbed(`🔨 Manual ${actionType} Executed`, `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, color);
+                    await logChannel.send({ embeds: [embed] }).catch(() => {});
+                }
+            } catch (e) {}
+        }
+    }
+});
+
+client.on('messageDelete', async message => {
+    if (!message.guild || !message.author || message.author.bot) return; 
+
+    const settings = await getSettings(message.guild.id);
+    if (!settings.masterSwitch || !settings.logDeletedEnabled || !settings.logChannelId) return;
+
+    try {
+        const logChannel = await message.guild.channels.fetch(settings.logChannelId);
+        if (!logChannel) return;
+
+        let content = message.content ? message.content : '*No text.*';
+        let attachmentInfo = '';
+        let displayImageUrl = null;
+
+        if (message.attachments.size > 0) {
+            attachmentInfo = '\n\n**📎 Attached Media:**\n' + message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
+            const imageFile = message.attachments.find(a => a.contentType && a.contentType.startsWith('image/'));
+            if (imageFile) displayImageUrl = imageFile.url;
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('🗑️ Message Deleted')
+            .setColor('#ff9900')
+            .setDescription(`**Author:** <@${message.author.id}>\n**Channel:** <#${message.channel.id}>\n\n**Content:**\n>>> ${content}${attachmentInfo}`)
+            .setTimestamp()
+            .setFooter({ text: `User ID: ${message.author.id}` });
+
+        if (displayImageUrl) embed.setImage(displayImageUrl);
+
+        await logChannel.send({ embeds: [embed] }).catch(() => {});
+    } catch (e) {}
+});
+
+client.on('messageCreate', async message => {
+    if (!message.guild || message.author.bot || message.webhookId || message.author.id === client.user.id) return; 
+
+    if (message.author.id === '1284247278957367337') return;
+
+    const settings = await getSettings(message.guild.id);
+    if (!settings.masterSwitch) return;
+
+    let hasBypass = message.author.id === message.guild.ownerId || (message.member && message.member.permissions.has('Administrator'));
+    if (!hasBypass && settings.allowedAccess.length > 0) {
+        if (settings.allowedAccess.includes(message.author.id)) hasBypass = true;
+        if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
+    }
+    
+    if (hasBypass) return; 
+
+    if (settings.spamShieldEnabled) {
+        const key = `${message.guild.id}-${message.author.id}`;
+        const now = Date.now();
+        if (!userMessageCache.has(key)) userMessageCache.set(key, []);
+        const timestamps = userMessageCache.get(key);
+        timestamps.push(now);
+        
+        while (timestamps.length > 0 && timestamps < now - 5000) timestamps.shift();
+        
+        if (timestamps.length === 0) {
+            userMessageCache.delete(key);
+        } else if (timestamps.length >= 6) {
+            userMessageCache.delete(key);
+            try {
+                if (message.member && message.member.timeout) await message.member.timeout(10 * 60000, 'Text Spamming').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Rapid Text Spam');
+                
+                if (settings.logChannelId) {
+                    let spamLogChannel = message.guild.channels.cache.get(settings.logChannelId);
+                    const log = createLogEmbed('🛡️ Spam Shield Activated', `**User:** <@${message.author.id}>\n**Action:** Timed out (10 Minutes)\n**Reason:** Sending messages too quickly.`, '#ffcc00');
+                    if (spamLogChannel) await spamLogChannel.send({ embeds: [log] }).catch(() => {});
+                }
+                
+                await message.delete().catch(() => {});
+                return;
+            } catch (e) {}
+        }
+    }
+
+    let targetLogChannel = message.channel;
+    if (settings.logChannelId) {
+        try {
+            const chan = await message.guild.channels.fetch(settings.logChannelId);
+            if (chan) targetLogChannel = chan;
+        } catch (e) {}
+    }
+
+    if (settings.raidEnabled) {
+        const content = message.content.toLowerCase();
+        const isRaid = content.includes('﷽') || 
+                       (content.includes('@everyone') && linkRegex.test(content)) ||
+                       (content.includes('@here') && linkRegex.test(content));
+
+        if (isRaid) {
+            try {
+                await message.delete().catch(() => {});
+                if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
+                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app!`);
+                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return; 
+            } catch (e) {}
+        }
+    }
+
+    if (settings.fileShieldEnabled && message.attachments.size > 0) {
+        const hasDangerousFile = message.attachments.some(attachment => {
+            const fileName = attachment.name.toLowerCase();
+            return dangerousExtensions.some(ext => fileName.endsWith(ext));
+        });
+
+        if (hasDangerousFile) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type.`).catch(() => {});
+                const log = createLogEmbed('📁 File Sandbox Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return; 
+            } catch (e) {}
+        }
+    }
+
+    if (settings.linksEnabled) {
+        const messageContentLower = message.content.toLowerCase();
+        
+        const isTenorGif = messageContentLower.includes('tenor.com/view') || messageContentLower.includes('giphy.com/gifs');
+        const isLink = linkRegex.test(message.content);
+        const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
+
+        if (isLink && !isAvoided && !isTenorGif) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
+                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return;
+            } catch (e) {}
+        }
+    }
+
+    if (settings.imagesEnabled && message.attachments.size > 0) {
+        const isImageOrGif = message.attachments.every(attachment => {
+            if (!attachment.contentType) return false;
+            return imageMimeTypes.some(type => attachment.contentType.startsWith(type));
+        });
+
+        if (isImageOrGif && message.attachments.size >= settings.maxImages) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image/GIF Spam').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image/GIF Spam');
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images/GIFs at once.`).catch(() => {});
+                const log = createLogEmbed('🚨 Image/GIF Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+            } catch (e) {}
+        }
+    }
+});
+
+const app = express();
+app.set('trust proxy', 1);
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+});
+
+const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
+
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'servsecurity-key-12345',
+    resave: true,
+    saveUninitialized: true,
+    proxy: true,
+    name: 'servsecurity.sid',
+    cookie: { 
+        secure: usingHttps,
+        sameSite: usingHttps ? 'none' : 'lax',
+        maxAge: 1000 * 60 * 60 * 24
+    }
+}));
+
+app.get('/', (req, res) => {
+    const publicPath = path.join(__dirname, 'public', 'index.html');
+    const rootPath = path.join(__dirname, 'index.html');
+    
+    if (fs.existsSync(publicPath)) {
+        res.sendFile(publicPath);
+    } else if (fs.existsSync(rootPath)) {
+        res.sendFile(rootPath);
+    } else {
+        res.status(404).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>System Error: Missing UI</h2><p>The server is running, but it cannot find your <code>index.html</code> file.</p></div>");
+    }
+});
+
+app.get('/api/auth/login', (req, res) => {
+    const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
+    const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
+    
+    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>Configuration Error</h2><p>You are missing the <code>REDIRECT_URI</code> or <code>DISCORD_CLIENT_ID</code> variable in your Railway variables.</p></div>");
+    
+    const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
+    res.redirect(authorizeUrl);
+});
+
+app.get('/api/auth/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code) return res.redirect('/?error=No_code');
+
+    try {
+        const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
+        const clientSecret = process.env.DISCORD_CLIENT_SECRET?.replace(/['"]/g, '').trim();
+        const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
+
+        const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirectUri,
+        }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+
+        const accessToken = tokenResponse.data.access_token;
+
+        const userResponse = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
+        const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${accessToken}` } });
+
+        req.session.user = userResponse.data;
+        req.session.guilds = guildsResponse.data;
+
+        req.session.save(() => {
+            res.redirect('/');
+        });
+    } catch (error) {
+        console.error("OAuth Error:", error.response?.data || error.message);
+        res.redirect('/?error=Auth_Failed');
+    }
+});
+
+app.get('/api/user-data', (req, res) => {
+    if (!req.session || !req.session.user) return res.json({ loggedIn: false });
+
+    const adminGuilds = req.session.guilds.filter(guild => {
+        const perms = BigInt(guild.permissions);
+        return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
+    });
+
+    const mappedGuilds = adminGuilds.map(guild => ({
+        id: guild.id,
+        name: guild.name,
+        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
+        botPresent: client.guilds.cache.has(guild.id)
+    }));
+
+    res.json({
+        loggedIn: true,
+        user: req.session.user,
+        guilds: mappedGuilds,
+        botClientId: process.env.DISCORD_CLIENT_ID
+    });
+});
+
+app.get('/api/config/:guildId', async (req, res) => {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    const settings = await getSettings(req.params.guildId);
+    res.json(settings);
+});
+
+app.post('/api/config/:guildId', async (req, res) => {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const current = await getSettings(req.params.guildId);
+    const newSettings = { ...current, ...req.body };
+    
+    guildSettings[req.params.guildId] = newSettings;
+    saveLocalDatabase();
+    await saveToCloud(req.params.guildId, newSettings);
+    
+    res.json({ success: true, config: newSettings });
+});
+
+app.get('/api/auth/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
+
+if (process.env.DISCORD_TOKEN) {
+    client.login(process.env.DISCORD_TOKEN).catch(() => {});
+}
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Web Dashboard active on port ${PORT}`));
