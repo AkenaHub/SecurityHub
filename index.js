@@ -304,7 +304,6 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // Handle Verification Button
     if (interaction.isButton() && interaction.customId === 'verify_user_btn') {
         const settings = await getSettings(interaction.guildId);
         if (settings.verifyEnabled && settings.verifyRoleId) {
@@ -345,7 +344,6 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
     }
 
-    // Moderation Commands
     if (interaction.commandName === 'kick' || interaction.commandName === 'ban' || interaction.commandName === 'timeout') {
         const target = interaction.options.getUser('target');
         const reason = interaction.options.getString('reason') || 'No reason provided by moderator.';
@@ -949,12 +947,10 @@ app.post('/api/config/:guildId', async (req, res) => {
     await saveToCloud(req.params.guildId, newSettings);
     
     if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleId) {
-        if (!current.verifyEnabled || current.verifyChannelId !== newSettings.verifyChannelId) {
-            const guild = client.guilds.cache.get(req.params.guildId);
-            if (guild) {
-                await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
-                await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleId);
-            }
+        const guild = client.guilds.cache.get(req.params.guildId);
+        if (guild) {
+            await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
+            await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleId);
         }
     }
     
