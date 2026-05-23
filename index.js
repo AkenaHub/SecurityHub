@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.3.0";
+const CURRENT_VERSION = "v1.4.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -199,10 +199,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added Anti-Nuke protections for channel creation and deletion.
-\u001b[2;34m[!]\u001b[0m Upgraded Link Shield to support all domains.
-\u001b[2;34m[!]\u001b[0m Beautified web dashboard with glassy UI and spotlight buttons.
-\u001b[2;32m[+]\u001b[0m Added manual Log Channel ID input.
+\u001b[2;32m[+]\u001b[0m Added @here ping to automated changelog announcements.
+\u001b[2;34m[!]\u001b[0m Replaced manual ID inputs with dynamic server dropdown menus.
+\u001b[2;32m[+]\u001b[0m Implemented multi-select Role dropdown for bypass configuration.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -212,7 +211,7 @@ const sendChangelog = async (guild) => {
             .setTimestamp()
             .setFooter({ text: 'ServSecurity Automated Changelog' });
 
-        await channel.send({ embeds: [embed] });
+        await channel.send({ content: '@here', embeds: [embed] });
     } catch (e) {}
 };
 
@@ -795,6 +794,23 @@ app.get('/api/user-data', (req, res) => {
         guilds: mappedGuilds,
         botClientId: process.env.DISCORD_CLIENT_ID
     });
+});
+
+app.get('/api/discord-data/:guildId', async (req, res) => {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const guild = client.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild not found or bot not in guild' });
+
+    const channels = guild.channels.cache
+        .filter(c => c.type === ChannelType.GuildText)
+        .map(c => ({ id: c.id, name: c.name }));
+
+    const roles = guild.roles.cache
+        .filter(r => r.name !== '@everyone' && !r.managed)
+        .map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
+
+    res.json({ channels, roles });
 });
 
 app.get('/api/config/:guildId', async (req, res) => {
