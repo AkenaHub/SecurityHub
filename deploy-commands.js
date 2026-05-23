@@ -1,27 +1,39 @@
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const dotenv = require('dotenv');
 
-// Define your /setup command
+dotenv.config();
+
+const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
+const token = process.env.DISCORD_TOKEN?.replace(/['"]/g, '').trim();
+
+if (!clientId || clientId === 'undefined') {
+    console.log('Skipping deploy-commands.js: DISCORD_CLIENT_ID is missing or undefined.');
+    return;
+}
+
+if (!token || token === 'undefined') {
+    console.log('Skipping deploy-commands.js: DISCORD_TOKEN is missing or undefined.');
+    return;
+}
+
 const commands = [
     new SlashCommandBuilder()
-        .setName('setup')
-        .setDescription('Opens the Security Control Center dashboard.')
+        .setName('dashboard')
+        .setDescription('Get the link to the ServSecurity web control panel.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map(command => command.toJSON());
 
-// Initialize the REST provider
-const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
     try {
-        console.log('🔄 Started refreshing global application (/) commands...');
-
-        // Routes.applicationCommands registers the command for ALL servers globally
+        console.log('Started refreshing application (/) commands.');
         await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID), 
-            { body: commands }
+            Routes.applicationCommands(clientId),
+            { body: commands },
         );
-
-        console.log('✅ Successfully reloaded global application (/) commands!');
+        console.log('Successfully loaded the /dashboard command globally.');
     } catch (error) {
-        console.error('❌ Error deploying commands:', error);
+        console.error('Failed to deploy commands:', error.message);
     }
 })();
