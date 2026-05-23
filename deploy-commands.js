@@ -40,6 +40,19 @@ const commands = [
         .addIntegerOption(option => option.setName('duration').setDescription('Duration in minutes').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('Reason for the timeout').setRequired(false))
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+    new SlashCommandBuilder()
+        .setName('unmute')
+        .setDescription('Remove a timeout from a user.')
+        .addUserOption(option => option.setName('target').setDescription('The user to unmute').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Reason for the unmute').setRequired(false))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+    new SlashCommandBuilder()
+        .setName('role')
+        .setDescription('Give a role to a user.')
+        .addUserOption(option => option.setName('target').setDescription('The user to give the role to').setRequired(true))
+        .addRoleOption(option => option.setName('role').setDescription('The role to assign').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Reason for assigning the role').setRequired(false))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
