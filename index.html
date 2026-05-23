@@ -18,27 +18,28 @@
         ::-webkit-scrollbar-thumb:hover { background: #1e1e24; }
         
         .input-base { 
-            background: #050508; 
+            background: rgba(5, 5, 8, 0.7); 
             border: 1px solid #14141a; 
+            backdrop-filter: blur(10px);
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
         }
         .input-base:focus { 
             border-color: #4f46e5; 
             outline: none; 
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
-            background: #07070c;
+            background: rgba(7, 7, 12, 0.9);
         }
         
         .module-card {
-            background-color: rgba(6, 6, 9, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid #111115;
+            background-color: rgba(6, 6, 9, 0.65);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 12px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .module-card:hover {
-            border-color: rgba(79, 70, 229, 0.25);
-            box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6), 0 0 24px -6px rgba(79, 70, 229, 0.08);
+            border-color: rgba(79, 70, 229, 0.3);
+            box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6), 0 0 24px -6px rgba(79, 70, 229, 0.1);
             transform: translateY(-2px);
         }
 
@@ -46,7 +47,7 @@
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .sidebar-btn.active {
-            background-color: rgba(79, 70, 229, 0.08);
+            background-color: rgba(79, 70, 229, 0.1);
             border-color: rgba(79, 70, 229, 0.2);
         }
         .sidebar-btn.active .server-name {
@@ -58,16 +59,38 @@
             transform: scale(1);
         }
 
-        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
-        
-        .delay-50 { animation-delay: 50ms; }
-        .delay-100 { animation-delay: 100ms; }
-        .delay-150 { animation-delay: 150ms; }
-        .delay-200 { animation-delay: 200ms; }
-
-        @keyframes fadeIn { to { opacity: 1; } }
-        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        .btn-spotlight {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .btn-spotlight::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 30px;
+            background: radial-gradient(ellipse at center, rgba(79, 70, 229, 0.8) 0%, transparent 70%);
+            opacity: 0.5;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            border-radius: 50%;
+        }
+        .btn-spotlight:hover::after {
+            opacity: 1;
+            bottom: -10px;
+            width: 80%;
+            height: 40px;
+        }
+        .btn-spotlight:hover {
+            border-color: rgba(79, 70, 229, 0.4);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
 
         .btn-glow {
             position: relative;
@@ -86,10 +109,21 @@
         .btn-glow:hover::before {
             opacity: 0.4;
         }
+
+        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
         
+        .delay-50 { animation-delay: 50ms; }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-150 { animation-delay: 150ms; }
+        .delay-200 { animation-delay: 200ms; }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
         .bg-mesh {
-            background-image: radial-gradient(at 100% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%),
-                              radial-gradient(at 0% 100%, rgba(79, 70, 229, 0.02) 0px, transparent 50%);
+            background-image: radial-gradient(at 100% 0%, rgba(79, 70, 229, 0.08) 0px, transparent 50%),
+                              radial-gradient(at 0% 100%, rgba(79, 70, 229, 0.03) 0px, transparent 50%);
         }
 
         .unsaved-banner {
@@ -117,10 +151,10 @@
             <span class="text-[9px] text-indigo-500/70 font-semibold tracking-widest uppercase mt-1 ml-9">Management Node</span>
         </div>
 
-        <div class="p-3 border-b border-[#111115] z-10" id="invite-zone">
-            <button id="invite-btn" class="w-full bg-zinc-950 hover:bg-zinc-900 text-zinc-300 border border-[#14141a] hover:border-indigo-600/50 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+        <div class="p-4 border-b border-[#111115] z-10" id="invite-zone">
+            <button id="invite-btn" class="w-full btn-spotlight text-zinc-300 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2">
                 <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Invite Bot
+                Invite Bot to Server
             </button>
         </div>
 
@@ -164,7 +198,7 @@
                 <p class="text-sm text-zinc-500 mt-2 max-w-sm text-center leading-relaxed">Select an authorized Discord terminal from the left sidebar panel.</p>
             </div>
 
-            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-6 pb-20">
+            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-6 pb-24">
 
                 <div class="module-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-slide-up relative overflow-hidden">
                     <div class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-600/10 blur-[80px] rounded-full pointer-events-none"></div>
@@ -189,7 +223,7 @@
                                 <div class="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20"><svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
                                 <div>
                                     <h4 class="text-sm font-bold text-white uppercase tracking-wider">Link Shield</h4>
-                                    <span class="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold block mt-0.5">Anti-Spam Filter</span>
+                                    <span class="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold block mt-0.5">Universal URL Filter</span>
                                 </div>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
@@ -200,11 +234,11 @@
                         <div class="space-y-5 flex-1">
                             <div class="space-y-2">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Timeout Duration (Mins)</label>
-                                <input type="number" id="linkTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200">
+                                <input type="number" id="linkTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200 shadow-inner">
                             </div>
                             <div class="space-y-2 flex-1 flex flex-col">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Allowed Domains (Avoids)</label>
-                                <textarea id="linkAvoids" placeholder="discord.gg/yourinvite, github.com" class="w-full flex-1 min-h-[80px] input-base rounded-lg px-4 py-3 text-sm text-zinc-200 resize-none"></textarea>
+                                <textarea id="linkAvoids" placeholder="discord.gg/yourinvite, github.com" class="w-full flex-1 min-h-[80px] input-base rounded-lg px-4 py-3 text-sm text-zinc-200 resize-none shadow-inner"></textarea>
                             </div>
                         </div>
                     </div>
@@ -226,16 +260,38 @@
                         <div class="space-y-5 flex-1">
                             <div class="space-y-2">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Maximum Image/GIF Burst</label>
-                                <input type="number" id="maxImages" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200">
+                                <input type="number" id="maxImages" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200 shadow-inner">
                             </div>
                             <div class="space-y-2 flex-1">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Containment Timeout (Mins)</label>
-                                <input type="number" id="imageTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200">
+                                <input type="number" id="imageTimeout" class="w-full input-base rounded-lg px-4 py-2.5 text-sm text-zinc-200 shadow-inner">
                             </div>
                         </div>
                     </div>
 
                     <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-150">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="antiNukeEnabled" class="sr-only peer">
+                                <div class="w-10 h-5 bg-[#030305] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
+                            </label>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">Instantly reverts unauthorized server/channel changes and bans rogue nuke bots or hijacked admins.</p>
+                    </div>
+
+                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-150">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Text Spam Shield</h4>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="spamShieldEnabled" class="sr-only peer">
+                                <div class="w-10 h-5 bg-[#030305] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
+                            </label>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">Tracks repetitive text messages and auto-mutes users who spam the chat rapidly.</p>
+                    </div>
+
+                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-200">
                         <div class="flex items-center justify-between mb-4">
                             <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Raid</h4>
                             <label class="relative inline-flex items-center cursor-pointer">
@@ -246,7 +302,7 @@
                         <p class="text-xs text-zinc-400 leading-relaxed">Automatically isolates and punishes instant raid-app automated joins and mass pings.</p>
                     </div>
 
-                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-150">
+                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-200">
                         <div class="flex items-center justify-between mb-4">
                             <h4 class="text-sm font-bold text-white uppercase tracking-wider">File Sandbox</h4>
                             <label class="relative inline-flex items-center cursor-pointer">
@@ -255,28 +311,6 @@
                             </label>
                         </div>
                         <p class="text-xs text-zinc-400 leading-relaxed">Flags and purges harmful executable files, batch scripts and DLL content instantly.</p>
-                    </div>
-                    
-                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-200">
-                        <div class="flex items-center justify-between mb-4">
-                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="antiNukeEnabled" class="sr-only peer">
-                                <div class="w-10 h-5 bg-[#030305] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
-                            </label>
-                        </div>
-                        <p class="text-xs text-zinc-400 leading-relaxed">Instantly reverts unauthorized server/channel name changes and bans the malicious nuke bot.</p>
-                    </div>
-                    
-                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-200">
-                        <div class="flex items-center justify-between mb-4">
-                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Text Spam Shield</h4>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="spamShieldEnabled" class="sr-only peer">
-                                <div class="w-10 h-5 bg-[#030305] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
-                            </label>
-                        </div>
-                        <p class="text-xs text-zinc-400 leading-relaxed">Tracks repetitive text messages and auto-mutes users who spam the chat rapidly.</p>
                     </div>
                 </div>
 
@@ -298,11 +332,15 @@
                                     <div class="w-10 h-5 bg-zinc-900 border border-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
                                 </label>
                             </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Log Target Channel ID</label>
+                                <input type="text" id="logChannelId" placeholder="123456789012345678" class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 shadow-inner">
+                            </div>
                         </div>
 
                         <div class="space-y-2">
                             <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Authorized Bypass IDs (Users / Roles)</label>
-                            <textarea id="allowedAccess" rows="3" placeholder="Comma separated IDs..." class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 resize-none h-[72px]"></textarea>
+                            <textarea id="allowedAccess" rows="3" placeholder="Comma separated IDs..." class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 resize-none h-[116px] shadow-inner"></textarea>
                         </div>
                     </div>
                 </div>
@@ -313,7 +351,7 @@
 
     <div class="fixed bottom-0 left-0 right-0 h-24 bg-[#010103]/90 border-t border-[#111115] backdrop-blur-lg z-40 flex items-center justify-between px-10 unsaved-banner" id="unsaved-changes-banner">
         <div class="flex items-center space-x-3">
-            <div class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b] animate-pulse"></div>
             <div>
                 <p class="text-sm font-bold text-white">Careful — you have unsaved changes!</p>
                 <p class="text-xs text-zinc-500">Unsaved configuration changes will be lost upon navigating away.</p>
@@ -328,7 +366,6 @@
     <script>
         let activeGuildId = null;
         let originalConfig = {};
-        let currentConfig = {};
         let systemBotClientId = "";
 
         function resolveUrl(path) {
@@ -399,6 +436,7 @@
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
+                logChannelId: document.getElementById('logChannelId').value.trim(),
                 allowedAccess: document.getElementById('allowedAccess').value.split(',').map(s => s.trim()).filter(s => s.length > 0).join(', ')
             };
 
@@ -415,6 +453,7 @@
                 logDeletedEnabled: originalConfig.logDeletedEnabled,
                 antiNukeEnabled: originalConfig.antiNukeEnabled,
                 spamShieldEnabled: originalConfig.spamShieldEnabled,
+                logChannelId: originalConfig.logChannelId || '',
                 allowedAccess: originalConfig.allowedAccess.join(', ')
             };
 
@@ -429,7 +468,7 @@
         }
 
         function addInputListeners() {
-            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'allowedAccess'];
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'logChannelId', 'allowedAccess'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -600,6 +639,7 @@
                 document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
                 document.getElementById('antiNukeEnabled').checked = config.antiNukeEnabled;
                 document.getElementById('spamShieldEnabled').checked = config.spamShieldEnabled;
+                document.getElementById('logChannelId').value = config.logChannelId || '';
                 document.getElementById('allowedAccess').value = config.allowedAccess.join(', ');
                 
                 updateMasterBadge();
@@ -632,6 +672,7 @@
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
+                logChannelId: document.getElementById('logChannelId').value.trim() || null,
                 allowedAccess: document.getElementById('allowedAccess').value.split(',').map(s => s.trim()).filter(s => s.length > 0)
             };
 
