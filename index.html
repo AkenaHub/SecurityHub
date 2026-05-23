@@ -23,7 +23,7 @@
             backdrop-filter: blur(10px);
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
         }
-        .input-base:focus { 
+        .input-base:focus, .input-base:hover { 
             border-color: #4f46e5; 
             outline: none; 
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
@@ -132,6 +132,10 @@
         }
         .unsaved-banner.show {
             transform: translateY(0);
+        }
+
+        .role-checkbox {
+            accent-color: #4f46e5;
         }
     </style>
 </head>
@@ -333,14 +337,24 @@
                                 </label>
                             </div>
                             <div class="space-y-2">
-                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Log Target Channel ID</label>
-                                <input type="text" id="logChannelId" placeholder="123456789012345678" class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 shadow-inner">
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Log Target Channel</label>
+                                <select id="logChannelId" class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 shadow-inner appearance-none cursor-pointer">
+                                    <option value="" class="bg-[#050508]">None (Disabled)</option>
+                                </select>
                             </div>
                         </div>
 
                         <div class="space-y-2">
-                            <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Authorized Bypass IDs (Users / Roles)</label>
-                            <textarea id="allowedAccess" rows="3" placeholder="Comma separated IDs..." class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 resize-none h-[116px] shadow-inner"></textarea>
+                            <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Authorized Bypass Roles</label>
+                            <div class="relative" id="roleDropdownContainer">
+                                <div id="roleSelectBtn" class="w-full input-base rounded-lg px-4 py-3 text-sm text-zinc-200 shadow-inner flex justify-between items-center cursor-pointer">
+                                    <span id="roleSelectText" class="truncate text-zinc-400">Select bypass roles...</span>
+                                    <svg class="w-4 h-4 text-zinc-400 transition-transform" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#14141a] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-56 overflow-y-auto z-50">
+                                    <!-- Options injected via JS -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -367,6 +381,23 @@
         let activeGuildId = null;
         let originalConfig = {};
         let systemBotClientId = "";
+
+        document.getElementById('roleSelectBtn').addEventListener('click', (e) => {
+            const menu = document.getElementById('roleDropdownMenu');
+            const icon = document.getElementById('roleDropdownIcon');
+            menu.classList.toggle('hidden');
+            icon.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('roleDropdownMenu');
+            const icon = document.getElementById('roleDropdownIcon');
+            if (!document.getElementById('roleDropdownContainer').contains(e.target)) {
+                menu.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        });
 
         function resolveUrl(path) {
             let base = window.location.origin;
@@ -420,6 +451,20 @@
             }
         }
 
+        function updateRoleSelectText() {
+            const checked = document.querySelectorAll('.role-checkbox:checked');
+            const textSpan = document.getElementById('roleSelectText');
+            if (checked.length === 0) {
+                textSpan.textContent = 'Select bypass roles...';
+                textSpan.classList.add('text-zinc-400');
+                textSpan.classList.remove('text-white');
+            } else {
+                textSpan.textContent = `${checked.length} role(s) selected`;
+                textSpan.classList.remove('text-zinc-400');
+                textSpan.classList.add('text-white');
+            }
+        }
+
         function checkUnsavedChanges() {
             if (!activeGuildId) return;
             
@@ -436,8 +481,8 @@
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
-                logChannelId: document.getElementById('logChannelId').value.trim(),
-                allowedAccess: document.getElementById('allowedAccess').value.split(',').map(s => s.trim()).filter(s => s.length > 0).join(', ')
+                logChannelId: document.getElementById('logChannelId').value || '',
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', ')
             };
 
             const cleanOriginal = {
@@ -468,7 +513,7 @@
         }
 
         function addInputListeners() {
-            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'logChannelId', 'allowedAccess'];
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'logChannelId'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -476,6 +521,39 @@
                     el.addEventListener('input', checkUnsavedChanges);
                 }
             });
+        }
+
+        function populateDropdowns(channels, roles) {
+            const channelSelect = document.getElementById('logChannelId');
+            channelSelect.innerHTML = '<option value="" class="bg-[#050508]">None (Disabled)</option>';
+            
+            channels.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.className = 'bg-[#050508]';
+                opt.textContent = `# ${c.name}`;
+                channelSelect.appendChild(opt);
+            });
+
+            const roleMenu = document.getElementById('roleDropdownMenu');
+            roleMenu.innerHTML = '';
+            
+            roles.forEach(r => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-3 p-2 hover:bg-[#14141a] rounded-lg cursor-pointer transition-colors';
+                label.innerHTML = `
+                    <input type="checkbox" value="${r.id}" class="role-checkbox w-4 h-4 rounded border-[#27272a] bg-[#050505] role-checkbox focus:ring-indigo-600 focus:ring-offset-[#09090b]">
+                    <div class="w-3 h-3 rounded-full shadow-sm" style="background-color: ${r.color === '#000000' ? '#99aab5' : r.color}"></div>
+                    <span class="text-xs text-zinc-300 font-medium">${r.name}</span>
+                `;
+                const cb = label.querySelector('.role-checkbox');
+                cb.addEventListener('change', () => {
+                    updateRoleSelectText();
+                    checkUnsavedChanges();
+                });
+                roleMenu.appendChild(label);
+            });
+            updateRoleSelectText();
         }
 
         async function fetchSystemInitialization() {
@@ -584,6 +662,16 @@
             }
         }
 
+        async function fetchDiscordData(guildId) {
+            try {
+                const res = await fetch(resolveUrl(`/api/discord-data/${guildId}`), { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    populateDropdowns(data.channels, data.roles);
+                }
+            } catch (e) {}
+        }
+
         async function selectServer(guildId, name) {
             if (document.getElementById('unsaved-changes-banner').classList.contains('show')) {
                 const proceed = confirm("You have unsaved changes. Navigating away will lose your unsaved edits. Proceed?");
@@ -617,6 +705,7 @@
                 el.style.animation = null;
             });
 
+            await fetchDiscordData(guildId);
             await loadConfig(guildId);
         }
 
@@ -639,8 +728,18 @@
                 document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
                 document.getElementById('antiNukeEnabled').checked = config.antiNukeEnabled;
                 document.getElementById('spamShieldEnabled').checked = config.spamShieldEnabled;
-                document.getElementById('logChannelId').value = config.logChannelId || '';
-                document.getElementById('allowedAccess').value = config.allowedAccess.join(', ');
+                
+                const logChannelInput = document.getElementById('logChannelId');
+                if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) {
+                    logChannelInput.value = config.logChannelId;
+                } else {
+                    logChannelInput.value = '';
+                }
+
+                document.querySelectorAll('.role-checkbox').forEach(cb => {
+                    cb.checked = config.allowedAccess.includes(cb.value);
+                });
+                updateRoleSelectText();
                 
                 updateMasterBadge();
                 checkUnsavedChanges();
@@ -672,8 +771,8 @@
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
-                logChannelId: document.getElementById('logChannelId').value.trim() || null,
-                allowedAccess: document.getElementById('allowedAccess').value.split(',').map(s => s.trim()).filter(s => s.length > 0)
+                logChannelId: document.getElementById('logChannelId').value || null,
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value)
             };
 
             try {
