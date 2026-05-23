@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.7.0";
+const CURRENT_VERSION = "v1.8.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -146,7 +146,6 @@ const getSettings = async (guildId) => {
             fileShieldEnabled: true,
             logDeletedEnabled: false,
             antiNukeEnabled: false,
-            spamShieldEnabled: false,
             logChannelId: null,
             verifyEnabled: false,
             verifyChannelId: null,
@@ -261,8 +260,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Automated Server Lockdown: Unverified users can now ONLY see the verify channel.
-\u001b[2;34m[!]\u001b[0m Enhanced the UI of the Verification Panel embed.
+\u001b[2;32m[+]\u001b[0m Added /unmute slash command for moderators.
+\u001b[2;32m[+]\u001b[0m Added /role slash command to quickly assign roles.
+\u001b[2;31m[-]\u001b[0m Removed Anti Spam module per configuration request.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -279,7 +279,6 @@ const sendChangelog = async (guild) => {
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 const imageMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-const userMessageCache = new Map();
 
 const createLogEmbed = (title, description, color) => {
     return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
@@ -344,7 +343,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
     }
 
-    if (interaction.commandName === 'kick' || interaction.commandName === 'ban' || interaction.commandName === 'timeout') {
+    if (['kick', 'ban', 'timeout', 'unmute', 'role'].includes(interaction.commandName)) {
         const target = interaction.options.getUser('target');
         const reason = interaction.options.getString('reason') || 'No reason provided by moderator.';
         const member = await interaction.guild.members.fetch(target.id).catch(() => null);
@@ -372,6 +371,21 @@ client.on('interactionCreate', async interaction => {
                 await member.timeout(duration * 60000, reason);
                 await interaction.reply({ content: `✅ Successfully timed out **${target.tag}** for ${duration} minutes. Reason: ${reason}` });
                 await logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, `Manual Timeout (${duration}m): ${reason}`);
+            }
+            else if (interaction.commandName === 'unmute') {
+                if (!member.moderatable) return interaction.reply({ content: '❌ I do not have permission to unmute this user.', ephemeral: true });
+                await member.timeout(null, reason);
+                await interaction.reply({ content: `✅ Successfully unmuted **${target.tag}**. Reason: ${reason}` });
+                await logAction(interaction.guildId, 'UNMUTE', target.username, target.id, `Manual Unmute: ${reason}`);
+            }
+            else if (interaction.commandName === 'role') {
+                const role = interaction.options.getRole('role');
+                if (role.position >= interaction.guild.members.me.roles.highest.position) {
+                    return interaction.reply({ content: '❌ I cannot assign a role higher than or equal to my own highest role.', ephemeral: true });
+                }
+                await member.roles.add(role, reason);
+                await interaction.reply({ content: `✅ Successfully gave the role **${role.name}** to **${target.tag}**. Reason: ${reason}` });
+                await logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, `Assigned Role ${role.name}: ${reason}`);
             }
         } catch (error) {
             console.error(error);
@@ -682,35 +696,6 @@ client.on('messageCreate', async message => {
     }
     
     if (hasBypass) return; 
-
-    if (settings.spamShieldEnabled) {
-        const key = `${message.guild.id}-${message.author.id}`;
-        const now = Date.now();
-        if (!userMessageCache.has(key)) userMessageCache.set(key, []);
-        const timestamps = userMessageCache.get(key);
-        timestamps.push(now);
-        
-        while (timestamps.length > 0 && timestamps < now - 5000) timestamps.shift();
-        
-        if (timestamps.length === 0) {
-            userMessageCache.delete(key);
-        } else if (timestamps.length >= 6) {
-            userMessageCache.delete(key);
-            try {
-                if (message.member && message.member.timeout) await message.member.timeout(10 * 60000, 'Text Spamming').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Rapid Text Spam');
-                
-                if (settings.logChannelId) {
-                    let spamLogChannel = message.guild.channels.cache.get(settings.logChannelId);
-                    const log = createLogEmbed('🛡️ Anti Spam Activated', `**User:** <@${message.author.id}>\n**Action:** Timed out (10 Minutes)\n**Reason:** Sending messages too quickly.`, '#ffcc00');
-                    if (spamLogChannel) await spamLogChannel.send({ embeds: [log] }).catch(() => {});
-                }
-                
-                await message.delete().catch(() => {});
-                return;
-            } catch (e) {}
-        }
-    }
 
     let targetLogChannel = message.channel;
     if (settings.logChannelId) {
