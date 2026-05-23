@@ -405,6 +405,84 @@ client.on('channelCreate', async channel => {
     } catch (e) {}
 });
 
+client.on('roleDelete', async role => {
+    if (!role.guild) return;
+    const settings = await getSettings(role.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || executor.id === role.guild.ownerId) return;
+
+        await role.guild.roles.create({
+            name: role.name,
+            color: role.color,
+            hoist: role.hoist,
+            permissions: role.permissions,
+            position: role.position,
+            mentionable: role.mentionable,
+            reason: 'Anti-Nuke: Restoring deleted role'
+        }).catch(() => {});
+
+        const member = await role.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
+            await logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt');
+
+            if (settings.logChannelId) {
+                const logChannel = await role.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                if (logChannel) {
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Role Restored\n**Reason:** Attempted to delete a role.`, '#ff0000');
+                    await logChannel.send({ embeds: [log] }).catch(() => {});
+                }
+            }
+        }
+    } catch (e) {}
+});
+
+client.on('roleUpdate', async (oldRole, newRole) => {
+    if (!oldRole.guild) return;
+    const settings = await getSettings(oldRole.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldRole.name !== newRole.name || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+        try {
+            const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || executor.id === oldRole.guild.ownerId) return;
+
+            await newRole.edit({
+                name: oldRole.name,
+                permissions: oldRole.permissions,
+                color: oldRole.color,
+                hoist: oldRole.hoist,
+                mentionable: oldRole.mentionable
+            }).catch(() => {});
+
+            const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
+                await logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt');
+
+                if (settings.logChannelId) {
+                    const logChannel = await oldRole.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                    if (logChannel) {
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to modify role permissions/name.`, '#ff0000');
+                        await logChannel.send({ embeds: [log] }).catch(() => {});
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+});
+
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
     if (!guild) return;
     const settings = await getSettings(guild.id);
