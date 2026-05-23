@@ -300,7 +300,7 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
                 if (settings.logChannelId) {
                     const logChannel = await newGuild.channels.fetch(settings.logChannelId).catch(()=>null);
                     if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
                         await logChannel.send({ embeds: [log] }).catch(() => {});
                     }
                 }
@@ -333,7 +333,7 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
                 if (settings.logChannelId) {
                     const logChannel = await oldChannel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
                     if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
                         await logChannel.send({ embeds: [log] }).catch(() => {});
                     }
                 }
@@ -365,7 +365,7 @@ client.on('channelDelete', async channel => {
             if (settings.logChannelId) {
                 const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
                 if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Channel Restored\n**Reason:** Attempted to delete channel.`, '#ff0000');
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Channel Restored\n**Reason:** Attempted to delete channel.`, '#ff0000');
                     await logChannel.send({ embeds: [log] }).catch(() => {});
                 }
             }
@@ -396,7 +396,7 @@ client.on('channelCreate', async channel => {
             if (settings.logChannelId) {
                 const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
                 if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Channel Deleted\n**Reason:** Attempted to create channel.`, '#ff0000');
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Channel Deleted\n**Reason:** Attempted to create channel.`, '#ff0000');
                     await logChannel.send({ embeds: [log] }).catch(() => {});
                 }
             }
@@ -435,7 +435,7 @@ client.on('roleDelete', async role => {
             if (settings.logChannelId) {
                 const logChannel = await role.guild.channels.fetch(settings.logChannelId).catch(()=>null);
                 if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Role Restored\n**Reason:** Attempted to delete a role.`, '#ff0000');
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Role Restored\n**Reason:** Attempted to delete a role.`, '#ff0000');
                     await logChannel.send({ embeds: [log] }).catch(() => {});
                 }
             }
@@ -473,7 +473,7 @@ client.on('roleUpdate', async (oldRole, newRole) => {
                 if (settings.logChannelId) {
                     const logChannel = await oldRole.guild.channels.fetch(settings.logChannelId).catch(()=>null);
                     if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to modify role permissions/name.`, '#ff0000');
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to modify role permissions/name.`, '#ff0000');
                         await logChannel.send({ embeds: [log] }).catch(() => {});
                     }
                 }
@@ -756,12 +756,26 @@ app.get('/api/auth/callback', async (req, res) => {
         const userResponse = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
         const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${accessToken}` } });
 
-        req.session.user = userResponse.data;
-        req.session.guilds = guildsResponse.data;
+        const adminGuilds = guildsResponse.data.filter(guild => {
+            const perms = BigInt(guild.permissions);
+            return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
+        }).map(g => ({
+            id: g.id,
+            name: g.name,
+            icon: g.icon
+        }));
+
+        req.session.user = {
+            id: userResponse.data.id,
+            username: userResponse.data.username,
+            avatar: userResponse.data.avatar
+        };
+        req.session.guilds = adminGuilds;
 
         res.redirect('/');
     } catch (error) {
         console.error("OAuth Error:", error.response?.data || error.message);
+        console.log("-> Please verify DISCORD_CLIENT_SECRET exactly matches the Developer Portal, and you haven't recently reset it.");
         res.redirect('/?error=Auth_Failed');
     }
 });
@@ -769,12 +783,7 @@ app.get('/api/auth/callback', async (req, res) => {
 app.get('/api/user-data', (req, res) => {
     if (!req.session || !req.session.user) return res.json({ loggedIn: false });
 
-    const adminGuilds = req.session.guilds.filter(guild => {
-        const perms = BigInt(guild.permissions);
-        return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
-    });
-
-    const mappedGuilds = adminGuilds.map(guild => ({
+    const mappedGuilds = req.session.guilds.map(guild => ({
         id: guild.id,
         name: guild.name,
         icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
@@ -785,7 +794,7 @@ app.get('/api/user-data', (req, res) => {
         loggedIn: true,
         user: req.session.user,
         guilds: mappedGuilds,
-        botClientId: process.env.DISCORD_CLIENT_ID
+        botClientId: process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim()
     });
 });
 
@@ -835,4 +844,4 @@ if (process.env.DISCORD_TOKEN) {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Web Dashboard active on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
