@@ -470,6 +470,8 @@
                 }
 
                 serverList.innerHTML = '';
+                let autoSelectGuild = null;
+
                 data.guilds.forEach((guild, index) => {
                     const animDelay = `animation-delay: ${index * 50}ms;`;
                     const iconHtml = guild.icon 
@@ -477,6 +479,8 @@
                         : `<div class="h-8 w-8 rounded-lg bg-[#050508] border border-[#111115] text-zinc-400 flex items-center justify-center font-bold text-xs shrink-0 shadow-md">${guild.name.charAt(0)}</div>`;
 
                     if (guild.botPresent) {
+                        if (!autoSelectGuild) autoSelectGuild = guild;
+                        
                         serverList.innerHTML += `
                             <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center p-3 text-left border border-transparent rounded-xl hover:bg-[#050508] text-zinc-400 transition-all duration-300 group mb-1 animate-slide-up relative overflow-hidden" style="opacity:0; ${animDelay}">
                                 <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full transition-transform duration-300 active-indicator rounded-l-xl"></div>
@@ -503,6 +507,13 @@
                         `;
                     }
                 });
+
+                if (autoSelectGuild) {
+                    setTimeout(() => {
+                        selectServer(autoSelectGuild.id, autoSelectGuild.name);
+                    }, 100);
+                }
+
             } catch (err) {
                 showNotification('Network authentication error.', 'error');
             }
