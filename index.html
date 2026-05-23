@@ -8,331 +8,357 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { 
-            background-color: #0b0b0e;
+            background-color: #030305;
             font-family: 'Inter', sans-serif;
-            color: #f4f4f5;
+            color: #fafafa;
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #1f1f26; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #2e2e38; }
+        ::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #27272a; }
         
-        /* Sleek, flat inputs */
         .input-base { 
-            background: #0b0b0e; 
-            border: 1px solid #1f1f26; 
+            background: rgba(5, 5, 8, 0.7); 
+            border: 1px solid #14141a; 
+            backdrop-filter: blur(10px);
             color: #e4e4e7;
-            border-radius: 6px;
-            transition: all 0.2s ease; 
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
         }
-        .input-base:focus { 
-            border-color: #3b82f6; 
+        .input-base:focus, .input-base:hover { 
+            border-color: #06b6d4; 
             outline: none; 
-            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.15);
+            background: rgba(7, 7, 12, 0.9);
         }
         
-        /* Flat Cards */
         .module-card {
-            background-color: #121217;
-            border: 1px solid #1f1f26;
-            border-radius: 8px;
-            transition: border-color 0.2s ease;
+            background-color: rgba(6, 6, 9, 0.65);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .module-card:hover {
-            border-color: #2e2e38;
+            border-color: rgba(6, 182, 212, 0.3);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(6, 182, 212, 0.1);
+            transform: translateY(-2px);
         }
 
-        /* Sidebar Items */
         .sidebar-btn {
-            border-left: 2px solid transparent;
-            transition: all 0.2s ease;
-        }
-        .sidebar-btn:hover:not(.active) {
-            background-color: #121217;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .sidebar-btn.active {
-            background-color: rgba(59, 130, 246, 0.08);
-            border-left: 2px solid #3b82f6;
+            background-color: rgba(6, 182, 212, 0.05);
+            border-color: rgba(6, 182, 212, 0.2);
         }
         .sidebar-btn.active .server-name {
             color: #ffffff;
             font-weight: 600;
         }
-        .sidebar-btn.active .status-text {
-            color: #3b82f6;
+        .sidebar-btn.active .active-indicator {
+            opacity: 1;
+            transform: scale(1);
+            background-color: #06b6d4;
         }
 
-        /* Solid Buttons matching screenshot */
-        .btn-primary {
-            background-color: #2563eb;
+        .btn-multigen {
+            position: relative;
+            background: linear-gradient(180deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.9) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             color: #ffffff;
-            border-radius: 6px;
-            transition: background-color 0.2s ease;
-            font-weight: 500;
-            border: 1px solid transparent;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         }
-        .btn-primary:hover {
-            background-color: #1d4ed8;
+        .btn-multigen::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 20%;
+            right: 20%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+            box-shadow: 0 -4px 15px 3px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
         }
-
-        .btn-outline {
-            background-color: transparent;
-            color: #3b82f6;
-            border: 1px solid #3b82f6;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-            font-weight: 500;
+        .btn-multigen:hover {
+            background: linear-gradient(180deg, rgba(39, 39, 42, 0.8) 0%, rgba(24, 24, 27, 0.9) 100%);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
         }
-        .btn-outline:hover {
-            background-color: rgba(59, 130, 246, 0.1);
+        .btn-multigen:hover::after {
+            left: 5%;
+            right: 5%;
+            background: linear-gradient(90deg, transparent, #06b6d4, transparent);
+            box-shadow: 0 -4px 20px 4px rgba(6, 182, 212, 0.5);
         }
-
-        /* Active Green Badge */
-        .badge-active {
-            background-color: rgba(34, 197, 94, 0.15);
-            color: #4ade80;
-            border: 1px solid rgba(34, 197, 94, 0.2);
-        }
-        .badge-offline {
-            background-color: rgba(239, 68, 68, 0.15);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+        .btn-multigen:active {
+            transform: translateY(1px);
         }
 
-        /* Flat Toggle Switches */
-        .toggle-checkbox:checked + .toggle-label { 
-            background-color: #3b82f6; 
-            border-color: #3b82f6; 
-        }
-
-        /* Animations */
-        .animate-fade-in { animation: fadeIn 0.4s ease forwards; opacity: 0; }
-        .animate-slide-up { animation: slideUp 0.4s ease forwards; opacity: 0; transform: translateY(10px); }
+        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
         
         .delay-50 { animation-delay: 50ms; }
         .delay-100 { animation-delay: 100ms; }
         .delay-150 { animation-delay: 150ms; }
+        .delay-200 { animation-delay: 200ms; }
 
         @keyframes fadeIn { to { opacity: 1; } }
         @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
 
+        .bg-mesh {
+            background-image: radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.05) 0px, transparent 50%),
+                              radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.02) 0px, transparent 50%);
+        }
+
         .unsaved-banner {
             transform: translateY(100px);
-            transition: transform 0.3s ease;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .unsaved-banner.show {
             transform: translateY(0);
         }
 
         .role-checkbox {
-            accent-color: #3b82f6;
+            accent-color: #06b6d4;
         }
+        
+        .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; border-color: #06b6d4; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
-    <aside class="w-72 bg-[#08080a] border-r border-[#1f1f26] flex flex-col z-20 shrink-0">
-        <div class="h-16 flex items-center px-6 border-b border-[#1f1f26]">
-            <svg class="w-5 h-5 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-            <span class="text-sm font-semibold text-zinc-100 tracking-wide">ServSecurity</span>
+    <aside class="w-80 bg-[#000000] border-r border-[#18181b] flex flex-col z-20 shrink-0 relative">
+        <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-cyan-600/5 to-transparent pointer-events-none"></div>
+        
+        <div class="h-24 flex flex-col justify-center px-8 border-b border-[#18181b] relative z-10">
+            <div class="flex items-center">
+                <div class="relative flex items-center justify-center w-7 h-7 mr-3">
+                    <div class="absolute inset-0 bg-cyan-500 rounded-lg blur-[8px] opacity-30"></div>
+                    <svg class="w-5 h-5 text-cyan-400 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <span class="text-base font-bold text-white tracking-widest uppercase">ServSecurity</span>
+            </div>
+            <span class="text-[10px] text-zinc-500 font-semibold tracking-widest uppercase mt-1 ml-10">Admin Dashboard</span>
         </div>
 
-        <div class="p-4 border-b border-[#1f1f26]" id="invite-zone">
-            <button id="invite-btn" class="w-full btn-outline py-2.5 px-4 flex items-center justify-center gap-2 text-xs tracking-wide">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        <div class="p-4 border-b border-[#18181b] z-10" id="invite-zone">
+            <button id="invite-btn" class="w-full btn-multigen py-3.5 px-4 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 Invite Bot
             </button>
         </div>
 
-        <div class="px-4 py-3 border-b border-[#1f1f26] bg-[#0b0b0e]">
-            <span class="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase">Your Servers</span>
-        </div>
-
-        <div class="flex-1 overflow-y-auto py-2 space-y-1" id="server-list">
+        <div class="flex-1 overflow-y-auto py-4 px-4 space-y-2 z-10" id="server-list">
             <!-- Skeleton Loader -->
-            <div class="flex items-center space-x-3 px-4 py-3 animate-pulse">
-                <div class="w-8 h-8 rounded bg-[#1f1f26]"></div>
+            <div class="flex items-center space-x-3 px-4 py-4 animate-pulse rounded-xl border border-[#18181b] bg-[#09090b]">
+                <div class="w-10 h-10 rounded-full bg-[#18181b]"></div>
                 <div class="flex-1 space-y-2">
-                    <div class="h-2.5 bg-[#1f1f26] rounded w-24"></div>
-                    <div class="h-2 bg-[#1f1f26] rounded w-16"></div>
+                    <div class="h-3 bg-[#18181b] rounded w-24"></div>
+                    <div class="h-2 bg-[#18181b] rounded w-16"></div>
                 </div>
             </div>
         </div>
 
-        <div class="p-4 border-t border-[#1f1f26] bg-[#08080a]" id="auth-zone">
+        <div class="p-5 border-t border-[#18181b] bg-[#000000] z-10" id="auth-zone">
             <div class="flex items-center space-x-3 text-zinc-500 animate-pulse">
-                <div class="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-blue-500 animate-spin"></div>
-                <span class="text-xs font-medium">Syncing Session...</span>
+                <div class="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-cyan-500 animate-spin"></div>
+                <span class="text-xs font-medium tracking-wide">Syncing Session...</span>
             </div>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col relative h-full">
+    <main class="flex-1 flex flex-col bg-[#000000] bg-mesh relative h-full">
         
-        <header class="h-16 border-b border-[#1f1f26] flex items-center justify-between px-8 bg-[#0b0b0e] z-10 shrink-0 sticky top-0">
-            <div class="animate-fade-in">
-                <h2 id="active-server-name" class="text-lg font-semibold text-zinc-100">System Standby</h2>
-                <p class="text-xs text-zinc-500 mt-0.5" id="active-server-subtitle">Awaiting Terminal Selection</p>
+        <header class="h-24 border-b border-[#18181b] flex items-center justify-between px-12 bg-black/50 backdrop-blur-xl z-10 shrink-0 sticky top-0">
+            <div class="animate-fade-in flex items-center space-x-4">
+                <div>
+                    <h2 id="active-server-name" class="text-2xl font-bold tracking-tight text-white drop-shadow-sm">System Standby</h2>
+                    <p class="text-[11px] text-cyan-500/80 uppercase tracking-widest mt-1 font-semibold" id="active-server-subtitle">Awaiting Terminal Selection</p>
+                </div>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-8 relative scroll-smooth bg-[#0b0b0e]">
+        <div class="flex-1 overflow-y-auto p-8 md:p-12 relative scroll-smooth">
             
             <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-slide-up">
-                <svg class="w-12 h-12 text-zinc-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                <h3 class="text-lg font-medium text-zinc-300">No Project Selected</h3>
-                <p class="text-sm text-zinc-500 mt-1">Select an authorized server from the sidebar.</p>
+                <div class="w-24 h-24 rounded-3xl bg-[#09090b] border border-[#18181b] flex items-center justify-center mb-6 shadow-2xl relative">
+                    <div class="absolute inset-0 bg-cyan-500/5 blur-2xl rounded-3xl"></div>
+                    <svg class="w-10 h-10 text-zinc-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white tracking-tight">No Target Specified</h3>
+                <p class="text-sm text-zinc-500 mt-2 max-w-sm text-center leading-relaxed">Select an authorized Discord terminal from the left sidebar panel.</p>
             </div>
 
-            <div id="dashboard-view" class="hidden max-w-4xl flex-col space-y-4 pb-24">
+            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-8 pb-24">
 
                 <!-- Master Override Card -->
-                <div class="module-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-slide-up">
-                    <div>
-                        <div class="flex items-center space-x-3 mb-1">
-                            <h3 class="text-sm font-semibold text-zinc-100">Master System Override</h3>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded badge-active uppercase tracking-wider" id="masterBadge">ACTIVE</span>
+                <div class="module-card p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-slide-up relative overflow-hidden">
+                    <div class="absolute -right-20 -top-20 w-64 h-64 bg-cyan-600/5 blur-[80px] rounded-full pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <h3 class="text-xl font-bold text-white tracking-wide">Master Override</h3>
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-widest" id="masterBadge">ACTIVE</span>
                         </div>
-                        <p class="text-xs text-zinc-400">Globally arm or disarm all active system shield modules.</p>
+                        <p class="text-sm text-zinc-400">Globally arm or disarm all active system shield modules simultaneously.</p>
                     </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
+                    <label class="relative inline-flex items-center cursor-pointer relative z-10">
                         <input type="checkbox" id="masterSwitch" class="sr-only peer">
-                        <div class="w-10 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label transition-colors"></div>
+                        <div class="w-14 h-7 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all toggle-label transition-colors"></div>
                     </label>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     
                     <!-- Link Shield -->
-                    <div class="module-card p-6 flex flex-col md:flex-row gap-6 animate-slide-up delay-50">
-                        <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-[#1f1f26] pb-4 md:pb-0 md:pr-6">
-                            <div class="flex items-center justify-between mb-2">
-                                <h4 class="text-sm font-semibold text-zinc-100">Link Shield</h4>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="linksEnabled" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
-                                </label>
+                    <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-50">
+                        <div class="flex items-center justify-between mb-6 border-b border-[#18181b] pb-6">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2.5 bg-[#09090b] rounded-xl border border-[#27272a]"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
+                                <div>
+                                    <h4 class="text-base font-bold text-white tracking-wide">Link Shield</h4>
+                                    <span class="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold block mt-0.5">Universal URL Filter</span>
+                                </div>
                             </div>
-                            <p class="text-xs text-zinc-500 leading-relaxed">Universal URL filtering to block unauthorized links and invites.</p>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="linksEnabled" class="sr-only peer">
+                                <div class="w-12 h-6 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                            </label>
                         </div>
-                        <div class="w-full md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-6 flex-1">
                             <div class="space-y-2">
-                                <label class="text-xs font-medium text-zinc-400">Timeout (Mins)</label>
-                                <input type="number" id="linkTimeout" class="w-full input-base px-3 py-2 text-sm">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Timeout Duration (Mins)</label>
+                                <input type="number" id="linkTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm focus:ring-0">
                             </div>
-                            <div class="space-y-2">
-                                <label class="text-xs font-medium text-zinc-400 flex justify-between">Allowed Domains</label>
-                                <textarea id="linkAvoids" placeholder="discord.gg/..., github.com" class="w-full h-[38px] input-base px-3 py-2 text-sm resize-none"></textarea>
+                            <div class="space-y-2 flex-1 flex flex-col">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide flex justify-between">
+                                    Allowed Domains
+                                    <span class="text-[9px] text-zinc-500 font-normal">Comma Separated</span>
+                                </label>
+                                <textarea id="linkAvoids" placeholder="discord.gg/yourinvite, github.com" class="w-full flex-1 min-h-[90px] input-base rounded-xl px-4 py-3 text-sm resize-none focus:ring-0"></textarea>
                             </div>
                         </div>
                     </div>
 
                     <!-- Image Shield -->
-                    <div class="module-card p-6 flex flex-col md:flex-row gap-6 animate-slide-up delay-100">
-                        <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-[#1f1f26] pb-4 md:pb-0 md:pr-6">
-                            <div class="flex items-center justify-between mb-2">
-                                <h4 class="text-sm font-semibold text-zinc-100">Image Shield</h4>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="imagesEnabled" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
-                                </label>
+                    <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-100">
+                        <div class="flex items-center justify-between mb-6 border-b border-[#18181b] pb-6">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2.5 bg-[#09090b] rounded-xl border border-[#27272a]"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                                <div>
+                                    <h4 class="text-base font-bold text-white tracking-wide">Image Shield</h4>
+                                    <span class="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold block mt-0.5">Media Containment</span>
+                                </div>
                             </div>
-                            <p class="text-xs text-zinc-500 leading-relaxed">Media containment to prevent image and GIF spam bursts.</p>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="imagesEnabled" class="sr-only peer">
+                                <div class="w-12 h-6 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                            </label>
                         </div>
-                        <div class="w-full md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-6 flex-1">
                             <div class="space-y-2">
-                                <label class="text-xs font-medium text-zinc-400">Max Burst Limit</label>
-                                <input type="number" id="maxImages" class="w-full input-base px-3 py-2 text-sm">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Maximum Image/GIF Burst</label>
+                                <input type="number" id="maxImages" class="w-full input-base rounded-xl px-4 py-3 text-sm focus:ring-0">
                             </div>
-                            <div class="space-y-2">
-                                <label class="text-xs font-medium text-zinc-400">Timeout (Mins)</label>
-                                <input type="number" id="imageTimeout" class="w-full input-base px-3 py-2 text-sm">
+                            <div class="space-y-2 flex-1">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Containment Timeout (Mins)</label>
+                                <input type="number" id="imageTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm focus:ring-0">
                             </div>
                         </div>
                     </div>
 
                     <!-- Modular Toggles Row -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up delay-150">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up delay-150 md:col-span-2">
                         
-                        <div class="module-card p-5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-sm font-semibold text-zinc-100">Anti Nuke</h4>
+                        <!-- Anti Nuke -->
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="antiNukeEnabled" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
                                 </label>
                             </div>
-                            <p class="text-[11px] text-zinc-500">Reverts unauthorized server changes & bans rogue bots.</p>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Instantly reverts unauthorized server/channel changes and bans rogue bots.</p>
                         </div>
 
-                        <div class="module-card p-5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-sm font-semibold text-zinc-100">Text Spam</h4>
+                        <!-- Spam Shield -->
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">Text Spam</h4>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="spamShieldEnabled" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
                                 </label>
                             </div>
-                            <p class="text-[11px] text-zinc-500">Auto-mutes users who spam the chat rapidly.</p>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Tracks repetitive text messages and auto-mutes users who spam the chat rapidly.</p>
                         </div>
 
-                        <div class="module-card p-5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-sm font-semibold text-zinc-100">Anti Raid</h4>
+                        <!-- Anti Raid -->
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Raid</h4>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="raidEnabled" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
                                 </label>
                             </div>
-                            <p class="text-[11px] text-zinc-500">Isolates instant raid-app joins and mass pings.</p>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Automatically isolates and punishes instant raid-app automated joins and mass pings.</p>
                         </div>
 
-                        <div class="module-card p-5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-sm font-semibold text-zinc-100">File Sandbox</h4>
+                        <!-- File Sandbox -->
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">File Sandbox</h4>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="fileShieldEnabled" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
                                 </label>
                             </div>
-                            <p class="text-[11px] text-zinc-500">Purges harmful executables, bats, and scripts.</p>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Flags and purges harmful executable files, batch scripts and DLL content instantly.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Operations -->
-                <div class="module-card p-6 mt-4 animate-slide-up delay-150">
-                    <h4 class="text-sm font-semibold text-zinc-100 mb-4 pb-4 border-b border-[#1f1f26]">Logging & Bypass Operations</h4>
+                <!-- Logging & Operations -->
+                <div class="module-card p-8 mt-6 animate-slide-up delay-200">
+                    <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
+                        <svg class="w-5 h-5 text-cyan-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Logging & Operations
+                    </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         
                         <div class="space-y-4">
-                            <div class="flex items-center justify-between p-3 rounded bg-[#0b0b0e] border border-[#1f1f26]">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
                                 <div>
-                                    <span class="text-xs font-medium text-zinc-200">Track Deletions</span>
+                                    <span class="text-sm font-bold text-white">Track Deleted Messages</span>
+                                    <p class="text-[11px] text-zinc-500 mt-1">Saves purged text and media</p>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="logDeletedEnabled" class="sr-only peer">
-                                    <div class="w-8 h-4 bg-[#1f1f26] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all toggle-label"></div>
+                                    <div class="w-12 h-6 bg-[#000000] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
                                 </label>
                             </div>
                         </div>
 
                         <div class="space-y-2">
-                            <label class="text-xs font-medium text-zinc-400">Log Target Channel</label>
-                            <select id="logChannelId" class="w-full input-base px-3 py-2 text-sm appearance-none cursor-pointer">
-                                <option value="" class="bg-[#0b0b0e]">None (Disabled)</option>
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Log Target Channel</label>
+                            <select id="logChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">None (Disabled)</option>
                             </select>
                         </div>
 
                         <div class="space-y-2">
-                            <label class="text-xs font-medium text-zinc-400">Authorized Bypass Roles</label>
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Authorized Bypass Roles</label>
                             <div class="relative" id="roleDropdownContainer">
-                                <div id="roleSelectBtn" class="w-full input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer">
-                                    <span id="roleSelectText" class="truncate text-zinc-500">Select roles...</span>
+                                <div id="roleSelectBtn" class="w-full input-base rounded-xl px-4 py-3.5 text-sm flex justify-between items-center cursor-pointer">
+                                    <span id="roleSelectText" class="truncate text-zinc-500">Select bypass roles...</span>
                                     <svg class="w-4 h-4 text-zinc-500 transition-transform" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
-                                <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#121217] border border-[#1f1f26] rounded shadow-xl max-h-52 overflow-y-auto z-50">
+                                <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50">
                                     <!-- Options injected via JS -->
                                 </div>
                             </div>
@@ -345,17 +371,18 @@
     </main>
 
     <!-- Flat Unsaved Banner -->
-    <div class="fixed bottom-0 left-0 right-0 h-20 bg-[#0b0b0e] border-t border-[#1f1f26] z-40 flex items-center justify-between px-8 md:px-12 unsaved-banner" id="unsaved-changes-banner">
-        <div class="flex items-center space-x-3">
-            <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+    <div class="fixed bottom-0 left-0 right-0 h-28 bg-[#000000]/90 border-t border-[#18181b] backdrop-blur-xl z-40 flex items-center justify-between px-12 unsaved-banner" id="unsaved-changes-banner">
+        <div class="flex items-center space-x-4">
+            <div class="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_12px_#06b6d4] animate-pulse"></div>
             <div>
-                <p class="text-sm font-semibold text-zinc-100">Unsaved configuration</p>
-                <p class="text-[11px] text-zinc-500">Save changes to apply to your server.</p>
+                <p class="text-base font-bold text-white tracking-wide">Careful — you have unsaved changes!</p>
+                <p class="text-sm text-zinc-400 mt-0.5">Unsaved configuration changes will be lost upon navigating away.</p>
             </div>
         </div>
-        <div class="flex items-center space-x-3">
-            <button onclick="discardChanges()" class="px-4 py-2 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-[#1f1f26] transition-colors">Discard</button>
-            <button onclick="saveConfig()" class="btn-primary px-5 py-2 text-xs flex items-center gap-2">
+        <div class="flex items-center space-x-4">
+            <button onclick="discardChanges()" class="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-[#18181b] transition-all">Discard</button>
+            <button onclick="saveConfig()" class="btn-multigen px-8 py-3 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 Save Changes
             </button>
         </div>
@@ -402,24 +429,24 @@
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'toast-container';
-                container.className = 'fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none';
+                container.className = 'fixed bottom-10 right-10 z-50 flex flex-col space-y-3 pointer-events-none';
                 document.body.appendChild(container);
             }
 
             const toast = document.createElement('div');
-            toast.className = `px-4 py-3 rounded text-xs font-medium border transition-all duration-200 transform translate-y-4 opacity-0 pointer-events-auto flex items-center space-x-2 bg-[#121217] shadow-lg ${
-                type === 'success' ? 'border-green-500/30 text-green-400' : 'border-red-500/30 text-red-400'
+            toast.className = `px-6 py-4 rounded-xl text-sm font-bold tracking-wide shadow-[0_10px_40px_rgba(0,0,0,0.6)] border transition-all duration-300 transform translate-y-6 opacity-0 pointer-events-auto flex items-center space-x-3 bg-[#09090b]/95 backdrop-blur-xl ${
+                type === 'success' ? 'border-cyan-500/30 text-cyan-400' : 'border-red-500/30 text-red-400'
             }`;
             toast.innerHTML = `
-                <div class="w-2 h-2 rounded-full ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}"></div>
+                <div class="w-2.5 h-2.5 rounded-full ${type === 'success' ? 'bg-cyan-500 shadow-[0_0_10px_#06b6d4]' : 'bg-red-500 shadow-[0_0_10px_#ef4444]'}"></div>
                 <span>${message}</span>
             `;
             container.appendChild(toast);
             
-            setTimeout(() => toast.classList.remove('translate-y-4', 'opacity-0'), 10);
+            setTimeout(() => toast.classList.remove('translate-y-6', 'opacity-0'), 10);
             setTimeout(() => {
-                toast.classList.add('translate-y-4', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
+                toast.classList.add('translate-y-6', 'opacity-0');
+                setTimeout(() => toast.remove(), 400);
             }, 3000);
         }
 
@@ -428,10 +455,10 @@
             const badge = document.getElementById('masterBadge');
             if(masterCheck) {
                 badge.innerText = 'ACTIVE';
-                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded badge-active uppercase tracking-widest transition-colors';
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-widest transition-all';
             } else {
                 badge.innerText = 'OFFLINE';
-                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded badge-offline uppercase tracking-widest transition-colors';
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-md bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 uppercase tracking-widest transition-all';
             }
         }
 
@@ -439,7 +466,7 @@
             const checked = document.querySelectorAll('.role-checkbox:checked');
             const textSpan = document.getElementById('roleSelectText');
             if (checked.length === 0) {
-                textSpan.textContent = 'Select roles...';
+                textSpan.textContent = 'Select bypass roles...';
                 textSpan.classList.add('text-zinc-500');
                 textSpan.classList.remove('text-zinc-200');
             } else {
@@ -509,12 +536,12 @@
 
         function populateDropdowns(channels, roles) {
             const channelSelect = document.getElementById('logChannelId');
-            channelSelect.innerHTML = '<option value="" class="bg-[#0b0b0e]">None (Disabled)</option>';
+            channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
             
             channels.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
-                opt.className = 'bg-[#0b0b0e] text-zinc-300';
+                opt.className = 'bg-[#09090b] text-zinc-300';
                 opt.textContent = `# ${c.name}`;
                 channelSelect.appendChild(opt);
             });
@@ -524,11 +551,11 @@
             
             roles.forEach(r => {
                 const label = document.createElement('label');
-                label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#1f1f26] rounded cursor-pointer transition-colors';
+                label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
                 label.innerHTML = `
-                    <input type="checkbox" value="${r.id}" class="role-checkbox w-3.5 h-3.5 rounded border-[#2e2e38] bg-[#0b0b0e] focus:ring-blue-500 focus:ring-offset-[#121217]">
-                    <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${r.color === '#000000' ? '#99aab5' : r.color}"></div>
-                    <span class="text-xs text-zinc-300">${r.name}</span>
+                    <input type="checkbox" value="${r.id}" class="role-checkbox w-4 h-4 rounded border-[#27272a] bg-[#000000] focus:ring-cyan-500 focus:ring-offset-[#09090b]">
+                    <div class="w-3 h-3 rounded-full shadow-sm" style="background-color: ${r.color === '#000000' ? '#99aab5' : r.color}"></div>
+                    <span class="text-sm text-zinc-300 font-medium">${r.name}</span>
                 `;
                 const cb = label.querySelector('.role-checkbox');
                 cb.addEventListener('change', () => {
@@ -550,12 +577,14 @@
                 const data = await response.json();
                 
                 if (!data.loggedIn) {
-                    authZone.innerHTML = `<a href="/api/auth/login" class="btn-primary w-full py-2.5 flex items-center justify-center gap-2 text-xs">
+                    authZone.innerHTML = `<a href="/api/auth/login" class="btn-multigen w-full py-3.5 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
                         Sign In with Discord
                     </a>`;
                     serverList.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-60 animate-fade-in">
-                            <p class="text-xs text-zinc-500">Authentication required.</p>
+                        <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
+                            <svg class="w-10 h-10 text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            <p class="text-sm text-zinc-500 font-medium">Authentication required.</p>
                         </div>
                     `;
                     if (inviteBtn) inviteBtn.style.display = 'none';
@@ -571,24 +600,27 @@
                 }
 
                 authZone.innerHTML = `
-                    <div class="flex items-center justify-between animate-fade-in">
+                    <div class="flex items-center justify-between animate-fade-in bg-[#09090b] p-3 rounded-xl border border-[#27272a] shadow-inner">
                         <div class="flex items-center space-x-3 overflow-hidden">
-                            <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-8 w-8 rounded bg-[#1f1f26]">
+                            <div class="relative">
+                                <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-[#18181b]">
+                                <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-cyan-500 rounded-full border-2 border-[#09090b]"></div>
+                            </div>
                             <div class="flex-1 overflow-hidden pr-2">
-                                <h4 class="text-xs font-semibold text-zinc-200 truncate w-full">${data.user.username}</h4>
-                                <span class="text-[10px] text-zinc-500">Administrator</span>
+                                <h4 class="text-sm font-bold text-white truncate w-full">${data.user.username}</h4>
+                                <span class="text-[10px] text-zinc-500 font-semibold tracking-wide">Administrator</span>
                             </div>
                         </div>
-                        <a href="/api/auth/logout" class="text-zinc-500 hover:text-red-400 transition-colors p-1" title="Logout">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        <a href="/api/auth/logout" class="p-2.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Logout">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                         </a>
                     </div>
                 `;
 
                 if (data.guilds.length === 0) {
                     serverList.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-60 animate-fade-in">
-                            <p class="text-xs text-zinc-500">No servers found.</p>
+                        <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
+                            <p class="text-sm text-zinc-500 font-medium">No shared servers with bot found.</p>
                         </div>
                     `;
                     return;
@@ -600,32 +632,33 @@
                 data.guilds.forEach((guild, index) => {
                     const animDelay = `animation-delay: ${index * 50}ms;`;
                     const iconHtml = guild.icon 
-                        ? `<img src="${guild.icon}" class="h-8 w-8 rounded shrink-0 object-cover">` 
-                        : `<div class="h-8 w-8 rounded bg-[#1f1f26] text-zinc-400 flex items-center justify-center font-semibold text-xs shrink-0">${guild.name.charAt(0)}</div>`;
+                        ? `<img src="${guild.icon}" class="h-10 w-10 rounded-xl shrink-0 object-cover shadow-md border border-[#18181b]">` 
+                        : `<div class="h-10 w-10 rounded-xl bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">${guild.name.charAt(0)}</div>`;
 
                     if (guild.botPresent) {
                         if (!autoSelectGuild) autoSelectGuild = guild;
                         
                         serverList.innerHTML += `
-                            <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center px-4 py-2 text-left rounded-md text-zinc-400 group animate-slide-up" style="opacity:0; ${animDelay}">
+                            <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center p-3 text-left border border-transparent rounded-xl hover:bg-[#09090b] text-zinc-400 group mb-1 animate-slide-up relative overflow-hidden" style="opacity:0; ${animDelay}">
+                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 transform -translate-x-full transition-transform duration-300 active-indicator rounded-l-xl"></div>
                                 ${iconHtml}
-                                <div class="ml-3 overflow-hidden flex-1">
-                                    <span class="block text-xs font-medium truncate server-name">${guild.name}</span>
-                                    <span class="block text-[9px] text-blue-500 font-semibold uppercase tracking-wider mt-0.5 status-text">Active</span>
+                                <div class="ml-3 overflow-hidden">
+                                    <span class="block text-sm font-semibold truncate group-hover:text-white transition-colors server-name">${guild.name}</span>
+                                    <span class="block text-[10px] text-cyan-500/70 font-bold uppercase tracking-widest mt-0.5 status-text">Connected</span>
                                 </div>
                             </button>
                         `;
                     } else {
                         const inviteLink = `https://discord.com/api/oauth2/authorize?client_id=${data.botClientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&disable_guild_select=true`;
                         serverList.innerHTML += `
-                            <div class="w-full flex items-center px-4 py-2 text-left rounded-md text-zinc-600 animate-slide-up group" style="opacity:0; ${animDelay}">
-                                <div class="opacity-50 grayscale">${iconHtml}</div>
+                            <div class="w-full flex items-center p-3 text-left border border-transparent rounded-xl bg-white/[0.01] text-zinc-600 mb-1 animate-slide-up group" style="opacity:0; ${animDelay}">
+                                <div class="opacity-40 grayscale">${iconHtml}</div>
                                 <div class="ml-3 flex-1 flex justify-between items-center overflow-hidden">
-                                    <div class="overflow-hidden">
-                                        <span class="block text-xs font-medium truncate">${guild.name}</span>
-                                        <span class="block text-[9px] text-zinc-600 font-semibold uppercase tracking-wider mt-0.5">Setup Required</span>
+                                    <div>
+                                        <span class="block text-sm font-medium truncate">${guild.name}</span>
+                                        <span class="block text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Not Managed</span>
                                     </div>
-                                    <a href="${inviteLink}" target="_blank" class="text-[9px] btn-outline px-2 py-1 ml-2">Setup</a>
+                                    <a href="${inviteLink}" target="_blank" class="text-[10px] bg-cyan-600/10 text-cyan-400 hover:bg-cyan-600/20 hover:text-cyan-300 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider transition-colors shrink-0 ml-2">Setup</a>
                                 </div>
                             </div>
                         `;
