@@ -7,95 +7,28 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { 
-            background-color: #030305;
-            font-family: 'Inter', sans-serif;
-            color: #fafafa;
-        }
+        body { background-color: #030305; font-family: 'Inter', sans-serif; color: #fafafa; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #27272a; }
         
-        .input-base { 
-            background: rgba(5, 5, 8, 0.7); 
-            border: 1px solid #14141a; 
-            backdrop-filter: blur(10px);
-            color: #e4e4e7;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
-        }
-        .input-base:focus, .input-base:hover { 
-            border-color: #4f46e5; 
-            outline: none; 
-            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
-            background: rgba(7, 7, 12, 0.9);
-        }
+        .input-base { background: rgba(5, 5, 8, 0.7); border: 1px solid #14141a; backdrop-filter: blur(10px); color: #e4e4e7; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .input-base:focus, .input-base:hover { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15); background: rgba(7, 7, 12, 0.9); }
         
-        .module-card {
-            background-color: rgba(6, 6, 9, 0.65);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .module-card:hover {
-            border-color: rgba(79, 70, 229, 0.3);
-            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(79, 70, 229, 0.1);
-            transform: translateY(-2px);
-        }
+        .module-card { background-color: rgba(6, 6, 9, 0.65); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .module-card:hover { border-color: rgba(79, 70, 229, 0.3); box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(79, 70, 229, 0.1); transform: translateY(-2px); }
 
-        .sidebar-btn {
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .sidebar-btn.active {
-            background-color: rgba(79, 70, 229, 0.05);
-            border-color: rgba(79, 70, 229, 0.2);
-        }
-        .sidebar-btn.active .server-name {
-            color: #ffffff;
-            font-weight: 600;
-        }
-        .sidebar-btn.active .active-indicator {
-            opacity: 1;
-            transform: scale(1);
-            background-color: #4f46e5;
-        }
+        .sidebar-btn { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-btn.active { background-color: rgba(79, 70, 229, 0.05); border-color: rgba(79, 70, 229, 0.2); }
+        .sidebar-btn.active .server-name { color: #ffffff; font-weight: 600; }
+        .sidebar-btn.active .active-indicator { opacity: 1; transform: scale(1); background-color: #4f46e5; }
 
-        .btn-multigen {
-            position: relative;
-            background: linear-gradient(180deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.9) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: #ffffff;
-            overflow: hidden;
-            border-radius: 0.75rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-        }
-        .btn-multigen::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 20%;
-            right: 20%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
-            box-shadow: 0 -4px 15px 3px rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-        .btn-multigen:hover {
-            background: linear-gradient(180deg, rgba(39, 39, 42, 0.8) 0%, rgba(24, 24, 27, 0.9) 100%);
-            border-color: rgba(255, 255, 255, 0.15);
-            transform: translateY(-1px);
-        }
-        .btn-multigen:hover::after {
-            left: 5%;
-            right: 5%;
-            background: linear-gradient(90deg, transparent, #4f46e5, transparent);
-            box-shadow: 0 -4px 20px 4px rgba(79, 70, 229, 0.5);
-        }
-        .btn-multigen:active {
-            transform: translateY(1px);
-        }
+        .btn-multigen { position: relative; background: linear-gradient(180deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.08); color: #ffffff; overflow: hidden; border-radius: 0.75rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); }
+        .btn-multigen::after { content: ''; position: absolute; bottom: -1px; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent); box-shadow: 0 -4px 15px 3px rgba(255, 255, 255, 0.2); transition: all 0.3s ease; }
+        .btn-multigen:hover { background: linear-gradient(180deg, rgba(39, 39, 42, 0.8) 0%, rgba(24, 24, 27, 0.9) 100%); border-color: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
+        .btn-multigen:hover::after { left: 5%; right: 5%; background: linear-gradient(90deg, transparent, #4f46e5, transparent); box-shadow: 0 -4px 20px 4px rgba(79, 70, 229, 0.5); }
+        .btn-multigen:active { transform: translateY(1px); }
 
         .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
@@ -108,34 +41,19 @@
         @keyframes fadeIn { to { opacity: 1; } }
         @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
 
-        .bg-mesh {
-            background-image: radial-gradient(at 100% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%),
-                              radial-gradient(at 0% 100%, rgba(79, 70, 229, 0.02) 0px, transparent 50%);
-        }
+        .bg-mesh { background-image: radial-gradient(at 100% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(79, 70, 229, 0.02) 0px, transparent 50%); }
 
-        .unsaved-banner {
-            transform: translateY(100px);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .unsaved-banner.show {
-            transform: translateY(0);
-        }
+        .unsaved-banner { transform: translateY(100px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .unsaved-banner.show { transform: translateY(0); }
 
-        .role-checkbox, .bot-checkbox {
-            accent-color: #4f46e5;
-        }
-        
-        .peer:checked ~ .toggle-label { 
-            background-color: #4f46e5; 
-            border-color: #4f46e5; 
-        }
+        .role-checkbox, .bot-checkbox { accent-color: #4f46e5; }
+        .peer:checked ~ .toggle-label { background-color: #4f46e5; border-color: #4f46e5; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
     <aside class="w-80 bg-[#000000] border-r border-[#18181b] flex flex-col z-20 shrink-0 relative">
         <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-600/5 to-transparent pointer-events-none"></div>
-        
         <div class="h-24 flex flex-col justify-center px-8 border-b border-[#18181b] relative z-10">
             <div class="flex items-center">
                 <div class="relative flex items-center justify-center w-7 h-7 mr-3">
@@ -173,7 +91,6 @@
     </aside>
 
     <main class="flex-1 flex flex-col bg-[#000000] bg-mesh relative h-full">
-        
         <header class="h-24 border-b border-[#18181b] flex items-center justify-between px-12 bg-black/50 backdrop-blur-xl z-10 shrink-0 sticky top-0">
             <div class="animate-fade-in flex items-center space-x-4">
                 <div>
@@ -184,7 +101,6 @@
         </header>
 
         <div class="flex-1 overflow-y-auto p-8 md:p-12 relative scroll-smooth">
-            
             <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-slide-up">
                 <div class="w-24 h-24 rounded-3xl bg-[#09090b] border border-[#18181b] flex items-center justify-center mb-6 shadow-2xl relative">
                     <div class="absolute inset-0 bg-indigo-500/5 blur-2xl rounded-3xl"></div>
@@ -195,7 +111,6 @@
             </div>
 
             <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-8 pb-24">
-
                 <div class="module-card p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-slide-up relative overflow-hidden">
                     <div class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-600/5 blur-[80px] rounded-full pointer-events-none"></div>
                     <div class="relative z-10">
@@ -212,7 +127,6 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    
                     <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-50">
                         <div class="flex items-center justify-between mb-6 border-b border-[#18181b] pb-6">
                             <div class="flex items-center space-x-4">
@@ -269,7 +183,6 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up delay-150 lg:col-span-2">
-                        
                         <div class="module-card p-6 flex flex-col h-full">
                             <div class="flex items-center justify-between mb-4">
                                 <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
@@ -280,7 +193,6 @@
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Instantly reverts unauthorized server/channel changes and bans rogue bots.</p>
                         </div>
-
                         <div class="module-card p-6 flex flex-col h-full">
                             <div class="flex items-center justify-between mb-4">
                                 <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Spam</h4>
@@ -291,7 +203,6 @@
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Tracks repetitive text messages and auto-mutes users who spam the chat rapidly.</p>
                         </div>
-
                         <div class="module-card p-6 flex flex-col h-full">
                             <div class="flex items-center justify-between mb-4">
                                 <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Raid</h4>
@@ -302,7 +213,6 @@
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Automatically isolates and punishes instant raid-app automated joins and mass pings.</p>
                         </div>
-
                         <div class="module-card p-6 flex flex-col h-full">
                             <div class="flex items-center justify-between mb-4">
                                 <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti File</h4>
@@ -316,15 +226,13 @@
                     </div>
                 </div>
 
-                <!-- Logging & Operations -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        Logging & Operations
+                        Logging & Bypass Operations
                     </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
                         <div class="space-y-4">
                             <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
                                 <div>
@@ -337,14 +245,12 @@
                                 </label>
                             </div>
                         </div>
-
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Log Target Channel</label>
                             <select id="logChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
                                 <option value="" class="bg-[#09090b]">None (Disabled)</option>
                             </select>
                         </div>
-
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Authorized Bypass Roles</label>
                             <div class="relative" id="roleDropdownContainer">
@@ -352,29 +258,22 @@
                                     <span id="roleSelectText" class="truncate text-zinc-500">Select bypass roles...</span>
                                     <svg class="w-4 h-4 text-zinc-500 transition-transform" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
-                                <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50">
-                                    <!-- Options injected via JS -->
-                                </div>
+                                <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50"></div>
                             </div>
                         </div>
-
                         <div class="space-y-2">
-                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Trusted Bots Bypass (Anti Nuke)</label>
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Trusted Bots Bypass</label>
                             <div class="relative" id="botDropdownContainer">
                                 <div id="botSelectBtn" class="w-full input-base rounded-xl px-4 py-3.5 text-sm flex justify-between items-center cursor-pointer">
                                     <span id="botSelectText" class="truncate text-zinc-500">Select allowed bots...</span>
                                     <svg class="w-4 h-4 text-zinc-500 transition-transform" id="botDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
-                                <div id="botDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50">
-                                    <!-- Options injected via JS -->
-                                </div>
+                                <div id="botDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50"></div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
-                <!-- Verification System -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a2 2 0 11-4 0 2 2 0 014 0zM9 10a2 2 0 11-4 0 2 2 0 014 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -382,12 +281,11 @@
                     </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        
                         <div class="space-y-4">
                             <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
                                 <div>
                                     <span class="text-sm font-bold text-white">Enable Verification</span>
-                                    <p class="text-[11px] text-zinc-500 mt-1">Require users to click a button</p>
+                                    <p class="text-[11px] text-zinc-500 mt-1">Button challenge access</p>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="verifyEnabled" class="sr-only peer">
@@ -395,21 +293,18 @@
                                 </label>
                             </div>
                         </div>
-
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Verification Channel</label>
                             <select id="verifyChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
                                 <option value="" class="bg-[#09090b]">Select Channel...</option>
                             </select>
                         </div>
-
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Role to Assign</label>
                             <select id="verifyRoleId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
                                 <option value="" class="bg-[#09090b]">Select Role...</option>
                             </select>
                         </div>
-
                     </div>
                 </div>
 
@@ -458,14 +353,13 @@
         document.addEventListener('click', (e) => {
             const roleMenu = document.getElementById('roleDropdownMenu');
             const roleIcon = document.getElementById('roleDropdownIcon');
-            if (!document.getElementById('roleDropdownContainer').contains(e.target)) {
+            if (roleMenu && !document.getElementById('roleDropdownContainer').contains(e.target)) {
                 roleMenu.classList.add('hidden');
                 roleIcon.style.transform = 'rotate(0deg)';
             }
-
             const botMenu = document.getElementById('botDropdownMenu');
             const botIcon = document.getElementById('botDropdownIcon');
-            if (!document.getElementById('botDropdownContainer').contains(e.target)) {
+            if (botMenu && !document.getElementById('botDropdownContainer').contains(e.target)) {
                 botMenu.classList.add('hidden');
                 botIcon.style.transform = 'rotate(0deg)';
             }
@@ -486,14 +380,12 @@
 
         function showNotification(message, type = 'success') {
             let container = document.getElementById('toast-container');
-            
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'toast-container';
                 container.className = 'fixed bottom-10 right-10 z-50 flex flex-col space-y-3 pointer-events-none';
                 document.body.appendChild(container);
             }
-
             const toast = document.createElement('div');
             toast.className = `px-6 py-4 rounded-xl text-sm font-bold tracking-wide shadow-[0_10px_40px_rgba(0,0,0,0.6)] border transition-all duration-300 transform translate-y-6 opacity-0 pointer-events-auto flex items-center space-x-3 bg-[#09090b]/95 backdrop-blur-xl ${
                 type === 'success' ? 'border-indigo-500/30 text-indigo-400' : 'border-red-500/30 text-red-400'
@@ -503,7 +395,6 @@
                 <span>${message}</span>
             `;
             container.appendChild(toast);
-            
             setTimeout(() => toast.classList.remove('translate-y-6', 'opacity-0'), 10);
             setTimeout(() => {
                 toast.classList.add('translate-y-6', 'opacity-0');
@@ -553,7 +444,6 @@
 
         function checkUnsavedChanges() {
             if (!activeGuildId) return;
-            
             const currentInputs = {
                 masterSwitch: document.getElementById('masterSwitch').checked,
                 linksEnabled: document.getElementById('linksEnabled').checked,
@@ -574,7 +464,6 @@
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '),
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', ')
             };
-
             const cleanOriginal = {
                 masterSwitch: originalConfig.masterSwitch,
                 linksEnabled: originalConfig.linksEnabled,
@@ -595,10 +484,8 @@
                 allowedAccess: originalConfig.allowedAccess.join(', '),
                 allowedBots: (originalConfig.allowedBots || []).join(', ')
             };
-
             const hasChanged = JSON.stringify(currentInputs) !== JSON.stringify(cleanOriginal);
             const banner = document.getElementById('unsaved-changes-banner');
-            
             if (hasChanged) {
                 banner.classList.add('show');
             } else {
@@ -631,14 +518,12 @@
                 opt.value = c.id;
                 opt.className = 'bg-[#09090b] text-zinc-300';
                 opt.textContent = `# ${c.name}`;
-                
                 channelSelect.appendChild(opt.cloneNode(true));
                 verifyChannelSelect.appendChild(opt.cloneNode(true));
             });
 
             const roleMenu = document.getElementById('roleDropdownMenu');
             roleMenu.innerHTML = '';
-            
             roles.forEach(r => {
                 const label = document.createElement('label');
                 label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
@@ -654,7 +539,6 @@
                 });
                 roleMenu.appendChild(label);
 
-                // Add to Verification Role dropdown
                 const roleOpt = document.createElement('option');
                 roleOpt.value = r.id;
                 roleOpt.className = 'bg-[#09090b] text-zinc-300';
@@ -665,15 +549,11 @@
 
             const botMenu = document.getElementById('botDropdownMenu');
             botMenu.innerHTML = '';
-            
             if (bots) {
                 bots.forEach(b => {
                     const label = document.createElement('label');
                     label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
-                    const avatarUrl = b.avatar 
-                        ? `https://cdn.discordapp.com/avatars/${b.id}/${b.avatar}.png?size=32`
-                        : `https://cdn.discordapp.com/embed/avatars/${parseInt(b.id) % 5}.png`;
-
+                    const avatarUrl = b.avatar ? `https://cdn.discordapp.com/avatars/${b.id}/${b.avatar}.png?size=32` : `https://cdn.discordapp.com/embed/avatars/${parseInt(b.id) % 5}.png`;
                     label.innerHTML = `
                         <input type="checkbox" value="${b.id}" class="bot-checkbox w-4 h-4 rounded border-[#27272a] bg-[#000000] focus:ring-indigo-500 focus:ring-offset-[#09090b]">
                         <img src="${avatarUrl}" class="w-5 h-5 rounded-full object-cover border border-[#27272a]">
@@ -694,11 +574,9 @@
             const authZone = document.getElementById('auth-zone');
             const serverList = document.getElementById('server-list');
             const inviteBtn = document.getElementById('invite-btn');
-            
             try {
                 const response = await fetch(resolveUrl('/api/user-data'), { credentials: 'include' });
                 const data = await response.json();
-                
                 if (!data.loggedIn) {
                     authZone.innerHTML = `<a href="/api/auth/login" class="btn-multigen w-full py-3.5 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
                         <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
@@ -713,15 +591,11 @@
                     if (inviteBtn) inviteBtn.style.display = 'none';
                     return;
                 }
-
                 systemBotClientId = data.botClientId;
                 if (inviteBtn) {
                     inviteBtn.style.display = 'flex';
-                    inviteBtn.onclick = () => {
-                        window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank');
-                    };
+                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank'); };
                 }
-
                 authZone.innerHTML = `
                     <div class="flex items-center justify-between animate-fade-in bg-[#09090b] p-3 rounded-xl border border-[#27272a] shadow-inner">
                         <div class="flex items-center space-x-3 overflow-hidden">
@@ -739,7 +613,6 @@
                         </a>
                     </div>
                 `;
-
                 if (data.guilds.length === 0) {
                     serverList.innerHTML = `
                         <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
@@ -748,19 +621,13 @@
                     `;
                     return;
                 }
-
                 serverList.innerHTML = '';
                 let autoSelectGuild = null;
-
                 data.guilds.forEach((guild, index) => {
                     const animDelay = `animation-delay: ${index * 50}ms;`;
-                    const iconHtml = guild.icon 
-                        ? `<img src="${guild.icon}" class="h-10 w-10 rounded-xl shrink-0 object-cover shadow-md border border-[#18181b]">` 
-                        : `<div class="h-10 w-10 rounded-xl bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">${guild.name.charAt(0)}</div>`;
-
+                    const iconHtml = guild.icon ? `<img src="${guild.icon}" class="h-10 w-10 rounded-xl shrink-0 object-cover shadow-md border border-[#18181b]">` : `<div class="h-10 w-10 rounded-xl bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">${guild.name.charAt(0)}</div>`;
                     if (guild.botPresent) {
                         if (!autoSelectGuild) autoSelectGuild = guild;
-                        
                         serverList.innerHTML += `
                             <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center p-3 text-left border border-transparent rounded-xl hover:bg-[#09090b] text-zinc-400 group mb-1 animate-slide-up relative overflow-hidden" style="opacity:0; ${animDelay}">
                                 <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full transition-transform duration-300 active-indicator rounded-l-xl"></div>
@@ -787,16 +654,8 @@
                         `;
                     }
                 });
-
-                if (autoSelectGuild) {
-                    setTimeout(() => {
-                        selectServer(autoSelectGuild.id, autoSelectGuild.name);
-                    }, 100);
-                }
-
-            } catch (err) {
-                showNotification('Network authentication error.', 'error');
-            }
+                if (autoSelectGuild) { setTimeout(() => { selectServer(autoSelectGuild.id, autoSelectGuild.name); }, 100); }
+            } catch (err) { showNotification('Network authentication error.', 'error'); }
         }
 
         async function fetchDiscordData(guildId) {
@@ -814,34 +673,18 @@
                 const proceed = confirm("You have unsaved changes. Navigating away will lose your unsaved edits. Proceed?");
                 if (!proceed) return;
             }
-
-            document.querySelectorAll('.sidebar-btn').forEach(b => {
-                b.classList.remove('active');
-                b.classList.add('border-transparent');
-                b.style.backgroundColor = '';
-            });
+            document.querySelectorAll('.sidebar-btn').forEach(b => { b.classList.remove('active'); b.classList.add('border-transparent'); b.style.backgroundColor = ''; });
             const selectedBtn = document.getElementById(`btn-${guildId}`);
-            if (selectedBtn) {
-                selectedBtn.classList.add('active');
-            }
-
+            if (selectedBtn) { selectedBtn.classList.add('active'); }
             activeGuildId = guildId;
             document.getElementById('active-server-name').innerText = name;
             document.getElementById('active-server-subtitle').innerText = "Configuring Terminal Parameters";
-            
             document.getElementById('blank-view').classList.add('hidden');
-            
             const dashboardView = document.getElementById('dashboard-view');
             dashboardView.classList.remove('hidden');
             dashboardView.classList.add('flex');
-            
             const animatableElements = dashboardView.querySelectorAll('.animate-slide-up');
-            animatableElements.forEach(el => {
-                el.style.animation = 'none';
-                el.offsetHeight; 
-                el.style.animation = null;
-            });
-
+            animatableElements.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = null; });
             await fetchDiscordData(guildId);
             await loadConfig(guildId);
         }
@@ -850,9 +693,7 @@
             try {
                 const res = await fetch(resolveUrl(`/api/config/${guildId}`), { credentials: 'include' });
                 const config = await res.json();
-
                 originalConfig = JSON.parse(JSON.stringify(config));
-
                 document.getElementById('masterSwitch').checked = config.masterSwitch;
                 document.getElementById('linksEnabled').checked = config.linksEnabled;
                 document.getElementById('linkTimeout').value = config.linkTimeout;
@@ -868,42 +709,19 @@
                 document.getElementById('verifyEnabled').checked = config.verifyEnabled || false;
                 
                 const logChannelInput = document.getElementById('logChannelId');
-                if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) {
-                    logChannelInput.value = config.logChannelId;
-                } else {
-                    logChannelInput.value = '';
-                }
-
+                if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) { logChannelInput.value = config.logChannelId; } else { logChannelInput.value = ''; }
                 const verifyChannelInput = document.getElementById('verifyChannelId');
-                if (config.verifyChannelId && verifyChannelInput.querySelector(`option[value="${config.verifyChannelId}"]`)) {
-                    verifyChannelInput.value = config.verifyChannelId;
-                } else {
-                    verifyChannelInput.value = '';
-                }
-
+                if (config.verifyChannelId && verifyChannelInput.querySelector(`option[value="${config.verifyChannelId}"]`)) { verifyChannelInput.value = config.verifyChannelId; } else { verifyChannelInput.value = ''; }
                 const verifyRoleInput = document.getElementById('verifyRoleId');
-                if (config.verifyRoleId && verifyRoleInput.querySelector(`option[value="${config.verifyRoleId}"]`)) {
-                    verifyRoleInput.value = config.verifyRoleId;
-                } else {
-                    verifyRoleInput.value = '';
-                }
+                if (config.verifyRoleId && verifyRoleInput.querySelector(`option[value="${config.verifyRoleId}"]`)) { verifyRoleInput.value = config.verifyRoleId; } else { verifyRoleInput.value = ''; }
 
-                document.querySelectorAll('.role-checkbox').forEach(cb => {
-                    cb.checked = config.allowedAccess.includes(cb.value);
-                });
+                document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = config.allowedAccess.includes(cb.value); });
                 updateRoleSelectText();
-                
-                document.querySelectorAll('.bot-checkbox').forEach(cb => {
-                    cb.checked = (config.allowedBots || []).includes(cb.value);
-                });
+                document.querySelectorAll('.bot-checkbox').forEach(cb => { cb.checked = (config.allowedBots || []).includes(cb.value); });
                 updateBotSelectText();
-
                 updateMasterBadge();
                 checkUnsavedChanges();
-                
-            } catch (err) {
-                showNotification('Failed to load settings', 'error');
-            }
+            } catch (err) { showNotification('Failed to load settings', 'error'); }
         }
 
         function discardChanges() {
@@ -914,7 +732,6 @@
 
         async function saveConfig() {
             if (!activeGuildId) return;
-
             const payload = {
                 masterSwitch: document.getElementById('masterSwitch').checked,
                 linksEnabled: document.getElementById('linksEnabled').checked,
@@ -935,7 +752,6 @@
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value),
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value)
             };
-
             try {
                 const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), {
                     method: 'POST',
@@ -948,19 +764,12 @@
                     originalConfig = JSON.parse(JSON.stringify(payload));
                     updateMasterBadge();
                     checkUnsavedChanges();
-                }
-                else throw new Error();
-            } catch (err) {
-                showNotification('Failed to deploy settings', 'error');
-            }
+                } else throw new Error();
+            } catch (err) { showNotification('Failed to deploy settings', 'error'); }
         }
         
         document.getElementById('masterSwitch').addEventListener('change', updateMasterBadge);
-
-        window.onload = () => {
-            fetchSystemInitialization();
-            addInputListeners();
-        };
+        window.onload = () => { fetchSystemInitialization(); addInputListeners(); };
     </script>
 </body>
 </html>
