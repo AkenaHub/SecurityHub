@@ -256,6 +256,28 @@
                         </div>
                         <p class="text-xs text-zinc-400 leading-relaxed">Flags and purges harmful executable files, batch scripts and DLL content instantly.</p>
                     </div>
+                    
+                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="antiNukeEnabled" class="sr-only peer">
+                                <div class="w-10 h-5 bg-[#030305] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
+                            </label>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">Instantly reverts unauthorized server/channel name changes and bans the malicious nuke bot.</p>
+                    </div>
+                    
+                    <div class="module-card p-6 flex flex-col h-full animate-slide-up delay-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Text Spam Shield</h4>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="spamShieldEnabled" class="sr-only peer">
+                                <div class="w-10 h-5 bg-[#030305] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600"></div>
+                            </label>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">Tracks repetitive text messages and auto-mutes users who spam the chat rapidly.</p>
+                    </div>
                 </div>
 
                 <div class="module-card p-6 mt-6 animate-slide-up delay-200">
@@ -375,6 +397,8 @@
                 raidEnabled: document.getElementById('raidEnabled').checked,
                 fileShieldEnabled: document.getElementById('fileShieldEnabled').checked,
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
+                antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
+                spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
                 allowedAccess: document.getElementById('allowedAccess').value.split(',').map(s => s.trim()).filter(s => s.length > 0).join(', ')
             };
 
@@ -389,6 +413,8 @@
                 raidEnabled: originalConfig.raidEnabled,
                 fileShieldEnabled: originalConfig.fileShieldEnabled,
                 logDeletedEnabled: originalConfig.logDeletedEnabled,
+                antiNukeEnabled: originalConfig.antiNukeEnabled,
+                spamShieldEnabled: originalConfig.spamShieldEnabled,
                 allowedAccess: originalConfig.allowedAccess.join(', ')
             };
 
@@ -403,7 +429,7 @@
         }
 
         function addInputListeners() {
-            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'allowedAccess'];
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'allowedAccess'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -572,6 +598,8 @@
                 document.getElementById('raidEnabled').checked = config.raidEnabled;
                 document.getElementById('fileShieldEnabled').checked = config.fileShieldEnabled;
                 document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
+                document.getElementById('antiNukeEnabled').checked = config.antiNukeEnabled;
+                document.getElementById('spamShieldEnabled').checked = config.spamShieldEnabled;
                 document.getElementById('allowedAccess').value = config.allowedAccess.join(', ');
                 
                 updateMasterBadge();
@@ -602,6 +630,8 @@
                 raidEnabled: document.getElementById('raidEnabled').checked,
                 fileShieldEnabled: document.getElementById('fileShieldEnabled').checked,
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
+                antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
+                spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
                 allowedAccess: document.getElementById('allowedAccess').value.split(',').map(s => s.trim()).filter(s => s.length > 0)
             };
 
