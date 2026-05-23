@@ -330,7 +330,7 @@
                         Logging & Operations
                     </h4>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         
                         <div class="space-y-4">
                             <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
@@ -360,6 +360,19 @@
                                     <svg class="w-4 h-4 text-zinc-500 transition-transform" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                                 <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50">
+                                    <!-- Options injected via JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Trusted Bots Bypass</label>
+                            <div class="relative" id="botDropdownContainer">
+                                <div id="botSelectBtn" class="w-full input-base rounded-xl px-4 py-3.5 text-sm flex justify-between items-center cursor-pointer">
+                                    <span id="botSelectText" class="truncate text-zinc-500">Select allowed bots...</span>
+                                    <svg class="w-4 h-4 text-zinc-500 transition-transform" id="botDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="botDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50">
                                     <!-- Options injected via JS -->
                                 </div>
                             </div>
@@ -402,12 +415,27 @@
             e.stopPropagation();
         });
 
+        document.getElementById('botSelectBtn').addEventListener('click', (e) => {
+            const menu = document.getElementById('botDropdownMenu');
+            const icon = document.getElementById('botDropdownIcon');
+            menu.classList.toggle('hidden');
+            icon.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            e.stopPropagation();
+        });
+
         document.addEventListener('click', (e) => {
-            const menu = document.getElementById('roleDropdownMenu');
-            const icon = document.getElementById('roleDropdownIcon');
+            const roleMenu = document.getElementById('roleDropdownMenu');
+            const roleIcon = document.getElementById('roleDropdownIcon');
             if (!document.getElementById('roleDropdownContainer').contains(e.target)) {
-                menu.classList.add('hidden');
-                icon.style.transform = 'rotate(0deg)';
+                roleMenu.classList.add('hidden');
+                roleIcon.style.transform = 'rotate(0deg)';
+            }
+
+            const botMenu = document.getElementById('botDropdownMenu');
+            const botIcon = document.getElementById('botDropdownIcon');
+            if (botMenu && !document.getElementById('botDropdownContainer').contains(e.target)) {
+                botMenu.classList.add('hidden');
+                botIcon.style.transform = 'rotate(0deg)';
             }
         });
 
@@ -477,6 +505,20 @@
             }
         }
 
+        function updateBotSelectText() {
+            const checked = document.querySelectorAll('.bot-checkbox:checked');
+            const textSpan = document.getElementById('botSelectText');
+            if (checked.length === 0) {
+                textSpan.textContent = 'Select allowed bots...';
+                textSpan.classList.add('text-zinc-500');
+                textSpan.classList.remove('text-zinc-200');
+            } else {
+                textSpan.textContent = `${checked.length} bot(s) selected`;
+                textSpan.classList.remove('text-zinc-500');
+                textSpan.classList.add('text-zinc-200');
+            }
+        }
+
         function checkUnsavedChanges() {
             if (!activeGuildId) return;
             
@@ -494,7 +536,8 @@
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
                 logChannelId: document.getElementById('logChannelId').value || '',
-                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', ')
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '),
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', ')
             };
 
             const cleanOriginal = {
@@ -511,7 +554,8 @@
                 antiNukeEnabled: originalConfig.antiNukeEnabled,
                 spamShieldEnabled: originalConfig.spamShieldEnabled,
                 logChannelId: originalConfig.logChannelId || '',
-                allowedAccess: originalConfig.allowedAccess.join(', ')
+                allowedAccess: originalConfig.allowedAccess.join(', '),
+                allowedBots: (originalConfig.allowedBots || []).join(', ')
             };
 
             const hasChanged = JSON.stringify(currentInputs) !== JSON.stringify(cleanOriginal);
@@ -535,7 +579,7 @@
             });
         }
 
-        function populateDropdowns(channels, roles) {
+        function populateDropdowns(channels, roles, bots) {
             const channelSelect = document.getElementById('logChannelId');
             channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
             
@@ -566,6 +610,32 @@
                 roleMenu.appendChild(label);
             });
             updateRoleSelectText();
+
+            const botMenu = document.getElementById('botDropdownMenu');
+            botMenu.innerHTML = '';
+            
+            if (bots) {
+                bots.forEach(b => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
+                    const avatarUrl = b.avatar 
+                        ? `https://cdn.discordapp.com/avatars/${b.id}/${b.avatar}.png?size=32`
+                        : `https://cdn.discordapp.com/embed/avatars/${parseInt(b.id) % 5}.png`;
+
+                    label.innerHTML = `
+                        <input type="checkbox" value="${b.id}" class="bot-checkbox w-4 h-4 rounded border-[#27272a] bg-[#000000] focus:ring-indigo-500 focus:ring-offset-[#09090b]">
+                        <img src="${avatarUrl}" class="w-5 h-5 rounded-full object-cover border border-[#27272a]">
+                        <span class="text-sm text-zinc-300 font-medium">${b.name}</span>
+                    `;
+                    const cb = label.querySelector('.bot-checkbox');
+                    cb.addEventListener('change', () => {
+                        updateBotSelectText();
+                        checkUnsavedChanges();
+                    });
+                    botMenu.appendChild(label);
+                });
+            }
+            updateBotSelectText();
         }
 
         async function fetchSystemInitialization() {
@@ -682,7 +752,7 @@
                 const res = await fetch(resolveUrl(`/api/discord-data/${guildId}`), { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
-                    populateDropdowns(data.channels, data.roles);
+                    populateDropdowns(data.channels, data.roles, data.bots);
                 }
             } catch (e) {}
         }
@@ -756,6 +826,11 @@
                 });
                 updateRoleSelectText();
                 
+                document.querySelectorAll('.bot-checkbox').forEach(cb => {
+                    cb.checked = (config.allowedBots || []).includes(cb.value);
+                });
+                updateBotSelectText();
+                
                 updateMasterBadge();
                 checkUnsavedChanges();
                 
@@ -787,7 +862,8 @@
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
                 logChannelId: document.getElementById('logChannelId').value || null,
-                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value)
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value),
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value)
             };
 
             try {
