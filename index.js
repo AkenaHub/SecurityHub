@@ -138,6 +138,7 @@ const getSettings = async (guildId) => {
             linkTimeout: 30,
             linkAvoids: [], 
             allowedAccess: [],
+            allowedBots: [],
             imagesEnabled: true,
             maxImages: 1,
             imageTimeout: 4320,
@@ -289,6 +290,7 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
 
             const executor = auditEntry.executor;
             if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
             await newGuild.setName(oldGuild.name).catch(() => {});
 
@@ -322,6 +324,7 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
 
             const executor = auditEntry.executor;
             if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
             await newChannel.setName(oldChannel.name).catch(() => {});
 
@@ -354,6 +357,7 @@ client.on('channelDelete', async channel => {
 
         const executor = auditEntry.executor;
         if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
         await channel.clone().catch(()=>{});
 
@@ -385,6 +389,7 @@ client.on('channelCreate', async channel => {
 
         const executor = auditEntry.executor;
         if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
         await channel.delete().catch(()=>{});
 
@@ -416,6 +421,7 @@ client.on('roleDelete', async role => {
 
         const executor = auditEntry.executor;
         if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
         await role.guild.roles.create({
             name: role.name,
@@ -456,6 +462,7 @@ client.on('roleUpdate', async (oldRole, newRole) => {
 
             const executor = auditEntry.executor;
             if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
             await newRole.edit({
                 name: oldRole.name,
@@ -804,6 +811,8 @@ app.get('/api/discord-data/:guildId', async (req, res) => {
     const guild = client.guilds.cache.get(req.params.guildId);
     if (!guild) return res.status(404).json({ error: 'Guild not found or bot not in guild' });
 
+    await guild.members.fetch();
+
     const channels = guild.channels.cache
         .filter(c => c.type === ChannelType.GuildText)
         .map(c => ({ id: c.id, name: c.name }));
@@ -812,7 +821,11 @@ app.get('/api/discord-data/:guildId', async (req, res) => {
         .filter(r => r.name !== '@everyone' && !r.managed)
         .map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
 
-    res.json({ channels, roles });
+    const bots = guild.members.cache
+        .filter(m => m.user.bot && m.user.id !== client.user.id)
+        .map(m => ({ id: m.user.id, name: m.user.username, avatar: m.user.avatar }));
+
+    res.json({ channels, roles, bots });
 });
 
 app.get('/api/config/:guildId', async (req, res) => {
