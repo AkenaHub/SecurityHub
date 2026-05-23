@@ -14,6 +14,14 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
+process.on('unhandledRejection', error => {
+    console.error('Unhandled Promise Rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('Uncaught Exception:', error);
+});
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -29,8 +37,6 @@ const dbFile = './database.json';
 let guildSettings = {};
 let firestoreDb = null;
 let firestoreReady = false;
-
-const userMessageCache = new Map();
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.APP_ID || 'servsecurity-app');
 
@@ -176,6 +182,7 @@ const logAction = async (guildId, type, username, userId, reason) => {
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/.+)|(discord\.com\/invite\/.+)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 const imageMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const userMessageCache = new Map();
 
 const createLogEmbed = (title, description, color) => {
     return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
@@ -223,6 +230,71 @@ client.on('interactionCreate', async interaction => {
 
         const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
         await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
+    }
+});
+
+client.on('guildUpdate', async (oldGuild, newGuild) => {
+    const settings = await getSettings(newGuild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+    
+    if (oldGuild.name !== newGuild.name) {
+        try {
+            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || executor.id === newGuild.ownerId) return;
+
+            await newGuild.setName(oldGuild.name).catch(() => {});
+
+            const member = await newGuild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
+                await logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt');
+                
+                if (settings.logChannelId) {
+                    const logChannel = await newGuild.channels.fetch(settings.logChannelId).catch(()=>null);
+                    if (logChannel) {
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
+                        await logChannel.send({ embeds: [log] }).catch(() => {});
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!oldChannel.guild) return;
+    const settings = await getSettings(oldChannel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldChannel.name !== newChannel.name) {
+        try {
+            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || executor.id === oldChannel.guild.ownerId) return;
+
+            await newChannel.setName(oldChannel.name).catch(() => {});
+
+            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
+                await logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt');
+
+                if (settings.logChannelId) {
+                    const logChannel = await oldChannel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                    if (logChannel) {
+                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
+                        await logChannel.send({ embeds: [log] }).catch(() => {});
+                    }
+                }
+            }
+        } catch (e) {}
     }
 });
 
@@ -346,7 +418,6 @@ client.on('messageCreate', async message => {
     }
 
     let targetLogChannel = message.channel;
-    
     if (settings.logChannelId) {
         try {
             const chan = await message.guild.channels.fetch(settings.logChannelId);
@@ -364,74 +435,69 @@ client.on('messageCreate', async message => {
             try {
                 await message.delete().catch(() => {});
                 if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
-            const log = createLogEmbed('🚨 Image Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${formatDuration(settings.imageTimeout)})`, '#ff0000');
-            await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-        } catch (e) {}
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
+                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app!`);
+                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return; 
+            } catch (e) {}
+        }
     }
-});
 
-client.on('guildUpdate', async (oldGuild, newGuild) => {
-    const settings = await getSettings(newGuild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-    
-    if (oldGuild.name !== newGuild.name) {
-        try {
-            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
+    if (settings.fileShieldEnabled && message.attachments.size > 0) {
+        const hasDangerousFile = message.attachments.some(attachment => {
+            const fileName = attachment.name.toLowerCase();
+            return dangerousExtensions.some(ext => fileName.endsWith(ext));
+        });
 
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || executor.id === newGuild.ownerId) return;
-
-            await newGuild.setName(oldGuild.name).catch(() => {});
-
-            const member = await newGuild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
-                await logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt');
-                
-                if (settings.logChannelId) {
-                    const logChannel = await newGuild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
-            }
-        } catch (e) {}
+        if (hasDangerousFile) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type.`).catch(() => {});
+                const log = createLogEmbed('📁 File Sandbox Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return; 
+            } catch (e) {}
+        }
     }
-});
 
-client.on('channelUpdate', async (oldChannel, newChannel) => {
-    if (!oldChannel.guild) return;
-    const settings = await getSettings(oldChannel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+    if (settings.linksEnabled) {
+        const messageContentLower = message.content.toLowerCase();
+        
+        const isTenorGif = messageContentLower.includes('tenor.com/view') || messageContentLower.includes('giphy.com/gifs');
+        const isLink = linkRegex.test(message.content);
+        const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
 
-    if (oldChannel.name !== newChannel.name) {
-        try {
-            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
+        if (isLink && !isAvoided && !isTenorGif) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
+                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+                return;
+            } catch (e) {}
+        }
+    }
 
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || executor.id === oldChannel.guild.ownerId) return;
+    if (settings.imagesEnabled && message.attachments.size > 0) {
+        const isImageOrGif = message.attachments.every(attachment => {
+            if (!attachment.contentType) return false;
+            return imageMimeTypes.some(type => attachment.contentType.startsWith(type));
+        });
 
-            await newChannel.setName(oldChannel.name).catch(() => {});
-
-            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
-                await logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt');
-
-                if (settings.logChannelId) {
-                    const logChannel = await oldChannel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
-            }
-        } catch (e) {}
+        if (isImageOrGif && message.attachments.size >= settings.maxImages) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image/GIF Spam').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image/GIF Spam');
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images/GIFs at once.`).catch(() => {});
+                const log = createLogEmbed('🚨 Image/GIF Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
+                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
+            } catch (e) {}
+        }
     }
 });
 
@@ -516,7 +582,6 @@ app.get('/api/auth/callback', async (req, res) => {
             res.redirect('/');
         });
     } catch (error) {
-        console.error("OAuth Error:", error.response?.data || error.message);
         res.redirect('/?error=Auth_Failed');
     }
 });
@@ -573,4 +638,4 @@ if (process.env.DISCORD_TOKEN) {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
+app.listen(PORT, () => console.log(`Web Dashboard active on port ${PORT}`));
