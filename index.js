@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.6.0";
+const CURRENT_VERSION = "v1.7.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -193,7 +193,7 @@ const setupVerifyMessage = async (guildId, channelId) => {
         const channel = guild.channels.cache.get(channelId);
         if (!channel) return;
 
-        const msgs = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+        const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
         if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0)) return;
 
         const row = new ActionRowBuilder()
@@ -206,13 +206,41 @@ const setupVerifyMessage = async (guildId, channelId) => {
             );
             
         const embed = new EmbedBuilder()
-            .setTitle('🔐 Server Verification')
-            .setDescription('Welcome! To gain access to the rest of the server, please click the verification button below. This ensures you are a real user and helps protect our community from bots.')
-            .setColor('#4f46e5');
+            .setTitle('🔐 Server Verification Required')
+            .setDescription('Welcome to the server!\n\nTo protect our community from malicious bots and raids, we require all new members to verify their account.\n\n**Please click the ✅ Verify Account button below to gain full access to the server channels.**')
+            .setColor('#4f46e5')
+            .setFooter({ text: 'Secured by ServSecurity' });
 
         await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
     } catch (e) {
         console.error(e);
+    }
+};
+
+const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleId) => {
+    try {
+        await guild.roles.everyone.setPermissions(
+            guild.roles.everyone.permissions.remove(PermissionFlagsBits.ViewChannel)
+        ).catch(()=>{});
+
+        const verifiedRole = guild.roles.cache.get(verifyRoleId);
+        if (verifiedRole) {
+            await verifiedRole.setPermissions(
+                verifiedRole.permissions.add(PermissionFlagsBits.ViewChannel)
+            ).catch(()=>{});
+        }
+
+        const verifyChannel = guild.channels.cache.get(verifyChannelId);
+        if (verifyChannel) {
+            await verifyChannel.permissionOverwrites.edit(guild.roles.everyone.id, {
+                ViewChannel: true,
+                SendMessages: false,
+                AddReactions: false,
+                ReadMessageHistory: true
+            }).catch(()=>{});
+        }
+    } catch (error) {
+        console.error("Verification Setup Error:", error);
     }
 };
 
@@ -233,8 +261,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added Button Verification System module to the dashboard.
-\u001b[2;32m[+]\u001b[0m Added /kick, /ban, and /timeout slash moderation commands.
+\u001b[2;32m[+]\u001b[0m Automated Server Lockdown: Unverified users can now ONLY see the verify channel.
+\u001b[2;34m[!]\u001b[0m Enhanced the UI of the Verification Panel embed.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -920,9 +948,14 @@ app.post('/api/config/:guildId', async (req, res) => {
     saveLocalDatabase();
     await saveToCloud(req.params.guildId, newSettings);
     
-    // Check if we need to send the verification setup message
     if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleId) {
-        await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
+        if (!current.verifyEnabled || current.verifyChannelId !== newSettings.verifyChannelId) {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (guild) {
+                await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
+                await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleId);
+            }
+        }
     }
     
     res.json({ success: true, config: newSettings });
