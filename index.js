@@ -14,6 +14,8 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
+const CURRENT_VERSION = "v1.2.0";
+
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
 });
@@ -145,6 +147,7 @@ const getSettings = async (guildId) => {
             antiNukeEnabled: false,
             spamShieldEnabled: false,
             logChannelId: null,
+            lastVersion: null,
             history: []
         };
         saveLocalDatabase();
@@ -179,7 +182,40 @@ const logAction = async (guildId, type, username, userId, reason) => {
     await saveToCloud(guildId, settings);
 };
 
-const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|(discord\.(gg|io|me|li)\/.+)|(discord\.com\/invite\/.+)/i;
+const sendChangelog = async (guild) => {
+    try {
+        let channel = guild.channels.cache.find(c => c.name === 'bot-changelog' && c.type === ChannelType.GuildText);
+        if (!channel) {
+            channel = await guild.channels.create({
+                name: 'bot-changelog',
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [PermissionFlagsBits.SendMessages] },
+                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+                ]
+            });
+        }
+
+        const ansiText = `\`\`\`ansi
+\u001b[2;32m[+]\u001b[0m Expanded Anti-Nuke to protect against Channel Deletions and Creations.
+\u001b[2;34m[!]\u001b[0m Upgraded Link Shield to catch all external domains & URLs.
+\u001b[2;34m[!]\u001b[0m Enhanced the Web Dashboard with a beautiful glassmorphic UI and spotlight buttons.
+\u001b[2;32m[+]\u001b[0m Added manual Log Channel ID text box input to the dashboard.
+\u001b[2;31m[-]\u001b[0m Removed restrictive regex that missed hidden links.
+\`\`\``;
+
+        const embed = new EmbedBuilder()
+            .setTitle('🚀 System Update Deployed')
+            .setColor(0x4f46e5)
+            .setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the AI-compiled changes:\n\n${ansiText}`)
+            .setTimestamp()
+            .setFooter({ text: 'ServSecurity Automated Changelog' });
+
+        await channel.send({ embeds: [embed] });
+    } catch (e) {}
+};
+
+const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 const imageMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 const userMessageCache = new Map();
@@ -195,6 +231,12 @@ client.once('ready', async () => {
 
     for (const [id, guild] of client.guilds.cache) {
         await syncWithDiscord(guild);
+        const settings = await getSettings(guild.id);
+        
+        if (settings.lastVersion !== CURRENT_VERSION) {
+            await sendChangelog(guild);
+            await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
+        }
     }
 
     try {
@@ -296,6 +338,68 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
             }
         } catch (e) {}
     }
+});
+
+client.on('channelDelete', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || executor.id === channel.guild.ownerId) return;
+
+        await channel.clone().catch(()=>{});
+
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
+            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt');
+
+            if (settings.logChannelId) {
+                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                if (logChannel) {
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Channel Restored\n**Reason:** Attempted to delete channel.`, '#ff0000');
+                    await logChannel.send({ embeds: [log] }).catch(() => {});
+                }
+            }
+        }
+    } catch (e) {}
+});
+
+client.on('channelCreate', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || executor.id === channel.guild.ownerId) return;
+
+        await channel.delete().catch(()=>{});
+
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
+            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt');
+
+            if (settings.logChannelId) {
+                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                if (logChannel) {
+                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** User Banned & Channel Deleted\n**Reason:** Attempted to create channel.`, '#ff0000');
+                    await logChannel.send({ embeds: [log] }).catch(() => {});
+                }
+            }
+        }
+    } catch (e) {}
 });
 
 client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
