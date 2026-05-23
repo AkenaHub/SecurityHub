@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.4.0";
+const CURRENT_VERSION = "v1.5.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -200,9 +200,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added Trusted Bots bypass system for Anti-Nuke configurations.
-\u001b[2;34m[!]\u001b[0m Fixed desktop module wrapping overlaps.
-\u001b[2;34m[!]\u001b[0m Renamed modules for clarity (Anti Link, Anti Spam, etc).
+\u001b[2;32m[+]\u001b[0m Fixed UI toggle switches to properly illuminate Indigo when enabled.
+\u001b[2;32m[+]\u001b[0m Confirmed reliable Discord deployment announcements.
 \`\`\``;
 
         const embed = new EmbedBuilder()
