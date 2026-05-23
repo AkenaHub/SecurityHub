@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { 
-    Client, GatewayIntentBits, Partials, EmbedBuilder, 
+    Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType
 } = require('discord.js');
 const express = require('express');
@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.5.0";
+const CURRENT_VERSION = "v1.6.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -148,6 +148,9 @@ const getSettings = async (guildId) => {
             antiNukeEnabled: false,
             spamShieldEnabled: false,
             logChannelId: null,
+            verifyEnabled: false,
+            verifyChannelId: null,
+            verifyRoleId: null,
             lastVersion: null,
             history: []
         };
@@ -183,6 +186,36 @@ const logAction = async (guildId, type, username, userId, reason) => {
     await saveToCloud(guildId, settings);
 };
 
+const setupVerifyMessage = async (guildId, channelId) => {
+    try {
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return;
+        const channel = guild.channels.cache.get(channelId);
+        if (!channel) return;
+
+        const msgs = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0)) return;
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('verify_user_btn')
+                    .setLabel('Verify Account')
+                    .setEmoji('✅')
+                    .setStyle(ButtonStyle.Success)
+            );
+            
+        const embed = new EmbedBuilder()
+            .setTitle('🔐 Server Verification')
+            .setDescription('Welcome! To gain access to the rest of the server, please click the verification button below. This ensures you are a real user and helps protect our community from bots.')
+            .setColor('#4f46e5');
+
+        await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
 const sendChangelog = async (guild) => {
     if (guild.id !== '1499199296522944522') return;
 
@@ -200,8 +233,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Fixed UI toggle switches to properly illuminate Indigo when enabled.
-\u001b[2;32m[+]\u001b[0m Confirmed reliable Discord deployment announcements.
+\u001b[2;32m[+]\u001b[0m Added Button Verification System module to the dashboard.
+\u001b[2;32m[+]\u001b[0m Added /kick, /ban, and /timeout slash moderation commands.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -240,18 +273,26 @@ client.once('ready', async () => {
             await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
         }
     }
-
-    try {
-        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-        const commands = [
-            new SlashCommandBuilder().setName('dashboard').setDescription('Get the link to the ServSecurity web control panel.')
-        ].map(cmd => cmd.toJSON());
-
-        await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    } catch (error) {}
 });
 
 client.on('interactionCreate', async interaction => {
+    // Handle Verification Button
+    if (interaction.isButton() && interaction.customId === 'verify_user_btn') {
+        const settings = await getSettings(interaction.guildId);
+        if (settings.verifyEnabled && settings.verifyRoleId) {
+            const role = interaction.guild.roles.cache.get(settings.verifyRoleId);
+            if (role) {
+                await interaction.member.roles.add(role).catch(() => {});
+                await interaction.reply({ content: '✅ You have been successfully verified!', ephemeral: true });
+            } else {
+                await interaction.reply({ content: '❌ Verification role not found. Please contact a server admin.', ephemeral: true });
+            }
+        } else {
+            await interaction.reply({ content: '❌ Verification system is currently offline.', ephemeral: true });
+        }
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'dashboard') {
@@ -263,7 +304,7 @@ client.on('interactionCreate', async interaction => {
         
         let hasAccess = isServerOwner || isWhitelistedUser || isAdmin;
 
-        if (!hasAccess && settings.allowedAccess.length > 0) {
+        if (!hasAccess && settings.allowedAccess && settings.allowedAccess.length > 0) {
             if (settings.allowedAccess.includes(interaction.user.id)) hasAccess = true;
             if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasAccess = true;
         }
@@ -274,6 +315,42 @@ client.on('interactionCreate', async interaction => {
 
         const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
         await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
+    }
+
+    // Moderation Commands
+    if (interaction.commandName === 'kick' || interaction.commandName === 'ban' || interaction.commandName === 'timeout') {
+        const target = interaction.options.getUser('target');
+        const reason = interaction.options.getString('reason') || 'No reason provided by moderator.';
+        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+
+        if (!member) {
+            return interaction.reply({ content: '❌ Could not find that user in the server.', ephemeral: true });
+        }
+
+        try {
+            if (interaction.commandName === 'kick') {
+                if (!member.kickable) return interaction.reply({ content: '❌ I do not have permission to kick this user.', ephemeral: true });
+                await member.kick(reason);
+                await interaction.reply({ content: `✅ Successfully kicked **${target.tag}**. Reason: ${reason}` });
+                await logAction(interaction.guildId, 'KICK', target.username, target.id, `Manual Kick: ${reason}`);
+            } 
+            else if (interaction.commandName === 'ban') {
+                if (!member.bannable) return interaction.reply({ content: '❌ I do not have permission to ban this user.', ephemeral: true });
+                await member.ban({ reason: reason });
+                await interaction.reply({ content: `✅ Successfully banned **${target.tag}**. Reason: ${reason}` });
+                await logAction(interaction.guildId, 'BAN', target.username, target.id, `Manual Ban: ${reason}`);
+            }
+            else if (interaction.commandName === 'timeout') {
+                const duration = interaction.options.getInteger('duration');
+                if (!member.moderatable) return interaction.reply({ content: '❌ I do not have permission to timeout this user.', ephemeral: true });
+                await member.timeout(duration * 60000, reason);
+                await interaction.reply({ content: `✅ Successfully timed out **${target.tag}** for ${duration} minutes. Reason: ${reason}` });
+                await logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, `Manual Timeout (${duration}m): ${reason}`);
+            }
+        } catch (error) {
+            console.error(error);
+            interaction.reply({ content: '❌ An error occurred while trying to execute the command.', ephemeral: true });
+        }
     }
 });
 
@@ -573,7 +650,7 @@ client.on('messageCreate', async message => {
     if (!settings.masterSwitch) return;
 
     let hasBypass = message.author.id === message.guild.ownerId || (message.member && message.member.permissions.has('Administrator'));
-    if (!hasBypass && settings.allowedAccess.length > 0) {
+    if (!hasBypass && settings.allowedAccess && settings.allowedAccess.length > 0) {
         if (settings.allowedAccess.includes(message.author.id)) hasBypass = true;
         if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
     }
@@ -842,6 +919,11 @@ app.post('/api/config/:guildId', async (req, res) => {
     guildSettings[req.params.guildId] = newSettings;
     saveLocalDatabase();
     await saveToCloud(req.params.guildId, newSettings);
+    
+    // Check if we need to send the verification setup message
+    if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleId) {
+        await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
+    }
     
     res.json({ success: true, config: newSettings });
 });
