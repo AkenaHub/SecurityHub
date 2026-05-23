@@ -5,7 +5,7 @@ const {
     REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType
 } = require('discord.js');
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -192,8 +192,8 @@ const sendChangelog = async (guild) => {
                 name: 'bot-changelog',
                 type: ChannelType.GuildText,
                 permissionOverwrites: [
-                    { id: guild.id, deny: [PermissionFlagsBits.SendMessages] },
-                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+                    { id: guild.id, deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads, PermissionFlagsBits.AddReactions] },
+                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks] }
                 ]
             });
         }
@@ -288,7 +288,7 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
             if (!auditEntry) return;
 
             const executor = auditEntry.executor;
-            if (executor.id === client.user.id || executor.id === newGuild.ownerId) return;
+            if (executor.id === client.user.id || !executor.bot) return;
 
             await newGuild.setName(oldGuild.name).catch(() => {});
 
@@ -321,7 +321,7 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
             if (!auditEntry) return;
 
             const executor = auditEntry.executor;
-            if (executor.id === client.user.id || executor.id === oldChannel.guild.ownerId) return;
+            if (executor.id === client.user.id || !executor.bot) return;
 
             await newChannel.setName(oldChannel.name).catch(() => {});
 
@@ -353,7 +353,7 @@ client.on('channelDelete', async channel => {
         if (!auditEntry) return;
 
         const executor = auditEntry.executor;
-        if (executor.id === client.user.id || executor.id === channel.guild.ownerId) return;
+        if (executor.id === client.user.id || !executor.bot) return;
 
         await channel.clone().catch(()=>{});
 
@@ -384,7 +384,7 @@ client.on('channelCreate', async channel => {
         if (!auditEntry) return;
 
         const executor = auditEntry.executor;
-        if (executor.id === client.user.id || executor.id === channel.guild.ownerId) return;
+        if (executor.id === client.user.id || !executor.bot) return;
 
         await channel.delete().catch(()=>{});
 
@@ -415,7 +415,7 @@ client.on('roleDelete', async role => {
         if (!auditEntry) return;
 
         const executor = auditEntry.executor;
-        if (executor.id === client.user.id || executor.id === role.guild.ownerId) return;
+        if (executor.id === client.user.id || !executor.bot) return;
 
         await role.guild.roles.create({
             name: role.name,
@@ -455,7 +455,7 @@ client.on('roleUpdate', async (oldRole, newRole) => {
             if (!auditEntry) return;
 
             const executor = auditEntry.executor;
-            if (executor.id === client.user.id || executor.id === oldRole.guild.ownerId) return;
+            if (executor.id === client.user.id || !executor.bot) return;
 
             await newRole.edit({
                 name: oldRole.name,
@@ -703,17 +703,12 @@ app.use((req, res, next) => {
 
 const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
 
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'servsecurity-key-12345',
-    resave: true,
-    saveUninitialized: true,
-    proxy: true,
+app.use(cookieSession({
     name: 'servsecurity.sid',
-    cookie: { 
-        secure: usingHttps,
-        sameSite: usingHttps ? 'none' : 'lax',
-        maxAge: 1000 * 60 * 60 * 24
-    }
+    keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'],
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: usingHttps,
+    sameSite: usingHttps ? 'none' : 'lax'
 }));
 
 app.get('/', (req, res) => {
@@ -764,9 +759,7 @@ app.get('/api/auth/callback', async (req, res) => {
         req.session.user = userResponse.data;
         req.session.guilds = guildsResponse.data;
 
-        req.session.save(() => {
-            res.redirect('/');
-        });
+        res.redirect('/');
     } catch (error) {
         console.error("OAuth Error:", error.response?.data || error.message);
         res.redirect('/?error=Auth_Failed');
@@ -833,7 +826,7 @@ app.post('/api/config/:guildId', async (req, res) => {
 });
 
 app.get('/api/auth/logout', (req, res) => {
-    req.session.destroy();
+    req.session = null;
     res.redirect('/');
 });
 
