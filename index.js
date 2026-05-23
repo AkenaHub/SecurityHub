@@ -200,9 +200,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added @here ping to automated changelog announcements.
-\u001b[2;34m[!]\u001b[0m Replaced manual ID inputs with dynamic server dropdown menus.
-\u001b[2;32m[+]\u001b[0m Implemented multi-select Role dropdown for bypass configuration.
+\u001b[2;32m[+]\u001b[0m Added Trusted Bots bypass system for Anti-Nuke configurations.
+\u001b[2;34m[!]\u001b[0m Fixed desktop module wrapping overlaps.
+\u001b[2;34m[!]\u001b[0m Renamed modules for clarity (Anti Link, Anti Spam, etc).
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -600,7 +600,7 @@ client.on('messageCreate', async message => {
                 
                 if (settings.logChannelId) {
                     let spamLogChannel = message.guild.channels.cache.get(settings.logChannelId);
-                    const log = createLogEmbed('🛡️ Spam Shield Activated', `**User:** <@${message.author.id}>\n**Action:** Timed out (10 Minutes)\n**Reason:** Sending messages too quickly.`, '#ffcc00');
+                    const log = createLogEmbed('🛡️ Anti Spam Activated', `**User:** <@${message.author.id}>\n**Action:** Timed out (10 Minutes)\n**Reason:** Sending messages too quickly.`, '#ffcc00');
                     if (spamLogChannel) await spamLogChannel.send({ embeds: [log] }).catch(() => {});
                 }
                 
@@ -649,7 +649,7 @@ client.on('messageCreate', async message => {
                 if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
                 await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type.`).catch(() => {});
-                const log = createLogEmbed('📁 File Sandbox Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
+                const log = createLogEmbed('📁 Anti File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
@@ -668,7 +668,7 @@ client.on('messageCreate', async message => {
                 await message.delete();
                 if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
                 await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
-                const log = createLogEmbed('🛡️ Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
+                const log = createLogEmbed('🛡️ Anti Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return;
             } catch (e) {}
@@ -687,7 +687,7 @@ client.on('messageCreate', async message => {
                 if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image/GIF Spam').catch(() => {});
                 await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image/GIF Spam');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images/GIFs at once.`).catch(() => {});
-                const log = createLogEmbed('🚨 Image/GIF Spam Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
+                const log = createLogEmbed('🚨 Anti Image & GIF Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
             } catch (e) {}
         }
@@ -811,7 +811,7 @@ app.get('/api/discord-data/:guildId', async (req, res) => {
     const guild = client.guilds.cache.get(req.params.guildId);
     if (!guild) return res.status(404).json({ error: 'Guild not found or bot not in guild' });
 
-    await guild.members.fetch();
+    try { await guild.members.fetch(); } catch (e) {}
 
     const channels = guild.channels.cache
         .filter(c => c.type === ChannelType.GuildText)
