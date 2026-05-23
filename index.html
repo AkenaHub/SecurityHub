@@ -374,6 +374,45 @@
                     </div>
                 </div>
 
+                <!-- Verification System -->
+                <div class="module-card p-8 mt-6 animate-slide-up delay-200">
+                    <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
+                        <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a2 2 0 11-4 0 2 2 0 014 0zM9 10a2 2 0 11-4 0 2 2 0 014 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Verification System
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
+                                <div>
+                                    <span class="text-sm font-bold text-white">Enable Verification</span>
+                                    <p class="text-[11px] text-zinc-500 mt-1">Require users to click a button</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="verifyEnabled" class="sr-only peer">
+                                    <div class="w-12 h-6 bg-[#000000] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Verification Channel</label>
+                            <select id="verifyChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">Select Channel...</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Role to Assign</label>
+                            <select id="verifyRoleId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">Select Role...</option>
+                            </select>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
         </div>
     </main>
@@ -529,6 +568,9 @@
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
                 logChannelId: document.getElementById('logChannelId').value || '',
+                verifyEnabled: document.getElementById('verifyEnabled').checked,
+                verifyChannelId: document.getElementById('verifyChannelId').value || '',
+                verifyRoleId: document.getElementById('verifyRoleId').value || '',
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '),
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', ')
             };
@@ -547,6 +589,9 @@
                 antiNukeEnabled: originalConfig.antiNukeEnabled,
                 spamShieldEnabled: originalConfig.spamShieldEnabled,
                 logChannelId: originalConfig.logChannelId || '',
+                verifyEnabled: originalConfig.verifyEnabled || false,
+                verifyChannelId: originalConfig.verifyChannelId || '',
+                verifyRoleId: originalConfig.verifyRoleId || '',
                 allowedAccess: originalConfig.allowedAccess.join(', '),
                 allowedBots: (originalConfig.allowedBots || []).join(', ')
             };
@@ -562,7 +607,7 @@
         }
 
         function addInputListeners() {
-            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'logChannelId'];
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'maxImages', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'spamShieldEnabled', 'logChannelId', 'verifyEnabled', 'verifyChannelId', 'verifyRoleId'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -574,14 +619,21 @@
 
         function populateDropdowns(channels, roles, bots) {
             const channelSelect = document.getElementById('logChannelId');
+            const verifyChannelSelect = document.getElementById('verifyChannelId');
+            const verifyRoleSelect = document.getElementById('verifyRoleId');
+            
             channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
+            verifyChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
+            verifyRoleSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Role...</option>';
             
             channels.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
                 opt.className = 'bg-[#09090b] text-zinc-300';
                 opt.textContent = `# ${c.name}`;
-                channelSelect.appendChild(opt);
+                
+                channelSelect.appendChild(opt.cloneNode(true));
+                verifyChannelSelect.appendChild(opt.cloneNode(true));
             });
 
             const roleMenu = document.getElementById('roleDropdownMenu');
@@ -601,6 +653,13 @@
                     checkUnsavedChanges();
                 });
                 roleMenu.appendChild(label);
+
+                // Add to Verification Role dropdown
+                const roleOpt = document.createElement('option');
+                roleOpt.value = r.id;
+                roleOpt.className = 'bg-[#09090b] text-zinc-300';
+                roleOpt.textContent = `@ ${r.name}`;
+                verifyRoleSelect.appendChild(roleOpt);
             });
             updateRoleSelectText();
 
@@ -806,12 +865,27 @@
                 document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
                 document.getElementById('antiNukeEnabled').checked = config.antiNukeEnabled;
                 document.getElementById('spamShieldEnabled').checked = config.spamShieldEnabled;
+                document.getElementById('verifyEnabled').checked = config.verifyEnabled || false;
                 
                 const logChannelInput = document.getElementById('logChannelId');
                 if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) {
                     logChannelInput.value = config.logChannelId;
                 } else {
                     logChannelInput.value = '';
+                }
+
+                const verifyChannelInput = document.getElementById('verifyChannelId');
+                if (config.verifyChannelId && verifyChannelInput.querySelector(`option[value="${config.verifyChannelId}"]`)) {
+                    verifyChannelInput.value = config.verifyChannelId;
+                } else {
+                    verifyChannelInput.value = '';
+                }
+
+                const verifyRoleInput = document.getElementById('verifyRoleId');
+                if (config.verifyRoleId && verifyRoleInput.querySelector(`option[value="${config.verifyRoleId}"]`)) {
+                    verifyRoleInput.value = config.verifyRoleId;
+                } else {
+                    verifyRoleInput.value = '';
                 }
 
                 document.querySelectorAll('.role-checkbox').forEach(cb => {
@@ -855,6 +929,9 @@
                 antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
                 spamShieldEnabled: document.getElementById('spamShieldEnabled').checked,
                 logChannelId: document.getElementById('logChannelId').value || null,
+                verifyEnabled: document.getElementById('verifyEnabled').checked,
+                verifyChannelId: document.getElementById('verifyChannelId').value || null,
+                verifyRoleId: document.getElementById('verifyRoleId').value || null,
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value),
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value)
             };
