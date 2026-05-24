@@ -127,8 +127,6 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    
-                    <!-- Anti Link Module -->
                     <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-50 lg:col-span-2">
                         <div class="flex items-center justify-between mb-6 border-b border-[#18181b] pb-6">
                             <div class="flex items-center space-x-4">
@@ -158,7 +156,6 @@
                         </div>
                     </div>
 
-                    <!-- Single Feature Modules -->
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-slide-up delay-150 lg:col-span-2">
                         <div class="module-card p-6 flex flex-col h-full">
                             <div class="flex items-center justify-between mb-4">
@@ -193,7 +190,6 @@
                     </div>
                 </div>
 
-                <!-- Logging & Operations -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -245,7 +241,6 @@
                     </div>
                 </div>
 
-                <!-- Verification System -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a2 2 0 11-4 0 2 2 0 014 0zM9 10a2 2 0 11-4 0 2 2 0 014 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -280,7 +275,6 @@
                     </div>
                 </div>
 
-                <!-- Hacked Account Trap -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -457,21 +451,21 @@
         function checkUnsavedChanges() {
             if (!activeGuildId) return;
             const currentInputs = {
-                masterSwitch: document.getElementById('masterSwitch').checked,
-                linksEnabled: document.getElementById('linksEnabled').checked,
-                linkTimeout: parseInt(document.getElementById('linkTimeout').value) || 30,
-                linkAvoids: document.getElementById('linkAvoids').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0).join(', '),
-                raidEnabled: document.getElementById('raidEnabled').checked,
-                fileShieldEnabled: document.getElementById('fileShieldEnabled').checked,
-                logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
-                antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
-                logChannelId: document.getElementById('logChannelId').value || '',
-                verifyEnabled: document.getElementById('verifyEnabled').checked,
-                verifyChannelId: document.getElementById('verifyChannelId').value || '',
-                verifyRoleId: document.getElementById('verifyRoleId').value || '',
-                honeypotEnabled: document.getElementById('honeypotEnabled').checked,
-                honeypotChannelId: document.getElementById('honeypotChannelId').value || '',
-                honeypotAction: document.getElementById('honeypotAction').value || 'TIMEOUT',
+                masterSwitch: document.getElementById('masterSwitch')?.checked || false,
+                linksEnabled: document.getElementById('linksEnabled')?.checked || false,
+                linkTimeout: parseInt(document.getElementById('linkTimeout')?.value) || 30,
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0).join(', ') || '',
+                raidEnabled: document.getElementById('raidEnabled')?.checked || false,
+                fileShieldEnabled: document.getElementById('fileShieldEnabled')?.checked || false,
+                logDeletedEnabled: document.getElementById('logDeletedEnabled')?.checked || false,
+                antiNukeEnabled: document.getElementById('antiNukeEnabled')?.checked || false,
+                logChannelId: document.getElementById('logChannelId')?.value || '',
+                verifyEnabled: document.getElementById('verifyEnabled')?.checked || false,
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || '',
+                verifyRoleId: document.getElementById('verifyRoleId')?.value || '',
+                honeypotEnabled: document.getElementById('honeypotEnabled')?.checked || false,
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || '',
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT',
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '),
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', ')
             };
@@ -520,26 +514,27 @@
             const honeypotChannelSelect = document.getElementById('honeypotChannelId');
             const verifyRoleSelect = document.getElementById('verifyRoleId');
             
-            channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
-            verifyChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
-            verifyRoleSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Role...</option>';
+            if (channelSelect) channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
+            if (verifyChannelSelect) verifyChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
+            if (verifyRoleSelect) verifyRoleSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Role...</option>';
             
-            // Add custom auto-create option
-            honeypotChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
-            honeypotChannelSelect.innerHTML += '<option value="CREATE_NEW" class="bg-[#09090b] text-indigo-400 font-bold">✨ Auto-Create "⚠️-do-not-talk-here"</option>';
+            if (honeypotChannelSelect) {
+                honeypotChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
+                honeypotChannelSelect.innerHTML += '<option value="CREATE_NEW" class="bg-[#09090b] text-indigo-400 font-bold">✨ Auto-Create "⚠️-do-not-talk-here"</option>';
+            }
             
             channels.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
                 opt.className = 'bg-[#09090b] text-zinc-300';
                 opt.textContent = `# ${c.name}`;
-                channelSelect.appendChild(opt.cloneNode(true));
-                verifyChannelSelect.appendChild(opt.cloneNode(true));
-                honeypotChannelSelect.appendChild(opt.cloneNode(true));
+                if (channelSelect) channelSelect.appendChild(opt.cloneNode(true));
+                if (verifyChannelSelect) verifyChannelSelect.appendChild(opt.cloneNode(true));
+                if (honeypotChannelSelect) honeypotChannelSelect.appendChild(opt.cloneNode(true));
             });
 
             const roleMenu = document.getElementById('roleDropdownMenu');
-            roleMenu.innerHTML = '';
+            if (roleMenu) roleMenu.innerHTML = '';
             roles.forEach(r => {
                 const label = document.createElement('label');
                 label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
@@ -549,23 +544,25 @@
                     <span class="text-sm text-zinc-300 font-medium">${r.name}</span>
                 `;
                 const cb = label.querySelector('.role-checkbox');
-                cb.addEventListener('change', () => {
-                    updateRoleSelectText();
-                    checkUnsavedChanges();
-                });
-                roleMenu.appendChild(label);
+                if (cb) {
+                    cb.addEventListener('change', () => {
+                        updateRoleSelectText();
+                        checkUnsavedChanges();
+                    });
+                }
+                if (roleMenu) roleMenu.appendChild(label);
 
                 const roleOpt = document.createElement('option');
                 roleOpt.value = r.id;
                 roleOpt.className = 'bg-[#09090b] text-zinc-300';
                 roleOpt.textContent = `@ ${r.name}`;
-                verifyRoleSelect.appendChild(roleOpt);
+                if (verifyRoleSelect) verifyRoleSelect.appendChild(roleOpt);
             });
             updateRoleSelectText();
 
             const botMenu = document.getElementById('botDropdownMenu');
-            botMenu.innerHTML = '';
-            if (bots) {
+            if (botMenu) botMenu.innerHTML = '';
+            if (bots && botMenu) {
                 bots.forEach(b => {
                     const label = document.createElement('label');
                     label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
@@ -576,10 +573,12 @@
                         <span class="text-sm text-zinc-300 font-medium">${b.name}</span>
                     `;
                     const cb = label.querySelector('.bot-checkbox');
-                    cb.addEventListener('change', () => {
-                        updateBotSelectText();
-                        checkUnsavedChanges();
-                    });
+                    if (cb) {
+                        cb.addEventListener('change', () => {
+                            updateBotSelectText();
+                            checkUnsavedChanges();
+                        });
+                    }
                     botMenu.appendChild(label);
                 });
             }
@@ -594,16 +593,20 @@
                 const response = await fetch(resolveUrl('/api/user-data'), { credentials: 'include' });
                 const data = await response.json();
                 if (!data.loggedIn) {
-                    authZone.innerHTML = `<a href="/api/auth/login" class="btn-multigen w-full py-3.5 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
-                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                        Sign In with Discord
-                    </a>`;
-                    serverList.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
-                            <svg class="w-10 h-10 text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                            <p class="text-sm text-zinc-500 font-medium">Authentication required.</p>
-                        </div>
-                    `;
+                    if (authZone) {
+                        authZone.innerHTML = `<a href="/api/auth/login" class="btn-multigen w-full py-3.5 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                            Sign In with Discord
+                        </a>`;
+                    }
+                    if (serverList) {
+                        serverList.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
+                                <svg class="w-10 h-10 text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                <p class="text-sm text-zinc-500 font-medium">Authentication required.</p>
+                            </div>
+                        `;
+                    }
                     if (inviteBtn) inviteBtn.style.display = 'none';
                     return;
                 }
@@ -612,62 +615,70 @@
                     inviteBtn.style.display = 'flex';
                     inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank'); };
                 }
-                authZone.innerHTML = `
-                    <div class="flex items-center justify-between animate-fade-in bg-[#09090b] p-3 rounded-xl border border-[#27272a] shadow-inner">
-                        <div class="flex items-center space-x-3 overflow-hidden">
-                            <div class="relative">
-                                <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-[#18181b]">
-                                <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full border-2 border-[#09090b]"></div>
+                if (authZone) {
+                    authZone.innerHTML = `
+                        <div class="flex items-center justify-between animate-fade-in bg-[#09090b] p-3 rounded-xl border border-[#27272a] shadow-inner">
+                            <div class="flex items-center space-x-3 overflow-hidden">
+                                <div class="relative">
+                                    <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-[#18181b]">
+                                    <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full border-2 border-[#09090b]"></div>
+                                </div>
+                                <div class="flex-1 overflow-hidden pr-2">
+                                    <h4 class="text-sm font-bold text-white truncate w-full">${data.user.username}</h4>
+                                    <span class="text-[10px] text-zinc-500 font-semibold tracking-wide">Administrator</span>
+                                </div>
                             </div>
-                            <div class="flex-1 overflow-hidden pr-2">
-                                <h4 class="text-sm font-bold text-white truncate w-full">${data.user.username}</h4>
-                                <span class="text-[10px] text-zinc-500 font-semibold tracking-wide">Administrator</span>
-                            </div>
-                        </div>
-                        <a href="/api/auth/logout" class="p-2.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Logout">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                        </a>
-                    </div>
-                `;
-                if (data.guilds.length === 0) {
-                    serverList.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
-                            <p class="text-sm text-zinc-500 font-medium">No shared servers with bot found.</p>
+                            <a href="/api/auth/logout" class="p-2.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Logout">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </a>
                         </div>
                     `;
+                }
+                if (data.guilds.length === 0) {
+                    if (serverList) {
+                        serverList.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
+                                <p class="text-sm text-zinc-500 font-medium">No shared servers with bot found.</p>
+                            </div>
+                        `;
+                    }
                     return;
                 }
-                serverList.innerHTML = '';
+                if (serverList) serverList.innerHTML = '';
                 let autoSelectGuild = null;
                 data.guilds.forEach((guild, index) => {
                     const animDelay = `animation-delay: ${index * 50}ms;`;
                     const iconHtml = guild.icon ? `<img src="${guild.icon}" class="h-10 w-10 rounded-xl shrink-0 object-cover shadow-md border border-[#18181b]">` : `<div class="h-10 w-10 rounded-xl bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">${guild.name.charAt(0)}</div>`;
                     if (guild.botPresent) {
                         if (!autoSelectGuild) autoSelectGuild = guild;
-                        serverList.innerHTML += `
-                            <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center p-3 text-left border border-transparent rounded-xl hover:bg-[#09090b] text-zinc-400 group mb-1 animate-slide-up relative overflow-hidden" style="opacity:0; ${animDelay}">
-                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full transition-transform duration-300 active-indicator rounded-l-xl"></div>
-                                ${iconHtml}
-                                <div class="ml-3 overflow-hidden">
-                                    <span class="block text-sm font-semibold truncate group-hover:text-white transition-colors server-name">${guild.name}</span>
-                                    <span class="block text-[10px] text-indigo-500/70 font-bold uppercase tracking-widest mt-0.5 status-text">Connected</span>
-                                </div>
-                            </button>
-                        `;
+                        if (serverList) {
+                            serverList.innerHTML += `
+                                <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center p-3 text-left border border-transparent rounded-xl hover:bg-[#09090b] text-zinc-400 group mb-1 animate-slide-up relative overflow-hidden" style="opacity:0; ${animDelay}">
+                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full transition-transform duration-300 active-indicator rounded-l-xl"></div>
+                                    ${iconHtml}
+                                    <div class="ml-3 overflow-hidden">
+                                        <span class="block text-sm font-semibold truncate group-hover:text-white transition-colors server-name">${guild.name}</span>
+                                        <span class="block text-[10px] text-indigo-500/70 font-bold uppercase tracking-widest mt-0.5 status-text">Connected</span>
+                                    </div>
+                                </button>
+                            `;
+                        }
                     } else {
                         const inviteLink = `https://discord.com/api/oauth2/authorize?client_id=${data.botClientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&disable_guild_select=true`;
-                        serverList.innerHTML += `
-                            <div class="w-full flex items-center p-3 text-left border border-transparent rounded-xl bg-white/[0.01] text-zinc-600 mb-1 animate-slide-up group" style="opacity:0; ${animDelay}">
-                                <div class="opacity-40 grayscale">${iconHtml}</div>
-                                <div class="ml-3 flex-1 flex justify-between items-center overflow-hidden">
-                                    <div>
-                                        <span class="block text-sm font-medium truncate">${guild.name}</span>
-                                        <span class="block text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Not Managed</span>
+                        if (serverList) {
+                            serverList.innerHTML += `
+                                <div class="w-full flex items-center p-3 text-left border border-transparent rounded-xl bg-white/[0.01] text-zinc-600 mb-1 animate-slide-up group" style="opacity:0; ${animDelay}">
+                                    <div class="opacity-40 grayscale">${iconHtml}</div>
+                                    <div class="ml-3 flex-1 flex justify-between items-center overflow-hidden">
+                                        <div>
+                                            <span class="block text-sm font-medium truncate">${guild.name}</span>
+                                            <span class="block text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Not Managed</span>
+                                        </div>
+                                        <a href="${inviteLink}" target="_blank" class="text-[10px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 hover:text-indigo-300 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider transition-colors shrink-0 ml-2">Setup</a>
                                     </div>
-                                    <a href="${inviteLink}" target="_blank" class="text-[10px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 hover:text-indigo-300 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider transition-colors shrink-0 ml-2">Setup</a>
                                 </div>
-                            </div>
-                        `;
+                            `;
+                        }
                     }
                 });
                 if (autoSelectGuild) { setTimeout(() => { selectServer(autoSelectGuild.id, autoSelectGuild.name); }, 100); }
@@ -685,7 +696,8 @@
         }
 
         async function selectServer(guildId, name) {
-            if (document.getElementById('unsaved-changes-banner').classList.contains('show')) {
+            const banner = document.getElementById('unsaved-changes-banner');
+            if (banner && banner.classList.contains('show')) {
                 const proceed = confirm("You have unsaved changes. Navigating away will lose your unsaved edits. Proceed?");
                 if (!proceed) return;
             }
@@ -693,14 +705,19 @@
             const selectedBtn = document.getElementById(`btn-${guildId}`);
             if (selectedBtn) { selectedBtn.classList.add('active'); }
             activeGuildId = guildId;
-            document.getElementById('active-server-name').innerText = name;
-            document.getElementById('active-server-subtitle').innerText = "Configuring Terminal Parameters";
-            document.getElementById('blank-view').classList.add('hidden');
+            const titleEl = document.getElementById('active-server-name');
+            const subEl = document.getElementById('active-server-subtitle');
+            if (titleEl) titleEl.innerText = name;
+            if (subEl) subEl.innerText = "Configuring Terminal Parameters";
+            const blankView = document.getElementById('blank-view');
+            if (blankView) blankView.classList.add('hidden');
             const dashboardView = document.getElementById('dashboard-view');
-            dashboardView.classList.remove('hidden');
-            dashboardView.classList.add('flex');
-            const animatableElements = dashboardView.querySelectorAll('.animate-slide-up');
-            animatableElements.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = null; });
+            if (dashboardView) {
+                dashboardView.classList.remove('hidden');
+                dashboardView.classList.add('flex');
+                const animatableElements = dashboardView.querySelectorAll('.animate-slide-up');
+                animatableElements.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = null; });
+            }
             await fetchDiscordData(guildId);
             await loadConfig(guildId);
         }
@@ -710,29 +727,49 @@
                 const res = await fetch(resolveUrl(`/api/config/${guildId}`), { credentials: 'include' });
                 const config = await res.json();
                 originalConfig = JSON.parse(JSON.stringify(config));
-                document.getElementById('masterSwitch').checked = config.masterSwitch;
-                document.getElementById('linksEnabled').checked = config.linksEnabled;
-                document.getElementById('linkTimeout').value = config.linkTimeout;
-                document.getElementById('linkAvoids').value = config.linkAvoids.join(', ');
-                document.getElementById('raidEnabled').checked = config.raidEnabled;
-                document.getElementById('fileShieldEnabled').checked = config.fileShieldEnabled;
-                document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
-                document.getElementById('antiNukeEnabled').checked = config.antiNukeEnabled;
-                document.getElementById('verifyEnabled').checked = config.verifyEnabled || false;
-                document.getElementById('honeypotEnabled').checked = config.honeypotEnabled || false;
-                document.getElementById('honeypotAction').value = config.honeypotAction || 'TIMEOUT';
+                
+                const masterCheck = document.getElementById('masterSwitch');
+                const linksCheck = document.getElementById('linksEnabled');
+                const timeoutIn = document.getElementById('linkTimeout');
+                const avoidsIn = document.getElementById('linkAvoids');
+                const raidCheck = document.getElementById('raidEnabled');
+                const fileCheck = document.getElementById('fileShieldEnabled');
+                const logDelCheck = document.getElementById('logDeletedEnabled');
+                const nukeCheck = document.getElementById('antiNukeEnabled');
+                const verifyCheck = document.getElementById('verifyEnabled');
+                const honeyCheck = document.getElementById('honeypotEnabled');
+                const honeyAct = document.getElementById('honeypotAction');
+
+                if (masterCheck) masterCheck.checked = !!config.masterSwitch;
+                if (linksCheck) linksCheck.checked = !!config.linksEnabled;
+                if (timeoutIn) timeoutIn.value = config.linkTimeout || 30;
+                if (avoidsIn) avoidsIn.value = (config.linkAvoids || []).join(', ');
+                if (raidCheck) raidCheck.checked = !!config.raidEnabled;
+                if (fileCheck) fileCheck.checked = !!config.fileShieldEnabled;
+                if (logDelCheck) logDelCheck.checked = !!config.logDeletedEnabled;
+                if (nukeCheck) nukeCheck.checked = !!config.antiNukeEnabled;
+                if (verifyCheck) verifyCheck.checked = !!config.verifyEnabled;
+                if (honeyCheck) honeyCheck.checked = !!config.honeypotEnabled;
+                if (honeyAct) honeyAct.value = config.honeypotAction || 'TIMEOUT';
                 
                 const logChannelInput = document.getElementById('logChannelId');
-                if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) { logChannelInput.value = config.logChannelId; } else { logChannelInput.value = ''; }
+                if (logChannelInput) {
+                    if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) { logChannelInput.value = config.logChannelId; } else { logChannelInput.value = ''; }
+                }
                 const verifyChannelInput = document.getElementById('verifyChannelId');
-                if (config.verifyChannelId && verifyChannelInput.querySelector(`option[value="${config.verifyChannelId}"]`)) { verifyChannelInput.value = config.verifyChannelId; } else { verifyChannelInput.value = ''; }
+                if (verifyChannelInput) {
+                    if (config.verifyChannelId && verifyChannelInput.querySelector(`option[value="${config.verifyChannelId}"]`)) { verifyChannelInput.value = config.verifyChannelId; } else { verifyChannelInput.value = ''; }
+                }
                 const verifyRoleInput = document.getElementById('verifyRoleId');
-                if (config.verifyRoleId && verifyRoleInput.querySelector(`option[value="${config.verifyRoleId}"]`)) { verifyRoleInput.value = config.verifyRoleId; } else { verifyRoleInput.value = ''; }
-
+                if (verifyRoleInput) {
+                    if (config.verifyRoleId && verifyRoleInput.querySelector(`option[value="${config.verifyRoleId}"]`)) { verifyRoleInput.value = config.verifyRoleId; } else { verifyRoleInput.value = ''; }
+                }
                 const honeypotChannelInput = document.getElementById('honeypotChannelId');
-                if (config.honeypotChannelId && honeypotChannelInput.querySelector(`option[value="${config.honeypotChannelId}"]`)) { honeypotChannelInput.value = config.honeypotChannelId; } else { honeypotChannelInput.value = ''; }
+                if (honeypotChannelInput) {
+                    if (config.honeypotChannelId && honeypotChannelInput.querySelector(`option[value="${config.honeypotChannelId}"]`)) { honeypotChannelInput.value = config.honeypotChannelId; } else { honeypotChannelInput.value = ''; }
+                }
 
-                document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = config.allowedAccess.includes(cb.value); });
+                document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = (config.allowedAccess || []).includes(cb.value); });
                 updateRoleSelectText();
                 document.querySelectorAll('.bot-checkbox').forEach(cb => { cb.checked = (config.allowedBots || []).includes(cb.value); });
                 updateBotSelectText();
@@ -749,25 +786,27 @@
 
         async function saveConfig() {
             if (!activeGuildId) return;
+            
             const payload = {
-                masterSwitch: document.getElementById('masterSwitch').checked,
-                linksEnabled: document.getElementById('linksEnabled').checked,
-                linkTimeout: parseInt(document.getElementById('linkTimeout').value) || 30,
-                linkAvoids: document.getElementById('linkAvoids').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0),
-                raidEnabled: document.getElementById('raidEnabled').checked,
-                fileShieldEnabled: document.getElementById('fileShieldEnabled').checked,
-                logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
-                antiNukeEnabled: document.getElementById('antiNukeEnabled').checked,
-                logChannelId: document.getElementById('logChannelId').value || null,
-                verifyEnabled: document.getElementById('verifyEnabled').checked,
-                verifyChannelId: document.getElementById('verifyChannelId').value || null,
-                verifyRoleId: document.getElementById('verifyRoleId').value || null,
-                honeypotEnabled: document.getElementById('honeypotEnabled').checked,
-                honeypotChannelId: document.getElementById('honeypotChannelId').value || null,
-                honeypotAction: document.getElementById('honeypotAction').value || 'TIMEOUT',
+                masterSwitch: !!document.getElementById('masterSwitch')?.checked,
+                linksEnabled: !!document.getElementById('linksEnabled')?.checked,
+                linkTimeout: parseInt(document.getElementById('linkTimeout')?.value) || 30,
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) || [],
+                raidEnabled: !!document.getElementById('raidEnabled')?.checked,
+                fileShieldEnabled: !!document.getElementById('fileShieldEnabled')?.checked,
+                logDeletedEnabled: !!document.getElementById('logDeletedEnabled')?.checked,
+                antiNukeEnabled: !!document.getElementById('antiNukeEnabled')?.checked,
+                logChannelId: document.getElementById('logChannelId')?.value || null,
+                verifyEnabled: !!document.getElementById('verifyEnabled')?.checked,
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || null,
+                verifyRoleId: document.getElementById('verifyRoleId')?.value || null,
+                honeypotEnabled: !!document.getElementById('honeypotEnabled')?.checked,
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || null,
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT',
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value),
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value)
             };
+            
             try {
                 const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), {
                     method: 'POST',
@@ -779,30 +818,30 @@
                     showNotification('Settings saved successfully.');
                     originalConfig = JSON.parse(JSON.stringify(payload));
                     
-                    // Update dynamically if a new channel was just auto-created
                     const resJson = await res.json();
                     if (resJson.config && resJson.config.honeypotChannelId) {
                         const newId = resJson.config.honeypotChannelId;
                         const dropSelect = document.getElementById('honeypotChannelId');
-                        // if that ID isn't in the options yet, insert it to avoid immediate 'unsaved' state
-                        if (!dropSelect.querySelector(`option[value="${newId}"]`)) {
-                            const newOpt = document.createElement('option');
-                            newOpt.value = newId;
-                            newOpt.className = 'bg-[#09090b] text-zinc-300';
-                            newOpt.textContent = `# ⚠️-do-not-talk-here`;
-                            dropSelect.appendChild(newOpt);
+                        if (dropSelect) {
+                            if (!dropSelect.querySelector(`option[value="${newId}"]`)) {
+                                const newOpt = document.createElement('option');
+                                newOpt.value = newId;
+                                newOpt.className = 'bg-[#09090b] text-zinc-300';
+                                newOpt.textContent = `# ⚠️-do-not-talk-here`;
+                                dropSelect.appendChild(newOpt);
+                            }
+                            dropSelect.value = newId;
                         }
-                        dropSelect.value = newId;
                         originalConfig.honeypotChannelId = newId;
                     }
-
                     updateMasterBadge();
                     checkUnsavedChanges();
                 } else throw new Error();
             } catch (err) { showNotification('Failed to deploy settings', 'error'); }
         }
         
-        document.getElementById('masterSwitch').addEventListener('change', updateMasterBadge);
+        const mSwitch = document.getElementById('masterSwitch');
+        if (mSwitch) mSwitch.addEventListener('change', updateMasterBadge);
         window.onload = () => { fetchSystemInitialization(); addInputListeners(); };
     </script>
 </body>
