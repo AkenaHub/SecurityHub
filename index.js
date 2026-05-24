@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.9.0";
+const CURRENT_VERSION = "v2.0.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -139,8 +139,6 @@ const getSettings = async (guildId) => {
             linkAvoids: [], 
             allowedAccess: [],
             allowedBots: [],
-            imagesEnabled: true,
-            imageTimeout: 4320,
             raidEnabled: true,
             fileShieldEnabled: true,
             logDeletedEnabled: false,
@@ -262,8 +260,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added Hacked Account Trap (Honeypot) module with Kick/Ban/Timeout options.
-\u001b[2;34m[!]\u001b[0m Updated Anti Image & GIF to trigger on any media (removed limit requirement).
+\u001b[2;32m[+]\u001b[0m Added 1-Click Auto-Create option for Hacked Account Trap channels.
+\u001b[2;34m[!]\u001b[0m Fixed "Failed to load settings" dashboard bug.
+\u001b[2;31m[-]\u001b[0m Removed Anti Image & GIF module.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -279,7 +278,6 @@ const sendChangelog = async (guild) => {
 
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
-const imageMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 
 const createLogEmbed = (title, description, color) => {
     return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
@@ -790,24 +788,6 @@ client.on('messageCreate', async message => {
             } catch (e) {}
         }
     }
-
-    if (settings.imagesEnabled && message.attachments.size > 0) {
-        const isImageOrGif = message.attachments.every(attachment => {
-            if (!attachment.contentType) return false;
-            return imageMimeTypes.some(type => attachment.contentType.startsWith(type));
-        });
-
-        if (isImageOrGif) {
-            try {
-                await message.delete();
-                if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image/GIF Spam').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image/GIF Spam');
-                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending prohibited media.`).catch(() => {});
-                const log = createLogEmbed('🚨 Anti Image & GIF Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-            } catch (e) {}
-        }
-    }
 });
 
 const app = express();
@@ -954,8 +934,27 @@ app.post('/api/config/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     
     const current = await getSettings(req.params.guildId);
-    const newSettings = { ...current, ...req.body };
+    let newSettings = { ...current, ...req.body };
     
+    if (newSettings.honeypotChannelId === 'CREATE_NEW') {
+        const guild = client.guilds.cache.get(req.params.guildId);
+        if (guild) {
+            try {
+                const newChan = await guild.channels.create({
+                    name: '⚠️-do-not-talk-here',
+                    type: ChannelType.GuildText,
+                    reason: 'Honeypot channel created via ServSecurity Dashboard'
+                });
+                newSettings.honeypotChannelId = newChan.id;
+            } catch (e) {
+                console.error("Failed to create honeypot channel", e);
+                newSettings.honeypotChannelId = current.honeypotChannelId || null;
+            }
+        } else {
+            newSettings.honeypotChannelId = current.honeypotChannelId || null;
+        }
+    }
+
     guildSettings[req.params.guildId] = newSettings;
     saveLocalDatabase();
     await saveToCloud(req.params.guildId, newSettings);
