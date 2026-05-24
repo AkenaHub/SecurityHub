@@ -127,7 +127,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-50">
+                    
+                    <!-- Anti Link Module -->
+                    <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-50 lg:col-span-2">
                         <div class="flex items-center justify-between mb-6 border-b border-[#18181b] pb-6">
                             <div class="flex items-center space-x-4">
                                 <div class="p-2.5 bg-[#09090b] rounded-xl border border-[#27272a]"><svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
@@ -141,16 +143,23 @@
                                 <div class="w-12 h-6 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
                             </label>
                         </div>
-                        <div class="space-y-6 flex-1">
-                            <div class="space-y-2 flex-1 flex flex-col justify-center">
-                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide mb-2">Containment Timeout (Mins)</label>
-                                <input type="number" id="imageTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm focus:ring-0">
-                                <p class="text-[10px] text-zinc-500 mt-2">If enabled, sending ANY image or GIF will instantly trigger this timeout.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Timeout Duration (Mins)</label>
+                                <input type="number" id="linkTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm focus:ring-0">
+                            </div>
+                            <div class="space-y-2 flex-1 flex flex-col">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide flex justify-between">
+                                    Allowed Domains
+                                    <span class="text-[9px] text-zinc-500 font-normal">Comma Separated</span>
+                                </label>
+                                <textarea id="linkAvoids" placeholder="discord.gg/yourinvite, github.com" class="w-full flex-1 min-h-[90px] input-base rounded-xl px-4 py-3 text-sm resize-none focus:ring-0"></textarea>
                             </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-6 animate-slide-up delay-150 lg:col-span-2">
+                    <!-- Single Feature Modules -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-slide-up delay-150 lg:col-span-2">
                         <div class="module-card p-6 flex flex-col h-full">
                             <div class="flex items-center justify-between mb-4">
                                 <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
@@ -184,6 +193,7 @@
                     </div>
                 </div>
 
+                <!-- Logging & Operations -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -203,12 +213,14 @@
                                 </label>
                             </div>
                         </div>
+
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Log Target Channel</label>
                             <select id="logChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
                                 <option value="" class="bg-[#09090b]">None (Disabled)</option>
                             </select>
                         </div>
+
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Authorized Bypass Roles</label>
                             <div class="relative" id="roleDropdownContainer">
@@ -219,6 +231,7 @@
                                 <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50"></div>
                             </div>
                         </div>
+
                         <div class="space-y-2">
                             <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Trusted Bots Bypass</label>
                             <div class="relative" id="botDropdownContainer">
@@ -232,6 +245,7 @@
                     </div>
                 </div>
 
+                <!-- Verification System -->
                 <div class="module-card p-8 mt-6 animate-slide-up delay-200">
                     <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
                         <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a2 2 0 11-4 0 2 2 0 014 0zM9 10a2 2 0 11-4 0 2 2 0 014 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -263,7 +277,6 @@
                                 <option value="" class="bg-[#09090b]">Select Role...</option>
                             </select>
                         </div>
-
                     </div>
                 </div>
 
@@ -293,7 +306,7 @@
                             <select id="honeypotChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
                                 <option value="" class="bg-[#09090b]">Select Channel...</option>
                             </select>
-                            <p class="text-[10px] text-zinc-500 mt-1 pl-1">Tip: Name this channel something like "⚠️-do-not-talk-here" so real users avoid it.</p>
+                            <p class="text-[10px] text-zinc-500 mt-1 pl-1">Users typing here trigger the trap.</p>
                         </div>
 
                         <div class="space-y-2">
@@ -448,8 +461,6 @@
                 linksEnabled: document.getElementById('linksEnabled').checked,
                 linkTimeout: parseInt(document.getElementById('linkTimeout').value) || 30,
                 linkAvoids: document.getElementById('linkAvoids').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0).join(', '),
-                imagesEnabled: document.getElementById('imagesEnabled').checked,
-                imageTimeout: parseInt(document.getElementById('imageTimeout').value) || 4320,
                 raidEnabled: document.getElementById('raidEnabled').checked,
                 fileShieldEnabled: document.getElementById('fileShieldEnabled').checked,
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
@@ -469,8 +480,6 @@
                 linksEnabled: originalConfig.linksEnabled,
                 linkTimeout: originalConfig.linkTimeout,
                 linkAvoids: originalConfig.linkAvoids.join(', '),
-                imagesEnabled: originalConfig.imagesEnabled,
-                imageTimeout: originalConfig.imageTimeout,
                 raidEnabled: originalConfig.raidEnabled,
                 fileShieldEnabled: originalConfig.fileShieldEnabled,
                 logDeletedEnabled: originalConfig.logDeletedEnabled,
@@ -495,7 +504,7 @@
         }
 
         function addInputListeners() {
-            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'imagesEnabled', 'imageTimeout', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'logChannelId', 'verifyEnabled', 'verifyChannelId', 'verifyRoleId', 'honeypotEnabled', 'honeypotChannelId', 'honeypotAction'];
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'logChannelId', 'verifyEnabled', 'verifyChannelId', 'verifyRoleId', 'honeypotEnabled', 'honeypotChannelId', 'honeypotAction'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -513,8 +522,11 @@
             
             channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
             verifyChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
-            honeypotChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
             verifyRoleSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Role...</option>';
+            
+            // Add custom auto-create option
+            honeypotChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
+            honeypotChannelSelect.innerHTML += '<option value="CREATE_NEW" class="bg-[#09090b] text-indigo-400 font-bold">✨ Auto-Create "⚠️-do-not-talk-here"</option>';
             
             channels.forEach(c => {
                 const opt = document.createElement('option');
@@ -524,25 +536,6 @@
                 channelSelect.appendChild(opt.cloneNode(true));
                 verifyChannelSelect.appendChild(opt.cloneNode(true));
                 honeypotChannelSelect.appendChild(opt.cloneNode(true));
-            });
-        }
-
-        function populateDropdowns(channels, roles, bots) {
-            const channelSelect = document.getElementById('logChannelId');
-            const verifyChannelSelect = document.getElementById('verifyChannelId');
-            const verifyRoleSelect = document.getElementById('verifyRoleId');
-            
-            channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
-            verifyChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
-            verifyRoleSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Role...</option>';
-            
-            channels.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.className = 'bg-[#09090b] text-zinc-300';
-                opt.textContent = `# ${c.name}`;
-                channelSelect.appendChild(opt.cloneNode(true));
-                verifyChannelSelect.appendChild(opt.cloneNode(true));
             });
 
             const roleMenu = document.getElementById('roleDropdownMenu');
@@ -721,8 +714,6 @@
                 document.getElementById('linksEnabled').checked = config.linksEnabled;
                 document.getElementById('linkTimeout').value = config.linkTimeout;
                 document.getElementById('linkAvoids').value = config.linkAvoids.join(', ');
-                document.getElementById('imagesEnabled').checked = config.imagesEnabled;
-                document.getElementById('imageTimeout').value = config.imageTimeout;
                 document.getElementById('raidEnabled').checked = config.raidEnabled;
                 document.getElementById('fileShieldEnabled').checked = config.fileShieldEnabled;
                 document.getElementById('logDeletedEnabled').checked = config.logDeletedEnabled;
@@ -763,8 +754,6 @@
                 linksEnabled: document.getElementById('linksEnabled').checked,
                 linkTimeout: parseInt(document.getElementById('linkTimeout').value) || 30,
                 linkAvoids: document.getElementById('linkAvoids').value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0),
-                imagesEnabled: document.getElementById('imagesEnabled').checked,
-                imageTimeout: parseInt(document.getElementById('imageTimeout').value) || 4320,
                 raidEnabled: document.getElementById('raidEnabled').checked,
                 fileShieldEnabled: document.getElementById('fileShieldEnabled').checked,
                 logDeletedEnabled: document.getElementById('logDeletedEnabled').checked,
@@ -789,6 +778,24 @@
                 if (res.ok) {
                     showNotification('Settings saved successfully.');
                     originalConfig = JSON.parse(JSON.stringify(payload));
+                    
+                    // Update dynamically if a new channel was just auto-created
+                    const resJson = await res.json();
+                    if (resJson.config && resJson.config.honeypotChannelId) {
+                        const newId = resJson.config.honeypotChannelId;
+                        const dropSelect = document.getElementById('honeypotChannelId');
+                        // if that ID isn't in the options yet, insert it to avoid immediate 'unsaved' state
+                        if (!dropSelect.querySelector(`option[value="${newId}"]`)) {
+                            const newOpt = document.createElement('option');
+                            newOpt.value = newId;
+                            newOpt.className = 'bg-[#09090b] text-zinc-300';
+                            newOpt.textContent = `# ⚠️-do-not-talk-here`;
+                            dropSelect.appendChild(newOpt);
+                        }
+                        dropSelect.value = newId;
+                        originalConfig.honeypotChannelId = newId;
+                    }
+
                     updateMasterBadge();
                     checkUnsavedChanges();
                 } else throw new Error();
