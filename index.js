@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v1.8.0";
+const CURRENT_VERSION = "v1.9.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -140,7 +140,6 @@ const getSettings = async (guildId) => {
             allowedAccess: [],
             allowedBots: [],
             imagesEnabled: true,
-            maxImages: 1,
             imageTimeout: 4320,
             raidEnabled: true,
             fileShieldEnabled: true,
@@ -150,6 +149,9 @@ const getSettings = async (guildId) => {
             verifyEnabled: false,
             verifyChannelId: null,
             verifyRoleId: null,
+            honeypotEnabled: false,
+            honeypotChannelId: null,
+            honeypotAction: 'TIMEOUT',
             lastVersion: null,
             history: []
         };
@@ -260,9 +262,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added /unmute slash command for moderators.
-\u001b[2;32m[+]\u001b[0m Added /role slash command to quickly assign roles.
-\u001b[2;31m[-]\u001b[0m Removed Anti Spam module per configuration request.
+\u001b[2;32m[+]\u001b[0m Added Hacked Account Trap (Honeypot) module with Kick/Ban/Timeout options.
+\u001b[2;34m[!]\u001b[0m Updated Anti Image & GIF to trigger on any media (removed limit requirement).
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -697,6 +698,34 @@ client.on('messageCreate', async message => {
     
     if (hasBypass) return; 
 
+    // Hacked Account Trap (Honeypot) Logic
+    if (settings.honeypotEnabled && settings.honeypotChannelId && message.channel.id === settings.honeypotChannelId) {
+        try {
+            await message.delete().catch(()=>{});
+            const action = settings.honeypotAction || 'TIMEOUT';
+            
+            if (action === 'BAN') {
+                if (message.member && message.member.bannable) await message.member.ban({ reason: 'Security Trap: Hacked Account Detection' }).catch(()=>{});
+                await logAction(message.guild.id, 'BAN', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
+            } else if (action === 'KICK') {
+                if (message.member && message.member.kickable) await message.member.kick('Security Trap: Hacked Account Detection').catch(()=>{});
+                await logAction(message.guild.id, 'KICK', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
+            } else {
+                if (message.member && message.member.moderatable) await message.member.timeout(1440 * 60000, 'Security Trap: Hacked Account Detection').catch(()=>{});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
+            }
+
+            if (settings.logChannelId) {
+                const logChannel = await message.guild.channels.fetch(settings.logChannelId).catch(()=>null);
+                if (logChannel) {
+                    const log = createLogEmbed('🍯 Hacked Account Trap Activated', `**User:** <@${message.author.id}>\n**Action Taken:** ${action}\n**Reason:** Talked in the restricted trap channel.`, '#ff0000');
+                    await logChannel.send({ embeds: [log] }).catch(() => {});
+                }
+            }
+            return; 
+        } catch (e) {}
+    }
+
     let targetLogChannel = message.channel;
     if (settings.logChannelId) {
         try {
@@ -768,12 +797,12 @@ client.on('messageCreate', async message => {
             return imageMimeTypes.some(type => attachment.contentType.startsWith(type));
         });
 
-        if (isImageOrGif && message.attachments.size >= settings.maxImages) {
+        if (isImageOrGif) {
             try {
                 await message.delete();
                 if (message.member && message.member.timeout) await message.member.timeout(settings.imageTimeout * 60000, 'Image/GIF Spam').catch(() => {});
                 await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Image/GIF Spam');
-                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending too many images/GIFs at once.`).catch(() => {});
+                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for sending prohibited media.`).catch(() => {});
                 const log = createLogEmbed('🚨 Anti Image & GIF Blocked', `**User:** <@${message.author.id}>\n**Action:** Deleted & Timed out (${settings.imageTimeout}m)`, '#ff0000');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
             } catch (e) {}
