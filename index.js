@@ -1,983 +1,848 @@
-require('dotenv').config();
-
-const { 
-    Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType
-} = require('discord.js');
-const express = require('express');
-const cookieSession = require('cookie-session');
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-
-const { initializeApp } = require('firebase/app');
-const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
-const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
-
-const CURRENT_VERSION = "v2.0.0";
-
-process.on('unhandledRejection', error => {
-    console.error('Unhandled Promise Rejection:', error);
-});
-
-process.on('uncaughtException', error => {
-    console.error('Uncaught Exception:', error);
-});
-
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildModeration,
-    ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
-});
-
-const dbFile = './database.json';
-let guildSettings = {};
-let firestoreDb = null;
-let firestoreReady = false;
-
-const appId = typeof __app_id !== 'undefined' ? __app_id : (process.env.APP_ID || 'servsecurity-app');
-
-const initRemoteStorage = async () => {
-    try {
-        const hasConfig = typeof __firebase_config !== 'undefined' || process.env.FIREBASE_CONFIG;
-        if (!hasConfig) return;
-
-        const config = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : JSON.parse(process.env.FIREBASE_CONFIG);
-
-        const app = initializeApp(config);
-        const auth = getAuth(app);
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServSecurity Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #030305; font-family: 'Inter', sans-serif; color: #fafafa; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #27272a; }
         
-        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : process.env.FIREBASE_AUTH_TOKEN;
-        if (token) {
-            await signInWithCustomToken(auth, token);
-        } else {
-            await signInAnonymously(auth);
-        }
-
-        firestoreDb = getFirestore(app);
-        firestoreReady = true;
-    } catch (e) {
-        firestoreReady = false;
-    }
-};
-
-const loadLocalDatabase = () => {
-    if (fs.existsSync(dbFile)) {
-        try {
-            guildSettings = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
-        } catch (e) {
-            guildSettings = {};
-        }
-    }
-};
-
-const saveLocalDatabase = () => {
-    try {
-        fs.writeFileSync(dbFile, JSON.stringify(guildSettings, null, 4));
-    } catch (e) {}
-};
-
-const syncWithDiscord = async (guild) => {
-    try {
-        let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
-        if (!channel) return;
-
-        const messages = await channel.messages.fetch({ limit: 10 });
-        const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
+        .input-base { background: rgba(5, 5, 8, 0.7); border: 1px solid #14141a; backdrop-filter: blur(10px); color: #e4e4e7; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .input-base:focus, .input-base:hover { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15); background: rgba(7, 7, 12, 0.9); }
         
-        if (dbMessage) {
-            const rawJson = dbMessage.content.replace(/```json|```/g, '').trim();
-            guildSettings[guild.id] = JSON.parse(rawJson);
-            saveLocalDatabase();
-        }
-    } catch (e) {}
-};
+        .module-card { background-color: rgba(6, 6, 9, 0.65); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .module-card:hover { border-color: rgba(79, 70, 229, 0.3); box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(79, 70, 229, 0.1); transform: translateY(-2px); }
 
-const saveToCloud = async (guildId, settings) => {
-    try {
-        const guild = client.guilds.cache.get(guildId);
-        if (guild) {
-            let channel = guild.channels.cache.find(c => c.name === 'servsecurity-database' && c.type === ChannelType.GuildText);
-            if (!channel) {
-                channel = await guild.channels.create({
-                    name: 'servsecurity-database',
-                    type: ChannelType.GuildText,
-                    permissionOverwrites: [
-                        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
-                    ]
-                });
+        .sidebar-btn { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-btn.active { background-color: rgba(79, 70, 229, 0.05); border-color: rgba(79, 70, 229, 0.2); }
+        .sidebar-btn.active .server-name { color: #ffffff; font-weight: 600; }
+        .sidebar-btn.active .active-indicator { opacity: 1; transform: scale(1); background-color: #4f46e5; }
+
+        .btn-multigen { position: relative; background: linear-gradient(180deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.08); color: #ffffff; overflow: hidden; border-radius: 0.75rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); }
+        .btn-multigen::after { content: ''; position: absolute; bottom: -1px; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent); box-shadow: 0 -4px 15px 3px rgba(255, 255, 255, 0.2); transition: all 0.3s ease; }
+        .btn-multigen:hover { background: linear-gradient(180deg, rgba(39, 39, 42, 0.8) 0%, rgba(24, 24, 27, 0.9) 100%); border-color: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
+        .btn-multigen:hover::after { left: 5%; right: 5%; background: linear-gradient(90deg, transparent, #4f46e5, transparent); box-shadow: 0 -4px 20px 4px rgba(79, 70, 229, 0.5); }
+        .btn-multigen:active { transform: translateY(1px); }
+
+        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
+        
+        .delay-50 { animation-delay: 50ms; }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-150 { animation-delay: 150ms; }
+        .delay-200 { animation-delay: 200ms; }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+        .bg-mesh { background-image: radial-gradient(at 100% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(79, 70, 229, 0.02) 0px, transparent 50%); }
+
+        .unsaved-banner { transform: translateY(100px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .unsaved-banner.show { transform: translateY(0); }
+
+        .role-checkbox, .bot-checkbox { accent-color: #4f46e5; }
+        .peer:checked ~ .toggle-label { background-color: #4f46e5; border-color: #4f46e5; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside class="w-80 bg-[#000000] border-r border-[#18181b] flex flex-col z-20 shrink-0 relative">
+        <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-600/5 to-transparent pointer-events-none"></div>
+        <div class="h-24 flex flex-col justify-center px-8 border-b border-[#18181b] relative z-10">
+            <div class="flex items-center">
+                <div class="relative flex items-center justify-center w-7 h-7 mr-3">
+                    <div class="absolute inset-0 bg-indigo-500 rounded-lg blur-[8px] opacity-30"></div>
+                    <svg class="w-5 h-5 text-indigo-400 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <span class="text-base font-bold text-white tracking-widest uppercase">ServSecurity</span>
+            </div>
+            <span class="text-[10px] text-zinc-500 font-semibold tracking-widest uppercase mt-1 ml-10">Admin Dashboard</span>
+        </div>
+
+        <div class="p-4 border-b border-[#18181b] z-10" id="invite-zone">
+            <button id="invite-btn" class="w-full btn-multigen py-3.5 px-4 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Invite Bot
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-4 px-4 space-y-2 z-10" id="server-list">
+            <div class="flex items-center space-x-3 px-4 py-4 animate-pulse rounded-xl border border-[#18181b] bg-[#09090b]">
+                <div class="w-10 h-10 rounded-full bg-[#18181b]"></div>
+                <div class="flex-1 space-y-2">
+                    <div class="h-3 bg-[#18181b] rounded w-24"></div>
+                    <div class="h-2 bg-[#18181b] rounded w-16"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 border-t border-[#18181b] bg-[#000000] z-10" id="auth-zone">
+            <div class="flex items-center space-x-3 text-zinc-500 animate-pulse">
+                <div class="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-indigo-500 animate-spin"></div>
+                <span class="text-xs font-medium tracking-wide">Syncing Session...</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col bg-[#000000] bg-mesh relative h-full">
+        <header class="h-24 border-b border-[#18181b] flex items-center justify-between px-12 bg-black/50 backdrop-blur-xl z-10 shrink-0 sticky top-0">
+            <div class="animate-fade-in flex items-center space-x-4">
+                <div>
+                    <h2 id="active-server-name" class="text-2xl font-bold tracking-tight text-white drop-shadow-sm">System Standby</h2>
+                    <p class="text-[11px] text-indigo-400/80 uppercase tracking-widest mt-1 font-semibold" id="active-server-subtitle">Awaiting Terminal Selection</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 md:p-12 relative scroll-smooth">
+            <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-slide-up">
+                <div class="w-24 h-24 rounded-3xl bg-[#09090b] border border-[#18181b] flex items-center justify-center mb-6 shadow-2xl relative">
+                    <div class="absolute inset-0 bg-indigo-500/5 blur-2xl rounded-3xl"></div>
+                    <svg class="w-10 h-10 text-zinc-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white tracking-tight">No Target Specified</h3>
+                <p class="text-sm text-zinc-500 mt-2 max-w-sm text-center leading-relaxed">Select an authorized Discord terminal from the left sidebar panel.</p>
+            </div>
+
+            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-8 pb-24">
+                <div class="module-card p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-slide-up relative overflow-hidden">
+                    <div class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-600/5 blur-[80px] rounded-full pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <h3 class="text-xl font-bold text-white tracking-wide">Master Override</h3>
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest" id="masterBadge">ACTIVE</span>
+                        </div>
+                        <p class="text-sm text-zinc-400">Globally arm or disarm all active system shield modules simultaneously.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer relative z-10">
+                        <input type="checkbox" id="masterSwitch" class="sr-only peer">
+                        <div class="w-14 h-7 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all toggle-label transition-colors"></div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="module-card p-8 flex flex-col h-full animate-slide-up delay-50 lg:col-span-2">
+                        <div class="flex items-center justify-between mb-6 border-b border-[#18181b] pb-6">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2.5 bg-[#09090b] rounded-xl border border-[#27272a]"><svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></div>
+                                <div>
+                                    <h4 class="text-base font-bold text-white tracking-wide">Anti Link</h4>
+                                    <span class="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold block mt-0.5">Universal URL Filter</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="linksEnabled" class="sr-only peer">
+                                <div class="w-12 h-6 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Timeout Duration (Mins)</label>
+                                <input type="number" id="linkTimeout" class="w-full input-base rounded-xl px-4 py-3 text-sm focus:ring-0">
+                            </div>
+                            <div class="space-y-2 flex-1 flex flex-col">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide flex justify-between">
+                                    Allowed Domains
+                                    <span class="text-[9px] text-zinc-500 font-normal">Comma Separated</span>
+                                </label>
+                                <textarea id="linkAvoids" placeholder="discord.gg/yourinvite, github.com" class="w-full flex-1 min-h-[90px] input-base rounded-xl px-4 py-3 text-sm resize-none focus:ring-0"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-slide-up delay-150 lg:col-span-2">
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="antiNukeEnabled" class="sr-only peer">
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Instantly reverts unauthorized server/channel changes and bans rogue bots.</p>
+                        </div>
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Raid</h4>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="raidEnabled" class="sr-only peer">
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Automatically isolates and punishes instant raid-app automated joins and mass pings.</p>
+                        </div>
+                        <div class="module-card p-6 flex flex-col h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti File</h4>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="fileShieldEnabled" class="sr-only peer">
+                                    <div class="w-10 h-5 bg-[#09090b] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Flags and purges harmful executable files, batch scripts and DLL content instantly.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card p-8 mt-6 animate-slide-up delay-200">
+                    <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
+                        <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Logging & Bypass Operations
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
+                                <div>
+                                    <span class="text-sm font-bold text-white">Track Deleted Messages</span>
+                                    <p class="text-[11px] text-zinc-500 mt-1">Saves purged text and media</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="logDeletedEnabled" class="sr-only peer">
+                                    <div class="w-12 h-6 bg-[#000000] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Log Target Channel</label>
+                            <select id="logChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">None (Disabled)</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Authorized Bypass Roles</label>
+                            <div class="relative" id="roleDropdownContainer">
+                                <div id="roleSelectBtn" class="w-full input-base rounded-xl px-4 py-3.5 text-sm flex justify-between items-center cursor-pointer">
+                                    <span id="roleSelectText" class="truncate text-zinc-500">Select bypass roles...</span>
+                                    <svg class="w-4 h-4 text-zinc-500 transition-transform" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="roleDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50"></div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Trusted Bots Bypass</label>
+                            <div class="relative" id="botDropdownContainer">
+                                <div id="botSelectBtn" class="w-full input-base rounded-xl px-4 py-3.5 text-sm flex justify-between items-center cursor-pointer">
+                                    <span id="botSelectText" class="truncate text-zinc-500">Select allowed bots...</span>
+                                    <svg class="w-4 h-4 text-zinc-500 transition-transform" id="botDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                <div id="botDropdownMenu" class="hidden absolute left-0 right-0 top-full mt-2 p-2 bg-[#09090b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card p-8 mt-6 animate-slide-up delay-200">
+                    <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
+                        <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a2 2 0 11-4 0 2 2 0 014 0zM9 10a2 2 0 11-4 0 2 2 0 014 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Verification System
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
+                                <div>
+                                    <span class="text-sm font-bold text-white">Enable Verification</span>
+                                    <p class="text-[11px] text-zinc-500 mt-1">Button challenge access</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="verifyEnabled" class="sr-only peer">
+                                    <div class="w-12 h-6 bg-[#000000] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Verification Channel</label>
+                            <select id="verifyChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">Select Channel...</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Role to Assign</label>
+                            <select id="verifyRoleId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">Select Role...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="module-card p-8 mt-6 animate-slide-up delay-200">
+                    <h4 class="text-base font-bold text-white tracking-wide mb-8 flex items-center border-b border-[#18181b] pb-6">
+                        <svg class="w-5 h-5 text-indigo-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Hacked Account Trap (Honeypot)
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-[#09090b] border border-[#27272a]">
+                                <div>
+                                    <span class="text-sm font-bold text-white">Enable Trap</span>
+                                    <p class="text-[11px] text-zinc-500 mt-1">Punish whoever talks here</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="honeypotEnabled" class="sr-only peer">
+                                    <div class="w-12 h-6 bg-[#000000] border border-[#27272a] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all toggle-label"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Trap Channel</label>
+                            <select id="honeypotChannelId" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="" class="bg-[#09090b]">Select Channel...</option>
+                            </select>
+                            <p class="text-[10px] text-zinc-500 mt-1 pl-1">Users typing here trigger the trap.</p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 tracking-wide">Punishment Action</label>
+                            <select id="honeypotAction" class="w-full input-base rounded-xl px-4 py-3.5 text-sm appearance-none cursor-pointer focus:ring-0">
+                                <option value="TIMEOUT" class="bg-[#09090b]">Timeout (24 Hours)</option>
+                                <option value="KICK" class="bg-[#09090b]">Kick User</option>
+                                <option value="BAN" class="bg-[#09090b]">Ban User</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div class="fixed bottom-0 left-0 right-0 h-28 bg-[#000000]/90 border-t border-[#18181b] backdrop-blur-xl z-40 flex items-center justify-between px-12 unsaved-banner" id="unsaved-changes-banner">
+        <div class="flex items-center space-x-4">
+            <div class="w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_12px_#4f46e5] animate-pulse"></div>
+            <div>
+                <p class="text-base font-bold text-white tracking-wide">Careful — you have unsaved changes!</p>
+                <p class="text-sm text-zinc-400 mt-0.5">Unsaved configuration changes will be lost upon navigating away.</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button onclick="discardChanges()" class="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-[#18181b] transition-all">Discard</button>
+            <button onclick="saveConfig()" class="btn-multigen px-8 py-3 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let activeGuildId = null;
+        let originalConfig = {};
+        let systemBotClientId = "";
+
+        document.getElementById('roleSelectBtn').addEventListener('click', (e) => {
+            const menu = document.getElementById('roleDropdownMenu');
+            const icon = document.getElementById('roleDropdownIcon');
+            menu.classList.toggle('hidden');
+            icon.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            e.stopPropagation();
+        });
+
+        document.getElementById('botSelectBtn').addEventListener('click', (e) => {
+            const menu = document.getElementById('botDropdownMenu');
+            const icon = document.getElementById('botDropdownIcon');
+            menu.classList.toggle('hidden');
+            icon.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', (e) => {
+            const roleMenu = document.getElementById('roleDropdownMenu');
+            const roleIcon = document.getElementById('roleDropdownIcon');
+            if (roleMenu && !document.getElementById('roleDropdownContainer').contains(e.target)) {
+                roleMenu.classList.add('hidden');
+                roleIcon.style.transform = 'rotate(0deg)';
             }
-            const messages = await channel.messages.fetch({ limit: 10 });
-            const dbMessage = messages.find(m => m.author.id === client.user.id && m.content.startsWith('```json'));
-            
-            let payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
-            if (payload.length > 1950) {
-                settings.history = settings.history.slice(0, 4); 
-                payload = `\`\`\`json\n${JSON.stringify(settings)}\n\`\`\``;
+            const botMenu = document.getElementById('botDropdownMenu');
+            const botIcon = document.getElementById('botDropdownIcon');
+            if (botMenu && !document.getElementById('botDropdownContainer').contains(e.target)) {
+                botMenu.classList.add('hidden');
+                botIcon.style.transform = 'rotate(0deg)';
             }
+        });
 
-            if (dbMessage) await dbMessage.edit(payload);
-            else await channel.send(payload);
-        }
-    } catch (e) {}
-};
-
-const getSettings = async (guildId) => {
-    if (!guildSettings[guildId]) {
-        guildSettings[guildId] = {
-            masterSwitch: true, 
-            linksEnabled: true,
-            linkTimeout: 30,
-            linkAvoids: [], 
-            allowedAccess: [],
-            allowedBots: [],
-            raidEnabled: true,
-            fileShieldEnabled: true,
-            logDeletedEnabled: false,
-            antiNukeEnabled: false,
-            logChannelId: null,
-            verifyEnabled: false,
-            verifyChannelId: null,
-            verifyRoleId: null,
-            honeypotEnabled: false,
-            honeypotChannelId: null,
-            honeypotAction: 'TIMEOUT',
-            lastVersion: null,
-            history: []
-        };
-        saveLocalDatabase();
-    }
-    return guildSettings[guildId];
-};
-
-const updateSetting = async (guildId, key, value) => {
-    const settings = await getSettings(guildId);
-    settings[key] = value;
-    guildSettings[guildId] = settings;
-    saveLocalDatabase();
-    await saveToCloud(guildId, settings);
-};
-
-const logAction = async (guildId, type, username, userId, reason) => {
-    const settings = await getSettings(guildId);
-    if (!settings.history) settings.history = [];
-    
-    settings.history.unshift({
-        type,
-        username,
-        userId,
-        reason,
-        timestamp: Math.floor(Date.now() / 1000)
-    });
-
-    if (settings.history.length > 10) settings.history = settings.history.slice(0, 10);
-    
-    guildSettings[guildId] = settings;
-    saveLocalDatabase();
-    await saveToCloud(guildId, settings);
-};
-
-const setupVerifyMessage = async (guildId, channelId) => {
-    try {
-        const guild = client.guilds.cache.get(guildId);
-        if (!guild) return;
-        const channel = guild.channels.cache.get(channelId);
-        if (!channel) return;
-
-        const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0)) return;
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('verify_user_btn')
-                    .setLabel('Verify Account')
-                    .setEmoji('✅')
-                    .setStyle(ButtonStyle.Success)
-            );
-            
-        const embed = new EmbedBuilder()
-            .setTitle('🔐 Server Verification Required')
-            .setDescription('Welcome to the server!\n\nTo protect our community from malicious bots and raids, we require all new members to verify their account.\n\n**Please click the ✅ Verify Account button below to gain full access to the server channels.**')
-            .setColor('#4f46e5')
-            .setFooter({ text: 'Secured by ServSecurity' });
-
-        await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleId) => {
-    try {
-        await guild.roles.everyone.setPermissions(
-            guild.roles.everyone.permissions.remove(PermissionFlagsBits.ViewChannel)
-        ).catch(()=>{});
-
-        const verifiedRole = guild.roles.cache.get(verifyRoleId);
-        if (verifiedRole) {
-            await verifiedRole.setPermissions(
-                verifiedRole.permissions.add(PermissionFlagsBits.ViewChannel)
-            ).catch(()=>{});
+        function resolveUrl(path) {
+            let base = window.location.origin;
+            if (base === 'null' || window.location.protocol === 'blob:') {
+                try {
+                    const urlObj = new URL(window.location.href);
+                    if (urlObj.protocol === 'blob:') base = new URL(urlObj.pathname).origin;
+                } catch (e) {
+                    base = (window.location.ancestorOrigins && window.location.ancestorOrigins) || '';
+                }
+            }
+            return new URL(path, base).toString();
         }
 
-        const verifyChannel = guild.channels.cache.get(verifyChannelId);
-        if (verifyChannel) {
-            await verifyChannel.permissionOverwrites.edit(guild.roles.everyone.id, {
-                ViewChannel: true,
-                SendMessages: false,
-                AddReactions: false,
-                ReadMessageHistory: true
-            }).catch(()=>{});
+        function showNotification(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'fixed bottom-10 right-10 z-50 flex flex-col space-y-3 pointer-events-none';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `px-6 py-4 rounded-xl text-sm font-bold tracking-wide shadow-[0_10px_40px_rgba(0,0,0,0.6)] border transition-all duration-300 transform translate-y-6 opacity-0 pointer-events-auto flex items-center space-x-3 bg-[#09090b]/95 backdrop-blur-xl ${
+                type === 'success' ? 'border-indigo-500/30 text-indigo-400' : 'border-red-500/30 text-red-400'
+            }`;
+            toast.innerHTML = `
+                <div class="w-2.5 h-2.5 rounded-full ${type === 'success' ? 'bg-indigo-500 shadow-[0_0_10px_#4f46e5]' : 'bg-red-500 shadow-[0_0_10px_#ef4444]'}"></div>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-6', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-6', 'opacity-0');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
         }
-    } catch (error) {
-        console.error("Verification Setup Error:", error);
-    }
-};
 
-const sendChangelog = async (guild) => {
-    if (guild.id !== '1499199296522944522') return;
+        function updateMasterBadge() {
+            const masterCheck = document.getElementById('masterSwitch').checked;
+            const badge = document.getElementById('masterBadge');
+            if(masterCheck) {
+                badge.innerText = 'ACTIVE';
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest transition-all';
+            } else {
+                badge.innerText = 'OFFLINE';
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-md bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 uppercase tracking-widest transition-all';
+            }
+        }
 
-    try {
-        let channel = guild.channels.cache.find(c => c.name === 'bot-changelog' && c.type === ChannelType.GuildText);
-        if (!channel) {
-            channel = await guild.channels.create({
-                name: 'bot-changelog',
-                type: ChannelType.GuildText,
-                permissionOverwrites: [
-                    { id: guild.id, deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads, PermissionFlagsBits.AddReactions] },
-                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks] }
-                ]
+        function updateRoleSelectText() {
+            const checked = document.querySelectorAll('.role-checkbox:checked');
+            const textSpan = document.getElementById('roleSelectText');
+            if (checked.length === 0) {
+                textSpan.textContent = 'Select bypass roles...';
+                textSpan.classList.add('text-zinc-500');
+                textSpan.classList.remove('text-zinc-200');
+            } else {
+                textSpan.textContent = `${checked.length} role(s) selected`;
+                textSpan.classList.remove('text-zinc-500');
+                textSpan.classList.add('text-zinc-200');
+            }
+        }
+
+        function updateBotSelectText() {
+            const checked = document.querySelectorAll('.bot-checkbox:checked');
+            const textSpan = document.getElementById('botSelectText');
+            if (checked.length === 0) {
+                textSpan.textContent = 'Select trusted bots...';
+                textSpan.classList.add('text-zinc-500');
+                textSpan.classList.remove('text-zinc-200');
+            } else {
+                textSpan.textContent = `${checked.length} bot(s) trusted`;
+                textSpan.classList.remove('text-zinc-500');
+                textSpan.classList.add('text-zinc-200');
+            }
+        }
+
+        function checkUnsavedChanges() {
+            if (!activeGuildId) return;
+            const currentInputs = {
+                masterSwitch: document.getElementById('masterSwitch')?.checked || false,
+                linksEnabled: document.getElementById('linksEnabled')?.checked || false,
+                linkTimeout: parseInt(document.getElementById('linkTimeout')?.value) || 30,
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0).join(', ') || '',
+                raidEnabled: document.getElementById('raidEnabled')?.checked || false,
+                fileShieldEnabled: document.getElementById('fileShieldEnabled')?.checked || false,
+                logDeletedEnabled: document.getElementById('logDeletedEnabled')?.checked || false,
+                antiNukeEnabled: document.getElementById('antiNukeEnabled')?.checked || false,
+                logChannelId: document.getElementById('logChannelId')?.value || '',
+                verifyEnabled: document.getElementById('verifyEnabled')?.checked || false,
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || '',
+                verifyRoleId: document.getElementById('verifyRoleId')?.value || '',
+                honeypotEnabled: document.getElementById('honeypotEnabled')?.checked || false,
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || '',
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT',
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '),
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', ')
+            };
+            const cleanOriginal = {
+                masterSwitch: originalConfig.masterSwitch,
+                linksEnabled: originalConfig.linksEnabled,
+                linkTimeout: originalConfig.linkTimeout,
+                linkAvoids: originalConfig.linkAvoids.join(', '),
+                raidEnabled: originalConfig.raidEnabled,
+                fileShieldEnabled: originalConfig.fileShieldEnabled,
+                logDeletedEnabled: originalConfig.logDeletedEnabled,
+                antiNukeEnabled: originalConfig.antiNukeEnabled,
+                logChannelId: originalConfig.logChannelId || '',
+                verifyEnabled: originalConfig.verifyEnabled || false,
+                verifyChannelId: originalConfig.verifyChannelId || '',
+                verifyRoleId: originalConfig.verifyRoleId || '',
+                honeypotEnabled: originalConfig.honeypotEnabled || false,
+                honeypotChannelId: originalConfig.honeypotChannelId || '',
+                honeypotAction: originalConfig.honeypotAction || 'TIMEOUT',
+                allowedAccess: originalConfig.allowedAccess.join(', '),
+                allowedBots: (originalConfig.allowedBots || []).join(', ')
+            };
+            const hasChanged = JSON.stringify(currentInputs) !== JSON.stringify(cleanOriginal);
+            const banner = document.getElementById('unsaved-changes-banner');
+            if (hasChanged) {
+                banner.classList.add('show');
+            } else {
+                banner.classList.remove('show');
+            }
+        }
+
+        function addInputListeners() {
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeout', 'linkAvoids', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'logChannelId', 'verifyEnabled', 'verifyChannelId', 'verifyRoleId', 'honeypotEnabled', 'honeypotChannelId', 'honeypotAction'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', checkUnsavedChanges);
+                    el.addEventListener('input', checkUnsavedChanges);
+                }
             });
         }
 
-        const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added 1-Click Auto-Create option for Hacked Account Trap channels.
-\u001b[2;34m[!]\u001b[0m Fixed "Failed to load settings" dashboard bug.
-\u001b[2;31m[-]\u001b[0m Removed Anti Image & GIF module.
-\`\`\``;
-
-        const embed = new EmbedBuilder()
-            .setTitle('🚀 System Update Deployed')
-            .setColor(0x4f46e5)
-            .setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`)
-            .setTimestamp()
-            .setFooter({ text: 'ServSecurity Automated Changelog' });
-
-        await channel.send({ content: '@here', embeds: [embed] });
-    } catch (e) {}
-};
-
-const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
-const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
-
-const createLogEmbed = (title, description, color) => {
-    return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
-};
-
-client.once('ready', async () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-    loadLocalDatabase();
-    await initRemoteStorage();
-
-    for (const [id, guild] of client.guilds.cache) {
-        await syncWithDiscord(guild);
-        const settings = await getSettings(guild.id);
-        
-        if (settings.lastVersion !== CURRENT_VERSION) {
-            if (guild.id === '1499199296522944522') {
-                await sendChangelog(guild);
-            }
-            await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
-        }
-    }
-});
-
-client.on('interactionCreate', async interaction => {
-    if (interaction.isButton() && interaction.customId === 'verify_user_btn') {
-        const settings = await getSettings(interaction.guildId);
-        if (settings.verifyEnabled && settings.verifyRoleId) {
-            const role = interaction.guild.roles.cache.get(settings.verifyRoleId);
-            if (role) {
-                await interaction.member.roles.add(role).catch(() => {});
-                await interaction.reply({ content: '✅ You have been successfully verified!', ephemeral: true });
-            } else {
-                await interaction.reply({ content: '❌ Verification role not found. Please contact a server admin.', ephemeral: true });
-            }
-        } else {
-            await interaction.reply({ content: '❌ Verification system is currently offline.', ephemeral: true });
-        }
-        return;
-    }
-
-    if (!interaction.isChatInputCommand()) return;
-
-    if (interaction.commandName === 'dashboard') {
-        const settings = await getSettings(interaction.guildId);
-        const allowedUserId = '1284247278957367337';
-        const isServerOwner = interaction.user.id === interaction.guild?.ownerId;
-        const isWhitelistedUser = interaction.user.id === allowedUserId;
-        const isAdmin = interaction.member?.permissions.has('Administrator');
-        
-        let hasAccess = isServerOwner || isWhitelistedUser || isAdmin;
-
-        if (!hasAccess && settings.allowedAccess && settings.allowedAccess.length > 0) {
-            if (settings.allowedAccess.includes(interaction.user.id)) hasAccess = true;
-            if (interaction.member && interaction.member.roles && interaction.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasAccess = true;
-        }
-
-        if (!hasAccess) {
-            return interaction.reply({ content: '❌ **Access Denied:** You do not have permission to view the security panel.', ephemeral: true });
-        }
-
-        const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
-        await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
-    }
-
-    if (['kick', 'ban', 'timeout', 'unmute', 'role'].includes(interaction.commandName)) {
-        const target = interaction.options.getUser('target');
-        const reason = interaction.options.getString('reason') || 'No reason provided by moderator.';
-        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-
-        if (!member) {
-            return interaction.reply({ content: '❌ Could not find that user in the server.', ephemeral: true });
-        }
-
-        try {
-            if (interaction.commandName === 'kick') {
-                if (!member.kickable) return interaction.reply({ content: '❌ I do not have permission to kick this user.', ephemeral: true });
-                await member.kick(reason);
-                await interaction.reply({ content: `✅ Successfully kicked **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'KICK', target.username, target.id, `Manual Kick: ${reason}`);
-            } 
-            else if (interaction.commandName === 'ban') {
-                if (!member.bannable) return interaction.reply({ content: '❌ I do not have permission to ban this user.', ephemeral: true });
-                await member.ban({ reason: reason });
-                await interaction.reply({ content: `✅ Successfully banned **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'BAN', target.username, target.id, `Manual Ban: ${reason}`);
-            }
-            else if (interaction.commandName === 'timeout') {
-                const duration = interaction.options.getInteger('duration');
-                if (!member.moderatable) return interaction.reply({ content: '❌ I do not have permission to timeout this user.', ephemeral: true });
-                await member.timeout(duration * 60000, reason);
-                await interaction.reply({ content: `✅ Successfully timed out **${target.tag}** for ${duration} minutes. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, `Manual Timeout (${duration}m): ${reason}`);
-            }
-            else if (interaction.commandName === 'unmute') {
-                if (!member.moderatable) return interaction.reply({ content: '❌ I do not have permission to unmute this user.', ephemeral: true });
-                await member.timeout(null, reason);
-                await interaction.reply({ content: `✅ Successfully unmuted **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'UNMUTE', target.username, target.id, `Manual Unmute: ${reason}`);
-            }
-            else if (interaction.commandName === 'role') {
-                const role = interaction.options.getRole('role');
-                if (role.position >= interaction.guild.members.me.roles.highest.position) {
-                    return interaction.reply({ content: '❌ I cannot assign a role higher than or equal to my own highest role.', ephemeral: true });
-                }
-                await member.roles.add(role, reason);
-                await interaction.reply({ content: `✅ Successfully gave the role **${role.name}** to **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, `Assigned Role ${role.name}: ${reason}`);
-            }
-        } catch (error) {
-            console.error(error);
-            interaction.reply({ content: '❌ An error occurred while trying to execute the command.', ephemeral: true });
-        }
-    }
-});
-
-client.on('guildUpdate', async (oldGuild, newGuild) => {
-    const settings = await getSettings(newGuild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-    
-    if (oldGuild.name !== newGuild.name) {
-        try {
-            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
-
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || !executor.bot) return;
-            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-            await newGuild.setName(oldGuild.name).catch(() => {});
-
-            const member = await newGuild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
-                await logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt');
-                
-                if (settings.logChannelId) {
-                    const logChannel = await newGuild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
-            }
-        } catch (e) {}
-    }
-});
-
-client.on('channelUpdate', async (oldChannel, newChannel) => {
-    if (!oldChannel.guild) return;
-    const settings = await getSettings(oldChannel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    if (oldChannel.name !== newChannel.name) {
-        try {
-            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
-
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || !executor.bot) return;
-            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-            await newChannel.setName(oldChannel.name).catch(() => {});
-
-            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
-                await logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt');
-
-                if (settings.logChannelId) {
-                    const logChannel = await oldChannel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
-            }
-        } catch (e) {}
-    }
-});
-
-client.on('channelDelete', async channel => {
-    if (!channel.guild) return;
-    const settings = await getSettings(channel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    try {
-        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
-        const auditEntry = fetchedLogs.entries.first();
-        if (!auditEntry) return;
-
-        const executor = auditEntry.executor;
-        if (executor.id === client.user.id || !executor.bot) return;
-        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-        await channel.clone().catch(()=>{});
-
-        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
-        if (member && member.bannable) {
-            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
-            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt');
-
-            if (settings.logChannelId) {
-                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Channel Restored\n**Reason:** Attempted to delete channel.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
-            }
-        }
-    } catch (e) {}
-});
-
-client.on('channelCreate', async channel => {
-    if (!channel.guild) return;
-    const settings = await getSettings(channel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    try {
-        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
-        const auditEntry = fetchedLogs.entries.first();
-        if (!auditEntry) return;
-
-        const executor = auditEntry.executor;
-        if (executor.id === client.user.id || !executor.bot) return;
-        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-        await channel.delete().catch(()=>{});
-
-        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
-        if (member && member.bannable) {
-            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
-            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt');
-
-            if (settings.logChannelId) {
-                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Channel Deleted\n**Reason:** Attempted to create channel.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
-            }
-        }
-    } catch (e) {}
-});
-
-client.on('roleDelete', async role => {
-    if (!role.guild) return;
-    const settings = await getSettings(role.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    try {
-        const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
-        const auditEntry = fetchedLogs.entries.first();
-        if (!auditEntry) return;
-
-        const executor = auditEntry.executor;
-        if (executor.id === client.user.id || !executor.bot) return;
-        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-        await role.guild.roles.create({
-            name: role.name,
-            color: role.color,
-            hoist: role.hoist,
-            permissions: role.permissions,
-            position: role.position,
-            mentionable: role.mentionable,
-            reason: 'Anti-Nuke: Restoring deleted role'
-        }).catch(() => {});
-
-        const member = await role.guild.members.fetch(executor.id).catch(() => null);
-        if (member && member.bannable) {
-            await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
-            await logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt');
-
-            if (settings.logChannelId) {
-                const logChannel = await role.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Role Restored\n**Reason:** Attempted to delete a role.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
-            }
-        }
-    } catch (e) {}
-});
-
-client.on('roleUpdate', async (oldRole, newRole) => {
-    if (!oldRole.guild) return;
-    const settings = await getSettings(oldRole.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    if (oldRole.name !== newRole.name || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
-        try {
-            const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
-
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || !executor.bot) return;
-            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-            await newRole.edit({
-                name: oldRole.name,
-                permissions: oldRole.permissions,
-                color: oldRole.color,
-                hoist: oldRole.hoist,
-                mentionable: oldRole.mentionable
-            }).catch(() => {});
-
-            const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
-                await logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt');
-
-                if (settings.logChannelId) {
-                    const logChannel = await oldRole.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to modify role permissions/name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
-            }
-        } catch (e) {}
-    }
-});
-
-client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
-    if (!guild) return;
-    const settings = await getSettings(guild.id);
-    if (!settings.masterSwitch) return;
-    if (auditLog.executorId === client.user.id) return;
-
-    const target = auditLog.target;
-    const executor = auditLog.executor;
-    if (!target || !executor) return;
-
-    let actionType = null;
-    let color = '#000000';
-    const reason = auditLog.reason || `Action by admin: ${executor.username}`;
-
-    if (auditLog.action === AuditLogEvent.MemberKick) {
-        actionType = 'KICK';
-        color = '#ff5500';
-    } else if (auditLog.action === AuditLogEvent.MemberBanAdd) {
-        actionType = 'BAN';
-        color = '#ff0000';
-    } else if (auditLog.action === AuditLogEvent.MemberUpdate) {
-        const timeoutChange = auditLog.changes.find(c => c.key === 'communication_disabled_until');
-        if (timeoutChange && timeoutChange.new) {
-            actionType = 'TIMEOUT';
-            color = '#ffcc00';
-        }
-    }
-
-    if (actionType) {
-        await logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
-
-        if (settings.logChannelId) {
-            try {
-                const logChannel = await guild.channels.fetch(settings.logChannelId);
-                if (logChannel) {
-                    const embed = createLogEmbed(`🔨 Manual ${actionType} Executed`, `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, color);
-                    await logChannel.send({ embeds: [embed] }).catch(() => {});
-                }
-            } catch (e) {}
-        }
-    }
-});
-
-client.on('messageDelete', async message => {
-    if (!message.guild || !message.author || message.author.bot) return; 
-
-    const settings = await getSettings(message.guild.id);
-    if (!settings.masterSwitch || !settings.logDeletedEnabled || !settings.logChannelId) return;
-
-    try {
-        const logChannel = await message.guild.channels.fetch(settings.logChannelId);
-        if (!logChannel) return;
-
-        let content = message.content ? message.content : '*No text.*';
-        let attachmentInfo = '';
-        let displayImageUrl = null;
-
-        if (message.attachments.size > 0) {
-            attachmentInfo = '\n\n**📎 Attached Media:**\n' + message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
-            const imageFile = message.attachments.find(a => a.contentType && a.contentType.startsWith('image/'));
-            if (imageFile) displayImageUrl = imageFile.url;
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle('🗑️ Message Deleted')
-            .setColor('#ff9900')
-            .setDescription(`**Author:** <@${message.author.id}>\n**Channel:** <#${message.channel.id}>\n\n**Content:**\n>>> ${content}${attachmentInfo}`)
-            .setTimestamp()
-            .setFooter({ text: `User ID: ${message.author.id}` });
-
-        if (displayImageUrl) embed.setImage(displayImageUrl);
-
-        await logChannel.send({ embeds: [embed] }).catch(() => {});
-    } catch (e) {}
-});
-
-client.on('messageCreate', async message => {
-    if (!message.guild || message.author.bot || message.webhookId || message.author.id === client.user.id) return; 
-
-    if (message.author.id === '1284247278957367337') return;
-
-    const settings = await getSettings(message.guild.id);
-    if (!settings.masterSwitch) return;
-
-    let hasBypass = message.author.id === message.guild.ownerId || (message.member && message.member.permissions.has('Administrator'));
-    if (!hasBypass && settings.allowedAccess && settings.allowedAccess.length > 0) {
-        if (settings.allowedAccess.includes(message.author.id)) hasBypass = true;
-        if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
-    }
-    
-    if (hasBypass) return; 
-
-    // Hacked Account Trap (Honeypot) Logic
-    if (settings.honeypotEnabled && settings.honeypotChannelId && message.channel.id === settings.honeypotChannelId) {
-        try {
-            await message.delete().catch(()=>{});
-            const action = settings.honeypotAction || 'TIMEOUT';
+        function populateDropdowns(channels, roles, bots) {
+            const channelSelect = document.getElementById('logChannelId');
+            const verifyChannelSelect = document.getElementById('verifyChannelId');
+            const honeypotChannelSelect = document.getElementById('honeypotChannelId');
+            const verifyRoleSelect = document.getElementById('verifyRoleId');
             
-            if (action === 'BAN') {
-                if (message.member && message.member.bannable) await message.member.ban({ reason: 'Security Trap: Hacked Account Detection' }).catch(()=>{});
-                await logAction(message.guild.id, 'BAN', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
-            } else if (action === 'KICK') {
-                if (message.member && message.member.kickable) await message.member.kick('Security Trap: Hacked Account Detection').catch(()=>{});
-                await logAction(message.guild.id, 'KICK', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
-            } else {
-                if (message.member && message.member.moderatable) await message.member.timeout(1440 * 60000, 'Security Trap: Hacked Account Detection').catch(()=>{});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
+            if (channelSelect) channelSelect.innerHTML = '<option value="" class="bg-[#09090b]">None (Disabled)</option>';
+            if (verifyChannelSelect) verifyChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
+            if (verifyRoleSelect) verifyRoleSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Role...</option>';
+            
+            if (honeypotChannelSelect) {
+                honeypotChannelSelect.innerHTML = '<option value="" class="bg-[#09090b]">Select Channel...</option>';
+                honeypotChannelSelect.innerHTML += '<option value="CREATE_NEW" class="bg-[#09090b] text-indigo-400 font-bold">✨ Auto-Create "⚠️-do-not-talk-here"</option>';
             }
+            
+            channels.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.className = 'bg-[#09090b] text-zinc-300';
+                opt.textContent = `# ${c.name}`;
+                if (channelSelect) channelSelect.appendChild(opt.cloneNode(true));
+                if (verifyChannelSelect) verifyChannelSelect.appendChild(opt.cloneNode(true));
+                if (honeypotChannelSelect) honeypotChannelSelect.appendChild(opt.cloneNode(true));
+            });
 
-            if (settings.logChannelId) {
-                const logChannel = await message.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('🍯 Hacked Account Trap Activated', `**User:** <@${message.author.id}>\n**Action Taken:** ${action}\n**Reason:** Talked in the restricted trap channel.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
+            const roleMenu = document.getElementById('roleDropdownMenu');
+            if (roleMenu) roleMenu.innerHTML = '';
+            roles.forEach(r => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
+                label.innerHTML = `
+                    <input type="checkbox" value="${r.id}" class="role-checkbox w-4 h-4 rounded border-[#27272a] bg-[#000000] focus:ring-indigo-500 focus:ring-offset-[#09090b]">
+                    <div class="w-3 h-3 rounded-full shadow-sm" style="background-color: ${r.color === '#000000' ? '#99aab5' : r.color}"></div>
+                    <span class="text-sm text-zinc-300 font-medium">${r.name}</span>
+                `;
+                const cb = label.querySelector('.role-checkbox');
+                if (cb) {
+                    cb.addEventListener('change', () => {
+                        updateRoleSelectText();
+                        checkUnsavedChanges();
+                    });
                 }
-            }
-            return; 
-        } catch (e) {}
-    }
+                if (roleMenu) roleMenu.appendChild(label);
 
-    let targetLogChannel = message.channel;
-    if (settings.logChannelId) {
-        try {
-            const chan = await message.guild.channels.fetch(settings.logChannelId);
-            if (chan) targetLogChannel = chan;
-        } catch (e) {}
-    }
+                const roleOpt = document.createElement('option');
+                roleOpt.value = r.id;
+                roleOpt.className = 'bg-[#09090b] text-zinc-300';
+                roleOpt.textContent = `@ ${r.name}`;
+                if (verifyRoleSelect) verifyRoleSelect.appendChild(roleOpt);
+            });
+            updateRoleSelectText();
 
-    if (settings.raidEnabled) {
-        const content = message.content.toLowerCase();
-        const isRaid = content.includes('﷽') || 
-                       (content.includes('@everyone') && linkRegex.test(content)) ||
-                       (content.includes('@here') && linkRegex.test(content));
-
-        if (isRaid) {
-            try {
-                await message.delete().catch(() => {});
-                if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
-                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app!`);
-                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-                return; 
-            } catch (e) {}
-        }
-    }
-
-    if (settings.fileShieldEnabled && message.attachments.size > 0) {
-        const hasDangerousFile = message.attachments.some(attachment => {
-            const fileName = attachment.name.toLowerCase();
-            return dangerousExtensions.some(ext => fileName.endsWith(ext));
-        });
-
-        if (hasDangerousFile) {
-            try {
-                await message.delete();
-                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
-                await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type.`).catch(() => {});
-                const log = createLogEmbed('📁 Anti File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-                return; 
-            } catch (e) {}
-        }
-    }
-
-    if (settings.linksEnabled) {
-        const messageContentLower = message.content.toLowerCase();
-        
-        const isTenorGif = messageContentLower.includes('tenor.com/view') || messageContentLower.includes('giphy.com/gifs');
-        const isLink = linkRegex.test(message.content);
-        const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
-
-        if (isLink && !isAvoided && !isTenorGif) {
-            try {
-                await message.delete();
-                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
-                const log = createLogEmbed('🛡️ Anti Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
-                return;
-            } catch (e) {}
-        }
-    }
-});
-
-const app = express();
-app.set('trust proxy', 1);
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
-    next();
-});
-
-const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
-
-app.use(cookieSession({
-    name: 'servsecurity.sid',
-    keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'],
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    secure: usingHttps,
-    sameSite: usingHttps ? 'none' : 'lax'
-}));
-
-app.get('/', (req, res) => {
-    const publicPath = path.join(__dirname, 'public', 'index.html');
-    const rootPath = path.join(__dirname, 'index.html');
-    
-    if (fs.existsSync(publicPath)) {
-        res.sendFile(publicPath);
-    } else if (fs.existsSync(rootPath)) {
-        res.sendFile(rootPath);
-    } else {
-        res.status(404).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>System Error: Missing UI</h2><p>The server is running, but it cannot find your <code>index.html</code> file.</p></div>");
-    }
-});
-
-app.get('/api/auth/login', (req, res) => {
-    const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
-    const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
-    
-    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>Configuration Error</h2><p>You are missing the <code>REDIRECT_URI</code> or <code>DISCORD_CLIENT_ID</code> variable in your Railway variables.</p></div>");
-    
-    const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
-    res.redirect(authorizeUrl);
-});
-
-app.get('/api/auth/callback', async (req, res) => {
-    const { code } = req.query;
-    if (!code) return res.redirect('/?error=No_code');
-
-    try {
-        const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
-        const clientSecret = process.env.DISCORD_CLIENT_SECRET?.replace(/['"]/g, '').trim();
-        const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
-
-        const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: redirectUri,
-        }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-
-        const accessToken = tokenResponse.data.access_token;
-
-        const userResponse = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
-        const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${accessToken}` } });
-
-        const adminGuilds = guildsResponse.data.filter(guild => {
-            const perms = BigInt(guild.permissions);
-            return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
-        }).map(g => ({
-            id: g.id,
-            name: g.name,
-            icon: g.icon
-        }));
-
-        req.session.user = {
-            id: userResponse.data.id,
-            username: userResponse.data.username,
-            avatar: userResponse.data.avatar
-        };
-        req.session.guilds = adminGuilds;
-
-        res.redirect('/');
-    } catch (error) {
-        console.error("OAuth Error:", error.response?.data || error.message);
-        console.log("-> Please verify DISCORD_CLIENT_SECRET exactly matches the Developer Portal, and you haven't recently reset it.");
-        res.redirect('/?error=Auth_Failed');
-    }
-});
-
-app.get('/api/user-data', (req, res) => {
-    if (!req.session || !req.session.user) return res.json({ loggedIn: false });
-
-    const mappedGuilds = req.session.guilds.map(guild => ({
-        id: guild.id,
-        name: guild.name,
-        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
-        botPresent: client.guilds.cache.has(guild.id)
-    }));
-
-    res.json({
-        loggedIn: true,
-        user: req.session.user,
-        guilds: mappedGuilds,
-        botClientId: process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim()
-    });
-});
-
-app.get('/api/discord-data/:guildId', async (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    const guild = client.guilds.cache.get(req.params.guildId);
-    if (!guild) return res.status(404).json({ error: 'Guild not found or bot not in guild' });
-
-    try { await guild.members.fetch(); } catch (e) {}
-
-    const channels = guild.channels.cache
-        .filter(c => c.type === ChannelType.GuildText)
-        .map(c => ({ id: c.id, name: c.name }));
-
-    const roles = guild.roles.cache
-        .filter(r => r.name !== '@everyone' && !r.managed)
-        .map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
-
-    const bots = guild.members.cache
-        .filter(m => m.user.bot && m.user.id !== client.user.id)
-        .map(m => ({ id: m.user.id, name: m.user.username, avatar: m.user.avatar }));
-
-    res.json({ channels, roles, bots });
-});
-
-app.get('/api/config/:guildId', async (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    const settings = await getSettings(req.params.guildId);
-    res.json(settings);
-});
-
-app.post('/api/config/:guildId', async (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    const current = await getSettings(req.params.guildId);
-    let newSettings = { ...current, ...req.body };
-    
-    if (newSettings.honeypotChannelId === 'CREATE_NEW') {
-        const guild = client.guilds.cache.get(req.params.guildId);
-        if (guild) {
-            try {
-                const newChan = await guild.channels.create({
-                    name: '⚠️-do-not-talk-here',
-                    type: ChannelType.GuildText,
-                    reason: 'Honeypot channel created via ServSecurity Dashboard'
+            const botMenu = document.getElementById('botDropdownMenu');
+            if (botMenu) botMenu.innerHTML = '';
+            if (bots && botMenu) {
+                bots.forEach(b => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2.5 p-2 hover:bg-[#18181b] rounded-lg cursor-pointer transition-colors';
+                    const avatarUrl = b.avatar ? `https://cdn.discordapp.com/avatars/${b.id}/${b.avatar}.png?size=32` : `https://cdn.discordapp.com/embed/avatars/${parseInt(b.id) % 5}.png`;
+                    label.innerHTML = `
+                        <input type="checkbox" value="${b.id}" class="bot-checkbox w-4 h-4 rounded border-[#27272a] bg-[#000000] focus:ring-indigo-500 focus:ring-offset-[#09090b]">
+                        <img src="${avatarUrl}" class="w-5 h-5 rounded-full object-cover border border-[#27272a]">
+                        <span class="text-sm text-zinc-300 font-medium">${b.name}</span>
+                    `;
+                    const cb = label.querySelector('.bot-checkbox');
+                    if (cb) {
+                        cb.addEventListener('change', () => {
+                            updateBotSelectText();
+                            checkUnsavedChanges();
+                        });
+                    }
+                    botMenu.appendChild(label);
                 });
-                newSettings.honeypotChannelId = newChan.id;
-            } catch (e) {
-                console.error("Failed to create honeypot channel", e);
-                newSettings.honeypotChannelId = current.honeypotChannelId || null;
             }
-        } else {
-            newSettings.honeypotChannelId = current.honeypotChannelId || null;
+            updateBotSelectText();
         }
-    }
 
-    guildSettings[req.params.guildId] = newSettings;
-    saveLocalDatabase();
-    await saveToCloud(req.params.guildId, newSettings);
-    
-    if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleId) {
-        const guild = client.guilds.cache.get(req.params.guildId);
-        if (guild) {
-            await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
-            await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleId);
+        async function fetchSystemInitialization() {
+            const authZone = document.getElementById('auth-zone');
+            const serverList = document.getElementById('server-list');
+            const inviteBtn = document.getElementById('invite-btn');
+            try {
+                const response = await fetch(resolveUrl('/api/user-data'), { credentials: 'include' });
+                const data = await response.json();
+                if (!data.loggedIn) {
+                    if (authZone) {
+                        authZone.innerHTML = `<a href="/api/auth/login" class="btn-multigen w-full py-3.5 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                            Sign In with Discord
+                        </a>`;
+                    }
+                    if (serverList) {
+                        serverList.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
+                                <svg class="w-10 h-10 text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                <p class="text-sm text-zinc-500 font-medium">Authentication required.</p>
+                            </div>
+                        `;
+                    }
+                    if (inviteBtn) inviteBtn.style.display = 'none';
+                    return;
+                }
+                systemBotClientId = data.botClientId;
+                if (inviteBtn) {
+                    inviteBtn.style.display = 'flex';
+                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank'); };
+                }
+                if (authZone) {
+                    authZone.innerHTML = `
+                        <div class="flex items-center justify-between animate-fade-in bg-[#09090b] p-3 rounded-xl border border-[#27272a] shadow-inner">
+                            <div class="flex items-center space-x-3 overflow-hidden">
+                                <div class="relative">
+                                    <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-[#18181b]">
+                                    <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full border-2 border-[#09090b]"></div>
+                                </div>
+                                <div class="flex-1 overflow-hidden pr-2">
+                                    <h4 class="text-sm font-bold text-white truncate w-full">${data.user.username}</h4>
+                                    <span class="text-[10px] text-zinc-500 font-semibold tracking-wide">Administrator</span>
+                                </div>
+                            </div>
+                            <a href="/api/auth/logout" class="p-2.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Logout">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </a>
+                        </div>
+                    `;
+                }
+                if (data.guilds.length === 0) {
+                    if (serverList) {
+                        serverList.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-40 animate-fade-in">
+                                <p class="text-sm text-zinc-500 font-medium">No shared servers with bot found.</p>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+                if (serverList) serverList.innerHTML = '';
+                let autoSelectGuild = null;
+                data.guilds.forEach((guild, index) => {
+                    const animDelay = `animation-delay: ${index * 50}ms;`;
+                    const iconHtml = guild.icon ? `<img src="${guild.icon}" class="h-10 w-10 rounded-xl shrink-0 object-cover shadow-md border border-[#18181b]">` : `<div class="h-10 w-10 rounded-xl bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-center font-bold text-sm shrink-0 shadow-md">${guild.name.charAt(0)}</div>`;
+                    if (guild.botPresent) {
+                        if (!autoSelectGuild) autoSelectGuild = guild;
+                        if (serverList) {
+                            serverList.innerHTML += `
+                                <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center p-3 text-left border border-transparent rounded-xl hover:bg-[#09090b] text-zinc-400 group mb-1 animate-slide-up relative overflow-hidden" style="opacity:0; ${animDelay}">
+                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full transition-transform duration-300 active-indicator rounded-l-xl"></div>
+                                    ${iconHtml}
+                                    <div class="ml-3 overflow-hidden">
+                                        <span class="block text-sm font-semibold truncate group-hover:text-white transition-colors server-name">${guild.name}</span>
+                                        <span class="block text-[10px] text-indigo-500/70 font-bold uppercase tracking-widest mt-0.5 status-text">Connected</span>
+                                    </div>
+                                </button>
+                            `;
+                        }
+                    } else {
+                        const inviteLink = `https://discord.com/api/oauth2/authorize?client_id=${data.botClientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&disable_guild_select=true`;
+                        if (serverList) {
+                            serverList.innerHTML += `
+                                <div class="w-full flex items-center p-3 text-left border border-transparent rounded-xl bg-white/[0.01] text-zinc-600 mb-1 animate-slide-up group" style="opacity:0; ${animDelay}">
+                                    <div class="opacity-40 grayscale">${iconHtml}</div>
+                                    <div class="ml-3 flex-1 flex justify-between items-center overflow-hidden">
+                                        <div>
+                                            <span class="block text-sm font-medium truncate">${guild.name}</span>
+                                            <span class="block text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Not Managed</span>
+                                        </div>
+                                        <a href="${inviteLink}" target="_blank" class="text-[10px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 hover:text-indigo-300 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider transition-colors shrink-0 ml-2">Setup</a>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+                if (autoSelectGuild) { setTimeout(() => { selectServer(autoSelectGuild.id, autoSelectGuild.name); }, 100); }
+            } catch (err) { showNotification('Network authentication error.', 'error'); }
         }
-    }
-    
-    res.json({ success: true, config: newSettings });
-});
 
-app.get('/api/auth/logout', (req, res) => {
-    req.session = null;
-    res.redirect('/');
-});
+        async function fetchDiscordData(guildId) {
+            try {
+                const res = await fetch(resolveUrl(`/api/discord-data/${guildId}`), { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    populateDropdowns(data.channels, data.roles, data.bots);
+                }
+            } catch (e) {}
+        }
 
-if (process.env.DISCORD_TOKEN) {
-    client.login(process.env.DISCORD_TOKEN).catch(() => {});
-}
+        async function selectServer(guildId, name) {
+            const banner = document.getElementById('unsaved-changes-banner');
+            if (banner && banner.classList.contains('show')) {
+                const proceed = confirm("You have unsaved changes. Navigating away will lose your unsaved edits. Proceed?");
+                if (!proceed) return;
+            }
+            document.querySelectorAll('.sidebar-btn').forEach(b => { b.classList.remove('active'); b.classList.add('border-transparent'); b.style.backgroundColor = ''; });
+            const selectedBtn = document.getElementById(`btn-${guildId}`);
+            if (selectedBtn) { selectedBtn.classList.add('active'); }
+            activeGuildId = guildId;
+            const titleEl = document.getElementById('active-server-name');
+            const subEl = document.getElementById('active-server-subtitle');
+            if (titleEl) titleEl.innerText = name;
+            if (subEl) subEl.innerText = "Configuring Terminal Parameters";
+            const blankView = document.getElementById('blank-view');
+            if (blankView) blankView.classList.add('hidden');
+            const dashboardView = document.getElementById('dashboard-view');
+            if (dashboardView) {
+                dashboardView.classList.remove('hidden');
+                dashboardView.classList.add('flex');
+                const animatableElements = dashboardView.querySelectorAll('.animate-slide-up');
+                animatableElements.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = null; });
+            }
+            await fetchDiscordData(guildId);
+            await loadConfig(guildId);
+        }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Web Dashboard active on port ${PORT}`));
+        async function loadConfig(guildId) {
+            try {
+                const res = await fetch(resolveUrl(`/api/config/${guildId}`), { credentials: 'include' });
+                const config = await res.json();
+                originalConfig = JSON.parse(JSON.stringify(config));
+                
+                const masterCheck = document.getElementById('masterSwitch');
+                const linksCheck = document.getElementById('linksEnabled');
+                const timeoutIn = document.getElementById('linkTimeout');
+                const avoidsIn = document.getElementById('linkAvoids');
+                const raidCheck = document.getElementById('raidEnabled');
+                const fileCheck = document.getElementById('fileShieldEnabled');
+                const logDelCheck = document.getElementById('logDeletedEnabled');
+                const nukeCheck = document.getElementById('antiNukeEnabled');
+                const verifyCheck = document.getElementById('verifyEnabled');
+                const honeyCheck = document.getElementById('honeypotEnabled');
+                const honeyAct = document.getElementById('honeypotAction');
+
+                if (masterCheck) masterCheck.checked = !!config.masterSwitch;
+                if (linksCheck) linksCheck.checked = !!config.linksEnabled;
+                if (timeoutIn) timeoutIn.value = config.linkTimeout || 30;
+                if (avoidsIn) avoidsIn.value = (config.linkAvoids || []).join(', ');
+                if (raidCheck) raidCheck.checked = !!config.raidEnabled;
+                if (fileCheck) fileCheck.checked = !!config.fileShieldEnabled;
+                if (logDelCheck) logDelCheck.checked = !!config.logDeletedEnabled;
+                if (nukeCheck) nukeCheck.checked = !!config.antiNukeEnabled;
+                if (verifyCheck) verifyCheck.checked = !!config.verifyEnabled;
+                if (honeyCheck) honeyCheck.checked = !!config.honeypotEnabled;
+                if (honeyAct) honeyAct.value = config.honeypotAction || 'TIMEOUT';
+                
+                const logChannelInput = document.getElementById('logChannelId');
+                if (logChannelInput) {
+                    if (config.logChannelId && logChannelInput.querySelector(`option[value="${config.logChannelId}"]`)) { logChannelInput.value = config.logChannelId; } else { logChannelInput.value = ''; }
+                }
+                const verifyChannelInput = document.getElementById('verifyChannelId');
+                if (verifyChannelInput) {
+                    if (config.verifyChannelId && verifyChannelInput.querySelector(`option[value="${config.verifyChannelId}"]`)) { verifyChannelInput.value = config.verifyChannelId; } else { verifyChannelInput.value = ''; }
+                }
+                const verifyRoleInput = document.getElementById('verifyRoleId');
+                if (verifyRoleInput) {
+                    if (config.verifyRoleId && verifyRoleInput.querySelector(`option[value="${config.verifyRoleId}"]`)) { verifyRoleInput.value = config.verifyRoleId; } else { verifyRoleInput.value = ''; }
+                }
+                const honeypotChannelInput = document.getElementById('honeypotChannelId');
+                if (honeypotChannelInput) {
+                    if (config.honeypotChannelId && honeypotChannelInput.querySelector(`option[value="${config.honeypotChannelId}"]`)) { honeypotChannelInput.value = config.honeypotChannelId; } else { honeypotChannelInput.value = ''; }
+                }
+
+                document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = (config.allowedAccess || []).includes(cb.value); });
+                updateRoleSelectText();
+                document.querySelectorAll('.bot-checkbox').forEach(cb => { cb.checked = (config.allowedBots || []).includes(cb.value); });
+                updateBotSelectText();
+                updateMasterBadge();
+                checkUnsavedChanges();
+            } catch (err) { showNotification('Failed to load settings', 'error'); }
+        }
+
+        function discardChanges() {
+            if (!activeGuildId) return;
+            loadConfig(activeGuildId);
+            showNotification('Edits reverted successfully.');
+        }
+
+        async function saveConfig() {
+            if (!activeGuildId) return;
+            
+            const payload = {
+                masterSwitch: !!document.getElementById('masterSwitch')?.checked,
+                linksEnabled: !!document.getElementById('linksEnabled')?.checked,
+                linkTimeout: parseInt(document.getElementById('linkTimeout')?.value) || 30,
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) || [],
+                raidEnabled: !!document.getElementById('raidEnabled')?.checked,
+                fileShieldEnabled: !!document.getElementById('fileShieldEnabled')?.checked,
+                logDeletedEnabled: !!document.getElementById('logDeletedEnabled')?.checked,
+                antiNukeEnabled: !!document.getElementById('antiNukeEnabled')?.checked,
+                logChannelId: document.getElementById('logChannelId')?.value || null,
+                verifyEnabled: !!document.getElementById('verifyEnabled')?.checked,
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || null,
+                verifyRoleId: document.getElementById('verifyRoleId')?.value || null,
+                honeypotEnabled: !!document.getElementById('honeypotEnabled')?.checked,
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || null,
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT',
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value),
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value)
+            };
+            
+            try {
+                const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification('Settings saved successfully.');
+                    originalConfig = JSON.parse(JSON.stringify(payload));
+                    
+                    const resJson = await res.json();
+                    if (resJson.config && resJson.config.honeypotChannelId) {
+                        const newId = resJson.config.honeypotChannelId;
+                        const dropSelect = document.getElementById('honeypotChannelId');
+                        if (dropSelect) {
+                            if (!dropSelect.querySelector(`option[value="${newId}"]`)) {
+                                const newOpt = document.createElement('option');
+                                newOpt.value = newId;
+                                newOpt.className = 'bg-[#09090b] text-zinc-300';
+                                newOpt.textContent = `# ⚠️-do-not-talk-here`;
+                                dropSelect.appendChild(newOpt);
+                            }
+                            dropSelect.value = newId;
+                        }
+                        originalConfig.honeypotChannelId = newId;
+                    }
+                    updateMasterBadge();
+                    checkUnsavedChanges();
+                } else throw new Error();
+            } catch (err) { showNotification('Failed to deploy settings', 'error'); }
+        }
+        
+        const mSwitch = document.getElementById('masterSwitch');
+        if (mSwitch) mSwitch.addEventListener('change', updateMasterBadge);
+        window.onload = () => { fetchSystemInitialization(); addInputListeners(); };
+    </script>
+</body>
+</html>
