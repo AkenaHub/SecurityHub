@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.1.0";
+const CURRENT_VERSION = "v2.2.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -260,9 +260,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Added 1-Click Auto-Create option for Hacked Account Trap channels.
-\u001b[2;34m[!]\u001b[0m Fixed "Failed to load settings" dashboard bug.
-\u001b[2;31m[-]\u001b[0m Removed Anti Image & GIF module.
+\u001b[2;32m[+]\u001b[0m Anti-Link module now strictly detects unauthorized Discord server invites only.
+\u001b[2;32m[+]\u001b[0m Honeypot channels now explicitly force "Send Messages" permission ON for @everyone so traps work flawlessly.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -277,6 +276,7 @@ const sendChangelog = async (guild) => {
 };
 
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
+const discordInviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)([a-zA-Z0-9-]+)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
@@ -772,16 +772,15 @@ client.on('messageCreate', async message => {
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
         
-        const isTenorGif = messageContentLower.includes('tenor.com/view') || messageContentLower.includes('giphy.com/gifs');
-        const isLink = linkRegex.test(message.content);
+        const isInvite = discordInviteRegex.test(message.content);
         const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
 
-        if (isLink && !isAvoided && !isTenorGif) {
+        if (isInvite && !isAvoided) {
             try {
                 await message.delete();
-                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Link').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Link Spam');
-                const log = createLogEmbed('🛡️ Anti Link Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Link\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
+                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Server Invite').catch(() => {});
+                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Server Invite Spam');
+                const log = createLogEmbed('🛡️ Anti Invite Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Discord Invite\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return;
             } catch (e) {}
@@ -942,7 +941,13 @@ app.post('/api/config/:guildId', async (req, res) => {
                 const newChan = await guild.channels.create({
                     name: '⚠️-do-not-talk-here',
                     type: ChannelType.GuildText,
-                    reason: 'Honeypot channel created via ServSecurity Dashboard'
+                    reason: 'Honeypot channel created via ServSecurity Dashboard',
+                    permissionOverwrites: [
+                        {
+                            id: guild.roles.everyone.id,
+                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                        }
+                    ]
                 });
                 newSettings.honeypotChannelId = newChan.id;
             } catch (e) {
