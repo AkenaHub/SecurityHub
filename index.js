@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.2.0";
+const CURRENT_VERSION = "v2.3.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -260,8 +260,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Anti-Link module now strictly detects unauthorized Discord server invites only.
-\u001b[2;32m[+]\u001b[0m Honeypot channels now explicitly force "Send Messages" permission ON for @everyone so traps work flawlessly.
+\u001b[2;32m[+]\u001b[0m Upgraded Anti-Raid to detect and block malicious OAuth2 "Command App" links.
+\u001b[2;32m[+]\u001b[0m Strengthened Anti-Invite regex to accurately catch hidden or malformed Discord invites.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -276,7 +276,8 @@ const sendChangelog = async (guild) => {
 };
 
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
-const discordInviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)([a-zA-Z0-9-]+)/i;
+const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
+const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
@@ -734,6 +735,7 @@ client.on('messageCreate', async message => {
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
         const isRaid = content.includes('﷽') || 
+                       maliciousAppRegex.test(message.content) ||
                        (content.includes('@everyone') && linkRegex.test(content)) ||
                        (content.includes('@here') && linkRegex.test(content));
 
@@ -742,7 +744,7 @@ client.on('messageCreate', async message => {
                 await message.delete().catch(() => {});
                 if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
                 await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
-                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app!`);
+                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app or link!`);
                 const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
                 await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
