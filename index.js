@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.3.0";
+const CURRENT_VERSION = "v2.4.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -146,10 +146,21 @@ const getSettings = async (guildId) => {
             logChannelId: null,
             verifyEnabled: false,
             verifyChannelId: null,
-            verifyRoleId: null,
+            verifyRoleIds: [],
             honeypotEnabled: false,
             honeypotChannelId: null,
             honeypotAction: 'TIMEOUT',
+            autoRoleEnabled: false,
+            autoRoleIds: [],
+            welcomeEnabled: false,
+            welcomeChannelId: null,
+            welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.',
+            welcomeColor: '#3b82f6',
+            ticketEnabled: false,
+            ticketPanelChannelId: null,
+            ticketCategoryId: null,
+            ticketMessage: 'Please click the button below to open a support ticket.',
+            ticketLogs: [],
             lastVersion: null,
             history: []
         };
@@ -170,15 +181,20 @@ const logAction = async (guildId, type, username, userId, reason) => {
     const settings = await getSettings(guildId);
     if (!settings.history) settings.history = [];
     
-    settings.history.unshift({
-        type,
-        username,
-        userId,
-        reason,
-        timestamp: Math.floor(Date.now() / 1000)
-    });
-
+    settings.history.unshift({ type, username, userId, reason, timestamp: Math.floor(Date.now() / 1000) });
     if (settings.history.length > 10) settings.history = settings.history.slice(0, 10);
+    
+    guildSettings[guildId] = settings;
+    saveLocalDatabase();
+    await saveToCloud(guildId, settings);
+};
+
+const logTicketAction = async (guildId, type, username, reason) => {
+    const settings = await getSettings(guildId);
+    if (!settings.ticketLogs) settings.ticketLogs = [];
+    
+    settings.ticketLogs.unshift({ type, username, reason, timestamp: Math.floor(Date.now() / 1000) });
+    if (settings.ticketLogs.length > 15) settings.ticketLogs = settings.ticketLogs.slice(0, 15);
     
     guildSettings[guildId] = settings;
     saveLocalDatabase();
@@ -193,54 +209,58 @@ const setupVerifyMessage = async (guildId, channelId) => {
         if (!channel) return;
 
         const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0)) return;
+        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0 && m.components.components.customId === 'verify_user_btn')) return;
 
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('verify_user_btn')
-                    .setLabel('Verify Account')
-                    .setEmoji('✅')
-                    .setStyle(ButtonStyle.Success)
-            );
-            
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('verify_user_btn').setLabel('Verify Account').setEmoji('✅').setStyle(ButtonStyle.Success)
+        );
         const embed = new EmbedBuilder()
             .setTitle('🔐 Server Verification Required')
             .setDescription('Welcome to the server!\n\nTo protect our community from malicious bots and raids, we require all new members to verify their account.\n\n**Please click the ✅ Verify Account button below to gain full access to the server channels.**')
-            .setColor('#4f46e5')
-            .setFooter({ text: 'Secured by ServSecurity' });
+            .setColor('#4f46e5').setFooter({ text: 'Secured by ServSecurity' });
 
         await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
-    } catch (e) {
-        console.error(e);
-    }
+    } catch (e) { console.error(e); }
 };
 
-const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleId) => {
+const setupTicketPanel = async (guildId, channelId, messageText) => {
     try {
-        await guild.roles.everyone.setPermissions(
-            guild.roles.everyone.permissions.remove(PermissionFlagsBits.ViewChannel)
-        ).catch(()=>{});
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return;
+        const channel = guild.channels.cache.get(channelId);
+        if (!channel) return;
 
-        const verifiedRole = guild.roles.cache.get(verifyRoleId);
-        if (verifiedRole) {
-            await verifiedRole.setPermissions(
-                verifiedRole.permissions.add(PermissionFlagsBits.ViewChannel)
-            ).catch(()=>{});
+        const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.some(c => c.components.customId === 'open_ticket_btn'))) return;
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('open_ticket_btn').setLabel('Open Ticket').setEmoji('📩').setStyle(ButtonStyle.Primary)
+        );
+        const embed = new EmbedBuilder()
+            .setTitle('📩 Support Tickets')
+            .setDescription(messageText || 'Please click the button below to open a support ticket.')
+            .setColor('#3b82f6').setFooter({ text: 'Secured by ServSecurity' });
+
+        await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
+    } catch (e) { console.error(e); }
+};
+
+const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleIds) => {
+    try {
+        await guild.roles.everyone.setPermissions(guild.roles.everyone.permissions.remove(PermissionFlagsBits.ViewChannel)).catch(()=>{});
+        if (verifyRoleIds && verifyRoleIds.length > 0) {
+            for (const roleId of verifyRoleIds) {
+                const verifiedRole = guild.roles.cache.get(roleId);
+                if (verifiedRole) await verifiedRole.setPermissions(verifiedRole.permissions.add(PermissionFlagsBits.ViewChannel)).catch(()=>{});
+            }
         }
-
         const verifyChannel = guild.channels.cache.get(verifyChannelId);
         if (verifyChannel) {
             await verifyChannel.permissionOverwrites.edit(guild.roles.everyone.id, {
-                ViewChannel: true,
-                SendMessages: false,
-                AddReactions: false,
-                ReadMessageHistory: true
+                ViewChannel: true, SendMessages: false, AddReactions: false, ReadMessageHistory: true
             }).catch(()=>{});
         }
-    } catch (error) {
-        console.error("Verification Setup Error:", error);
-    }
+    } catch (error) { console.error("Verification Setup Error:", error); }
 };
 
 const sendChangelog = async (guild) => {
@@ -260,8 +280,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Upgraded Anti-Raid to detect and block malicious OAuth2 "Command App" links.
-\u001b[2;32m[+]\u001b[0m Strengthened Anti-Invite regex to accurately catch hidden or malformed Discord invites.
+\u001b[2;32m[+]\u001b[0m Implemented complete Ticket System with private channels and dashboard activity logs.
+\u001b[2;32m[+]\u001b[0m Added Live Discord Embed Preview viewer to the Welcome Message module.
+\u001b[2;34m[!]\u001b[0m Upgraded Verification roles to support true multi-selection.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -277,7 +298,7 @@ const sendChangelog = async (guild) => {
 
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
-const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=)/i;
+const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=|oauth2\/authorize)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
@@ -292,31 +313,100 @@ client.once('ready', async () => {
     for (const [id, guild] of client.guilds.cache) {
         await syncWithDiscord(guild);
         const settings = await getSettings(guild.id);
-        
         if (settings.lastVersion !== CURRENT_VERSION) {
-            if (guild.id === '1499199296522944522') {
-                await sendChangelog(guild);
-            }
+            if (guild.id === '1499199296522944522') await sendChangelog(guild);
             await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
         }
     }
 });
 
-client.on('interactionCreate', async interaction => {
-    if (interaction.isButton() && interaction.customId === 'verify_user_btn') {
-        const settings = await getSettings(interaction.guildId);
-        if (settings.verifyEnabled && settings.verifyRoleId) {
-            const role = interaction.guild.roles.cache.get(settings.verifyRoleId);
-            if (role) {
-                await interaction.member.roles.add(role).catch(() => {});
-                await interaction.reply({ content: '✅ You have been successfully verified!', ephemeral: true });
-            } else {
-                await interaction.reply({ content: '❌ Verification role not found. Please contact a server admin.', ephemeral: true });
-            }
-        } else {
-            await interaction.reply({ content: '❌ Verification system is currently offline.', ephemeral: true });
+client.on('guildMemberAdd', async member => {
+    const settings = await getSettings(member.guild.id);
+    if (!settings.masterSwitch) return;
+
+    if (settings.autoRoleEnabled && settings.autoRoleIds && settings.autoRoleIds.length > 0) {
+        for (const roleId of settings.autoRoleIds) {
+            const role = member.guild.roles.cache.get(roleId);
+            if (role) await member.roles.add(role).catch(() => {});
         }
-        return;
+    }
+
+    if (settings.welcomeEnabled && settings.welcomeChannelId) {
+        const channel = member.guild.channels.cache.get(settings.welcomeChannelId);
+        if (channel) {
+            let msg = settings.welcomeMessage || "Welcome {user} to **{server}**! We are now at {membercount} members.";
+            msg = msg.replace(/{user}/g, `<@${member.id}>`).replace(/{username}/g, member.user.username)
+                     .replace(/{server}/g, member.guild.name).replace(/{membercount}/g, member.guild.memberCount);
+
+            const embed = new EmbedBuilder().setDescription(msg).setColor(settings.welcomeColor || '#3b82f6').setTimestamp();
+            const iconUrl = member.guild.iconURL({ size: 512 });
+            if (iconUrl) embed.setImage(iconUrl);
+            await channel.send({ embeds: [embed] }).catch(() => {});
+        }
+    }
+});
+
+client.on('interactionCreate', async interaction => {
+    if (interaction.isButton()) {
+        const settings = await getSettings(interaction.guildId);
+        
+        if (interaction.customId === 'verify_user_btn') {
+            if (settings.verifyEnabled && settings.verifyRoleIds && settings.verifyRoleIds.length > 0) {
+                let added = 0;
+                for (const roleId of settings.verifyRoleIds) {
+                    const role = interaction.guild.roles.cache.get(roleId);
+                    if (role) { await interaction.member.roles.add(role).catch(() => {}); added++; }
+                }
+                if (added > 0) await interaction.reply({ content: '✅ You have been successfully verified!', ephemeral: true });
+                else await interaction.reply({ content: '❌ Verification roles could not be configured. Please contact an admin.', ephemeral: true });
+            } else {
+                await interaction.reply({ content: '❌ Verification system is currently offline.', ephemeral: true });
+            }
+            return;
+        }
+
+        if (interaction.customId === 'open_ticket_btn') {
+            if (!settings.ticketEnabled) return interaction.reply({ content: '❌ The ticket system is currently offline.', ephemeral: true });
+            
+            try {
+                const ticketChan = await interaction.guild.channels.create({
+                    name: `ticket-${interaction.user.username}`,
+                    type: ChannelType.GuildText,
+                    parent: settings.ticketCategoryId || null,
+                    permissionOverwrites: [
+                        { id: interaction.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
+                    ]
+                });
+
+                await logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Opened <#${ticketChan.id}>`);
+
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('close_ticket_btn').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
+                );
+                const embed = new EmbedBuilder()
+                    .setTitle(`Ticket: ${interaction.user.username}`)
+                    .setDescription('Support will be with you shortly. Click the button below to close this ticket.')
+                    .setColor('#3b82f6');
+
+                await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
+                await interaction.reply({ content: `✅ Ticket opened in <#${ticketChan.id}>`, ephemeral: true });
+            } catch (e) {
+                console.error(e);
+                await interaction.reply({ content: '❌ Failed to create ticket channel. Check bot permissions.', ephemeral: true });
+            }
+            return;
+        }
+
+        if (interaction.customId === 'close_ticket_btn') {
+            try {
+                await logTicketAction(interaction.guildId, 'CLOSED', interaction.user.username, `Closed ticket ${interaction.channel.name}`);
+                await interaction.reply({ content: '🔒 Ticket will automatically close in 5 seconds...', ephemeral: false });
+                setTimeout(() => { interaction.channel.delete().catch(()=>{}); }, 5000);
+            } catch (e) {}
+            return;
+        }
     }
 
     if (!interaction.isChatInputCommand()) return;
@@ -409,19 +499,10 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
             if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
             await newGuild.setName(oldGuild.name).catch(() => {});
-
             const member = await newGuild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
                 await logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt');
-                
-                if (settings.logChannelId) {
-                    const logChannel = await newGuild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to change server name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
             }
         } catch (e) {}
     }
@@ -443,19 +524,10 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
             if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
             await newChannel.setName(oldChannel.name).catch(() => {});
-
             const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
                 await logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt');
-
-                if (settings.logChannelId) {
-                    const logChannel = await oldChannel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to change channel name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
             }
         } catch (e) {}
     }
@@ -476,19 +548,10 @@ client.on('channelDelete', async channel => {
         if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
         await channel.clone().catch(()=>{});
-
         const member = await channel.guild.members.fetch(executor.id).catch(() => null);
         if (member && member.bannable) {
             await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
             await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt');
-
-            if (settings.logChannelId) {
-                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Channel Restored\n**Reason:** Attempted to delete channel.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
-            }
         }
     } catch (e) {}
 });
@@ -508,19 +571,10 @@ client.on('channelCreate', async channel => {
         if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
         await channel.delete().catch(()=>{});
-
         const member = await channel.guild.members.fetch(executor.id).catch(() => null);
         if (member && member.bannable) {
             await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
             await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt');
-
-            if (settings.logChannelId) {
-                const logChannel = await channel.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Channel Deleted\n**Reason:** Attempted to create channel.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
-            }
         }
     } catch (e) {}
 });
@@ -540,27 +594,13 @@ client.on('roleDelete', async role => {
         if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
         await role.guild.roles.create({
-            name: role.name,
-            color: role.color,
-            hoist: role.hoist,
-            permissions: role.permissions,
-            position: role.position,
-            mentionable: role.mentionable,
-            reason: 'Anti-Nuke: Restoring deleted role'
+            name: role.name, color: role.color, hoist: role.hoist, permissions: role.permissions, position: role.position, mentionable: role.mentionable, reason: 'Anti-Nuke: Restoring deleted role'
         }).catch(() => {});
 
         const member = await role.guild.members.fetch(executor.id).catch(() => null);
         if (member && member.bannable) {
             await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
             await logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt');
-
-            if (settings.logChannelId) {
-                const logChannel = await role.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Role Restored\n**Reason:** Attempted to delete a role.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
-            }
         }
     } catch (e) {}
 });
@@ -580,110 +620,19 @@ client.on('roleUpdate', async (oldRole, newRole) => {
             if (executor.id === client.user.id || !executor.bot) return;
             if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
-            await newRole.edit({
-                name: oldRole.name,
-                permissions: oldRole.permissions,
-                color: oldRole.color,
-                hoist: oldRole.hoist,
-                mentionable: oldRole.mentionable
-            }).catch(() => {});
+            await newRole.edit({ name: oldRole.name, permissions: oldRole.permissions, color: oldRole.color, hoist: oldRole.hoist, mentionable: oldRole.mentionable }).catch(() => {});
 
             const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
                 await logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt');
-
-                if (settings.logChannelId) {
-                    const logChannel = await oldRole.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                    if (logChannel) {
-                        const log = createLogEmbed('☢️ Anti-Nuke Activated', `**Culprit:** <@${executor.id}>\n**Action:** Bot Banned & Changes Reverted\n**Reason:** Attempted to modify role permissions/name.`, '#ff0000');
-                        await logChannel.send({ embeds: [log] }).catch(() => {});
-                    }
-                }
             }
         } catch (e) {}
     }
 });
 
-client.on(Events.GuildAuditLogEntryCreate, async (auditLog, guild) => {
-    if (!guild) return;
-    const settings = await getSettings(guild.id);
-    if (!settings.masterSwitch) return;
-    if (auditLog.executorId === client.user.id) return;
-
-    const target = auditLog.target;
-    const executor = auditLog.executor;
-    if (!target || !executor) return;
-
-    let actionType = null;
-    let color = '#000000';
-    const reason = auditLog.reason || `Action by admin: ${executor.username}`;
-
-    if (auditLog.action === AuditLogEvent.MemberKick) {
-        actionType = 'KICK';
-        color = '#ff5500';
-    } else if (auditLog.action === AuditLogEvent.MemberBanAdd) {
-        actionType = 'BAN';
-        color = '#ff0000';
-    } else if (auditLog.action === AuditLogEvent.MemberUpdate) {
-        const timeoutChange = auditLog.changes.find(c => c.key === 'communication_disabled_until');
-        if (timeoutChange && timeoutChange.new) {
-            actionType = 'TIMEOUT';
-            color = '#ffcc00';
-        }
-    }
-
-    if (actionType) {
-        await logAction(guild.id, actionType, target.username || target.tag, target.id, reason);
-
-        if (settings.logChannelId) {
-            try {
-                const logChannel = await guild.channels.fetch(settings.logChannelId);
-                if (logChannel) {
-                    const embed = createLogEmbed(`🔨 Manual ${actionType} Executed`, `**Target User:** <@${target.id}> (${target.id})\n**Moderator:** <@${executor.id}>\n**Reason:** ${reason}`, color);
-                    await logChannel.send({ embeds: [embed] }).catch(() => {});
-                }
-            } catch (e) {}
-        }
-    }
-});
-
-client.on('messageDelete', async message => {
-    if (!message.guild || !message.author || message.author.bot) return; 
-
-    const settings = await getSettings(message.guild.id);
-    if (!settings.masterSwitch || !settings.logDeletedEnabled || !settings.logChannelId) return;
-
-    try {
-        const logChannel = await message.guild.channels.fetch(settings.logChannelId);
-        if (!logChannel) return;
-
-        let content = message.content ? message.content : '*No text.*';
-        let attachmentInfo = '';
-        let displayImageUrl = null;
-
-        if (message.attachments.size > 0) {
-            attachmentInfo = '\n\n**📎 Attached Media:**\n' + message.attachments.map(a => `[${a.name}](${a.url})`).join('\n');
-            const imageFile = message.attachments.find(a => a.contentType && a.contentType.startsWith('image/'));
-            if (imageFile) displayImageUrl = imageFile.url;
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle('🗑️ Message Deleted')
-            .setColor('#ff9900')
-            .setDescription(`**Author:** <@${message.author.id}>\n**Channel:** <#${message.channel.id}>\n\n**Content:**\n>>> ${content}${attachmentInfo}`)
-            .setTimestamp()
-            .setFooter({ text: `User ID: ${message.author.id}` });
-
-        if (displayImageUrl) embed.setImage(displayImageUrl);
-
-        await logChannel.send({ embeds: [embed] }).catch(() => {});
-    } catch (e) {}
-});
-
 client.on('messageCreate', async message => {
     if (!message.guild || message.author.bot || message.webhookId || message.author.id === client.user.id) return; 
-
     if (message.author.id === '1284247278957367337') return;
 
     const settings = await getSettings(message.guild.id);
@@ -704,68 +653,36 @@ client.on('messageCreate', async message => {
             
             if (action === 'BAN') {
                 if (message.member && message.member.bannable) await message.member.ban({ reason: 'Security Trap: Hacked Account Detection' }).catch(()=>{});
-                await logAction(message.guild.id, 'BAN', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
             } else if (action === 'KICK') {
                 if (message.member && message.member.kickable) await message.member.kick('Security Trap: Hacked Account Detection').catch(()=>{});
-                await logAction(message.guild.id, 'KICK', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
             } else {
                 if (message.member && message.member.moderatable) await message.member.timeout(1440 * 60000, 'Security Trap: Hacked Account Detection').catch(()=>{});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Triggered Hacked Account Trap');
-            }
-
-            if (settings.logChannelId) {
-                const logChannel = await message.guild.channels.fetch(settings.logChannelId).catch(()=>null);
-                if (logChannel) {
-                    const log = createLogEmbed('🍯 Hacked Account Trap Activated', `**User:** <@${message.author.id}>\n**Action Taken:** ${action}\n**Reason:** Talked in the restricted trap channel.`, '#ff0000');
-                    await logChannel.send({ embeds: [log] }).catch(() => {});
-                }
             }
             return; 
         } catch (e) {}
     }
 
-    let targetLogChannel = message.channel;
-    if (settings.logChannelId) {
-        try {
-            const chan = await message.guild.channels.fetch(settings.logChannelId);
-            if (chan) targetLogChannel = chan;
-        } catch (e) {}
-    }
-
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
-        const isRaid = content.includes('﷽') || 
-                       maliciousAppRegex.test(message.content) ||
-                       (content.includes('@everyone') && linkRegex.test(content)) ||
-                       (content.includes('@here') && linkRegex.test(content));
+        const isRaid = content.includes('﷽') || maliciousAppRegex.test(message.content) || (content.includes('@everyone') && linkRegex.test(content)) || (content.includes('@here') && linkRegex.test(content));
 
         if (isRaid) {
             try {
                 await message.delete().catch(() => {});
                 if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Malicious Raid App Activity');
                 await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app or link!`);
-                const log = createLogEmbed('🛡️ Anti Raid Activated', `**Culprit:** <@${message.author.id}>\n**Action:** Message Deleted & User Timed Out for 24h.`, '#800080');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
         }
     }
 
     if (settings.fileShieldEnabled && message.attachments.size > 0) {
-        const hasDangerousFile = message.attachments.some(attachment => {
-            const fileName = attachment.name.toLowerCase();
-            return dangerousExtensions.some(ext => fileName.endsWith(ext));
-        });
-
+        const hasDangerousFile = message.attachments.some(attachment => dangerousExtensions.some(ext => attachment.name.toLowerCase().endsWith(ext)));
         if (hasDangerousFile) {
             try {
                 await message.delete();
                 if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Dangerous File Upload');
                 await message.author.send(`⚠️ You were timed out in **${message.guild.name}** for uploading a prohibited file type.`).catch(() => {});
-                const log = createLogEmbed('📁 Anti File Blocked', `**User:** <@${message.author.id}>\n**Action:** Message Deleted & Timed out (1 Day)\n**Reason:** Uploaded an executable or script file.`, '#ff0000');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return; 
             } catch (e) {}
         }
@@ -773,7 +690,6 @@ client.on('messageCreate', async message => {
 
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
-        
         const isInvite = discordInviteRegex.test(message.content);
         const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
 
@@ -781,9 +697,6 @@ client.on('messageCreate', async message => {
             try {
                 await message.delete();
                 if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Server Invite').catch(() => {});
-                await logAction(message.guild.id, 'TIMEOUT', message.author.username, message.author.id, 'Server Invite Spam');
-                const log = createLogEmbed('🛡️ Anti Invite Blocked', `**User:** <@${message.author.id}>\n**Trigger:** \`Unauthorized Discord Invite\`\n**Action:** Deleted & Timed out (${settings.linkTimeout}m)`, '#ffcc00');
-                await targetLogChannel.send({ embeds: [log] }).catch(() => {});
                 return;
             } catch (e) {}
         }
@@ -817,22 +730,15 @@ app.use(cookieSession({
 app.get('/', (req, res) => {
     const publicPath = path.join(__dirname, 'public', 'index.html');
     const rootPath = path.join(__dirname, 'index.html');
-    
-    if (fs.existsSync(publicPath)) {
-        res.sendFile(publicPath);
-    } else if (fs.existsSync(rootPath)) {
-        res.sendFile(rootPath);
-    } else {
-        res.status(404).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>System Error: Missing UI</h2><p>The server is running, but it cannot find your <code>index.html</code> file.</p></div>");
-    }
+    if (fs.existsSync(publicPath)) res.sendFile(publicPath);
+    else if (fs.existsSync(rootPath)) res.sendFile(rootPath);
+    else res.status(404).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>System Error: Missing UI</h2></div>");
 });
 
 app.get('/api/auth/login', (req, res) => {
     const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
     const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
-    
-    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>Configuration Error</h2><p>You are missing the <code>REDIRECT_URI</code> or <code>DISCORD_CLIENT_ID</code> variable in your Railway variables.</p></div>");
-    
+    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>Configuration Error</h2></div>");
     const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
     res.redirect(authorizeUrl);
 });
@@ -847,81 +753,48 @@ app.get('/api/auth/callback', async (req, res) => {
         const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
 
         const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: redirectUri,
+            client_id: clientId, client_secret: clientSecret, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri,
         }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
         const accessToken = tokenResponse.data.access_token;
-
         const userResponse = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
         const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${accessToken}` } });
 
         const adminGuilds = guildsResponse.data.filter(guild => {
             const perms = BigInt(guild.permissions);
             return (perms & 0x8n) === 0x8n || (perms & 0x20n) === 0x20n;
-        }).map(g => ({
-            id: g.id,
-            name: g.name,
-            icon: g.icon
-        }));
+        }).map(g => ({ id: g.id, name: g.name, icon: g.icon }));
 
-        req.session.user = {
-            id: userResponse.data.id,
-            username: userResponse.data.username,
-            avatar: userResponse.data.avatar
-        };
+        req.session.user = { id: userResponse.data.id, username: userResponse.data.username, avatar: userResponse.data.avatar };
         req.session.guilds = adminGuilds;
-
         res.redirect('/');
     } catch (error) {
         console.error("OAuth Error:", error.response?.data || error.message);
-        console.log("-> Please verify DISCORD_CLIENT_SECRET exactly matches the Developer Portal, and you haven't recently reset it.");
         res.redirect('/?error=Auth_Failed');
     }
 });
 
 app.get('/api/user-data', (req, res) => {
     if (!req.session || !req.session.user) return res.json({ loggedIn: false });
-
     const mappedGuilds = req.session.guilds.map(guild => ({
-        id: guild.id,
-        name: guild.name,
-        icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
-        botPresent: client.guilds.cache.has(guild.id)
+        id: guild.id, name: guild.name, icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null, botPresent: client.guilds.cache.has(guild.id)
     }));
-
-    res.json({
-        loggedIn: true,
-        user: req.session.user,
-        guilds: mappedGuilds,
-        botClientId: process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim()
-    });
+    res.json({ loggedIn: true, user: req.session.user, guilds: mappedGuilds, botClientId: process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim() });
 });
 
 app.get('/api/discord-data/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const guild = client.guilds.cache.get(req.params.guildId);
     if (!guild) return res.status(404).json({ error: 'Guild not found or bot not in guild' });
 
     try { await guild.members.fetch(); } catch (e) {}
 
-    const channels = guild.channels.cache
-        .filter(c => c.type === ChannelType.GuildText)
-        .map(c => ({ id: c.id, name: c.name }));
+    const channels = guild.channels.cache.filter(c => c.type === ChannelType.GuildText).map(c => ({ id: c.id, name: c.name }));
+    const categories = guild.channels.cache.filter(c => c.type === ChannelType.GuildCategory).map(c => ({ id: c.id, name: c.name }));
+    const roles = guild.roles.cache.filter(r => r.name !== '@everyone' && !r.managed).map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
+    const bots = guild.members.cache.filter(m => m.user.bot && m.user.id !== client.user.id).map(m => ({ id: m.user.id, name: m.user.username, avatar: m.user.avatar }));
 
-    const roles = guild.roles.cache
-        .filter(r => r.name !== '@everyone' && !r.managed)
-        .map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
-
-    const bots = guild.members.cache
-        .filter(m => m.user.bot && m.user.id !== client.user.id)
-        .map(m => ({ id: m.user.id, name: m.user.username, avatar: m.user.avatar }));
-
-    res.json({ channels, roles, bots });
+    res.json({ channels, categories, roles, bots });
 });
 
 app.get('/api/config/:guildId', async (req, res) => {
@@ -935,42 +808,39 @@ app.post('/api/config/:guildId', async (req, res) => {
     
     const current = await getSettings(req.params.guildId);
     let newSettings = { ...current, ...req.body };
+    const guild = client.guilds.cache.get(req.params.guildId);
     
-    if (newSettings.honeypotChannelId === 'CREATE_NEW') {
-        const guild = client.guilds.cache.get(req.params.guildId);
-        if (guild) {
-            try {
-                const newChan = await guild.channels.create({
-                    name: '⚠️-do-not-talk-here',
-                    type: ChannelType.GuildText,
-                    reason: 'Honeypot channel created via ServSecurity Dashboard',
-                    permissionOverwrites: [
-                        {
-                            id: guild.roles.everyone.id,
-                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-                        }
-                    ]
-                });
-                newSettings.honeypotChannelId = newChan.id;
-            } catch (e) {
-                console.error("Failed to create honeypot channel", e);
-                newSettings.honeypotChannelId = current.honeypotChannelId || null;
-            }
-        } else {
-            newSettings.honeypotChannelId = current.honeypotChannelId || null;
-        }
+    if (newSettings.honeypotChannelId === 'CREATE_NEW' && guild) {
+        try {
+            const newChan = await guild.channels.create({
+                name: '⚠️-do-not-talk-here', type: ChannelType.GuildText, reason: 'Honeypot channel via Dashboard',
+                permissionOverwrites: [{ id: guild.roles.everyone.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
+            });
+            newSettings.honeypotChannelId = newChan.id;
+        } catch (e) { newSettings.honeypotChannelId = current.honeypotChannelId || null; }
+    }
+
+    if (newSettings.ticketCategoryId === 'CREATE_NEW' && guild) {
+        try {
+            const newCat = await guild.channels.create({
+                name: '🎫 Tickets', type: ChannelType.GuildCategory, reason: 'Ticket Category via Dashboard',
+                permissionOverwrites: [{ id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] }]
+            });
+            newSettings.ticketCategoryId = newCat.id;
+        } catch (e) { newSettings.ticketCategoryId = current.ticketCategoryId || null; }
     }
 
     guildSettings[req.params.guildId] = newSettings;
     saveLocalDatabase();
     await saveToCloud(req.params.guildId, newSettings);
     
-    if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleId) {
-        const guild = client.guilds.cache.get(req.params.guildId);
-        if (guild) {
-            await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
-            await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleId);
-        }
+    if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleIds && newSettings.verifyRoleIds.length > 0 && guild) {
+        await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
+        await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleIds);
+    }
+
+    if (newSettings.ticketEnabled && newSettings.ticketPanelChannelId && guild) {
+        await setupTicketPanel(req.params.guildId, newSettings.ticketPanelChannelId, newSettings.ticketMessage);
     }
     
     res.json({ success: true, config: newSettings });
