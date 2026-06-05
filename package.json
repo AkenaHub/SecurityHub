@@ -1,7 +1,7 @@
 {
-  "name": "protection-bot",
-  "version": "1.0.0",
-  "description": "Discord moderation bot for Railway",
+  "name": "servsecurity-bot",
+  "version": "2.4.0",
+  "description": "Discord moderation bot and dashboard for Render",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
