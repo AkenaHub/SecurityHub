@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.6.2";
+const CURRENT_VERSION = "v2.7.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -157,6 +157,8 @@ const getSettings = async (guildId) => {
             welcomeChannelId: null,
             welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.',
             welcomeColor: '#6366f1',
+            welcomeImageType: 'icon',
+            welcomeCustomImageUrl: '',
             ticketEnabled: false,
             ticketPanelChannelId: null,
             ticketCategoryId: null,
@@ -309,8 +311,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Fixed "Application failed to respond" error by implementing interaction deferring mechanics.
-\u001b[2;34m[!]\u001b[0m Firebase logging tasks have been successfully offloaded to background threads.
+\u001b[2;32m[+]\u001b[0m Dashboard Dropdowns now feature instant live search filtering.
+\u001b[2;32m[+]\u001b[0m Welcome embeds now support Server Banners and Custom Image URL overrides.
+\u001b[2;34m[!]\u001b[0m Deployed final UI enhancements, z-index fixes, and auto-resizing text fields.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -370,8 +373,17 @@ client.on('guildMemberAdd', async member => {
                      .replace(/{server}/g, member.guild.name).replace(/{membercount}/g, member.guild.memberCount);
 
             const embed = new EmbedBuilder().setDescription(msg).setColor(settings.welcomeColor || '#6366f1').setTimestamp();
-            const iconUrl = member.guild.iconURL({ size: 512 });
-            if (iconUrl) embed.setImage(iconUrl);
+            
+            let finalImageUrl = null;
+            if (settings.welcomeImageType === 'banner') {
+                finalImageUrl = member.guild.bannerURL({ size: 512 });
+            } else if (settings.welcomeImageType === 'custom' && settings.welcomeCustomImageUrl) {
+                finalImageUrl = settings.welcomeCustomImageUrl;
+            } else {
+                finalImageUrl = member.guild.iconURL({ size: 512 });
+            }
+
+            if (finalImageUrl) embed.setImage(finalImageUrl);
             await channel.send({ embeds: [embed] }).catch(() => {});
         }
     }
@@ -382,7 +394,7 @@ client.on('interactionCreate', async interaction => {
         const settings = await getSettings(interaction.guildId);
         
         if (interaction.customId === 'verify_user_btn') {
-            await interaction.deferReply({ ephemeral: true }); // Tell Discord to wait
+            await interaction.deferReply({ ephemeral: true });
             if (settings.verifyEnabled && settings.verifyRoleIds && settings.verifyRoleIds.length > 0) {
                 let added = 0;
                 for (const roleId of settings.verifyRoleIds) {
@@ -398,7 +410,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'open_ticket_btn') {
-            await interaction.deferReply({ ephemeral: true }); // Tell Discord to wait
+            await interaction.deferReply({ ephemeral: true });
             if (!settings.ticketEnabled) return interaction.editReply({ content: '❌ The ticket system is currently offline.' });
             
             try {
@@ -413,7 +425,6 @@ client.on('interactionCreate', async interaction => {
                     ]
                 });
 
-                // Do logging in the background so it doesn't hold up the reply
                 logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Opened <#${ticketChan.id}>`).catch(console.error);
 
                 const row = new ActionRowBuilder().addComponents(
@@ -435,7 +446,6 @@ client.on('interactionCreate', async interaction => {
 
         if (interaction.customId === 'close_ticket_btn') {
             await interaction.reply({ content: '🔒 Ticket will automatically close in 5 seconds...', ephemeral: false });
-            // Background logging
             logTicketAction(interaction.guildId, 'CLOSED', interaction.user.username, `Closed ticket ${interaction.channel.name}`).catch(console.error);
             setTimeout(() => { interaction.channel.delete().catch(()=>{}); }, 5000);
             return;
@@ -831,7 +841,12 @@ app.get('/api/discord-data/:guildId', async (req, res) => {
     const roles = guild.roles.cache.filter(r => r.name !== '@everyone' && !r.managed).map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
     const bots = guild.members.cache.filter(m => m.user.bot && m.user.id !== client.user.id).map(m => ({ id: m.user.id, name: m.user.username, avatar: m.user.avatar }));
 
-    res.json({ channels, categories, roles, bots });
+    const guildInfo = {
+        icon: guild.iconURL({ size: 512 }),
+        banner: guild.bannerURL({ size: 512 })
+    };
+
+    res.json({ channels, categories, roles, bots, guildInfo });
 });
 
 app.get('/api/config/:guildId', async (req, res) => {
