@@ -1,71 +1,1325 @@
-const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const dotenv = require('dotenv');
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServSecurity Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Base Dark Theme & Animated Moving Grid */
+        body { 
+            background-color: #050608; 
+            font-family: 'Inter', sans-serif; 
+            color: #f4f4f5; 
+            overflow: hidden;
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 45px 45px;
+            animation: moveGrid 25s linear infinite;
+        }
 
-dotenv.config();
+        @keyframes moveGrid {
+            0% { background-position: 0 0; }
+            100% { background-position: 45px 45px; }
+        }
 
-const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
-const token = process.env.DISCORD_TOKEN?.replace(/['"]/g, '').trim();
+        /* Advanced Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(10, 11, 15, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-if (!clientId || clientId === 'undefined') {
-    console.log('Skipping deploy-commands.js: DISCORD_CLIENT_ID is missing or undefined.');
-    return;
-}
+        .glass-card {
+            background: rgba(15, 17, 24, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 0 24px -6px rgba(99, 102, 241, 0.2);
+        }
 
-if (!token || token === 'undefined') {
-    console.log('Skipping deploy-commands.js: DISCORD_TOKEN is missing or undefined.');
-    return;
-}
+        /* Input & Textarea Styling */
+        .input-base { 
+            background: rgba(0, 0, 0, 0.35); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-radius: 8px; 
+            color: #e4e4e7; 
+            transition: all 0.2s ease; 
+        }
+        .input-base:focus, .custom-dropdown.show .input-base { 
+            border-color: #6366f1; 
+            outline: none; 
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); 
+            background: rgba(0, 0, 0, 0.6);
+        }
 
-const commands = [
-    new SlashCommandBuilder()
-        .setName('dashboard')
-        .setDescription('Get the link to the ServSecurity web control panel.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder()
-        .setName('kick')
-        .setDescription('Kick a user from the server.')
-        .addUserOption(option => option.setName('target').setDescription('The user to kick').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for the kick').setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
-    new SlashCommandBuilder()
-        .setName('ban')
-        .setDescription('Ban a user from the server.')
-        .addUserOption(option => option.setName('target').setDescription('The user to ban').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for the ban').setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-    new SlashCommandBuilder()
-        .setName('timeout')
-        .setDescription('Timeout a user for a specific duration.')
-        .addUserOption(option => option.setName('target').setDescription('The user to timeout').setRequired(true))
-        .addIntegerOption(option => option.setName('duration').setDescription('Duration in minutes').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for the timeout').setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-    new SlashCommandBuilder()
-        .setName('unmute')
-        .setDescription('Remove a timeout from a user.')
-        .addUserOption(option => option.setName('target').setDescription('The user to unmute').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for the unmute').setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-    new SlashCommandBuilder()
-        .setName('role')
-        .setDescription('Give a role to a user.')
-        .addUserOption(option => option.setName('target').setDescription('The user to give the role to').setRequired(true))
-        .addRoleOption(option => option.setName('role').setDescription('The role to assign').setRequired(true))
-        .addStringOption(option => option.setName('reason').setDescription('Reason for assigning the role').setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
-].map(command => command.toJSON());
+        /* Custom Modern Animated Dropdowns */
+        .dropdown-menu {
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+        }
+        .dropdown-menu.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        
+        .check-icon {
+            opacity: 0;
+            transform: translateX(-8px) scale(0.8);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 0;
+            overflow: hidden;
+        }
+        .selected-option .check-icon {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            width: 1rem;
+            margin-right: 0.5rem;
+        }
 
-const rest = new REST({ version: '10' }).setToken(token);
+        /* Custom Animated Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 42px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.08); transition: .4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 34px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: #a1a1aa; transition: .4s cubic-bezier(0.34, 1.56, 0.64, 1); border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        input:checked + .slider { 
+            background-color: #10b981;
+            border-color: #10b981;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2), 0 0 12px rgba(16, 185, 129, 0.3);
+        }
+        input:checked + .slider:before { 
+            transform: translateX(18px); 
+            background-color: #ffffff;
+        }
 
-(async () => {
-    try {
-        console.log('Started refreshing application (/) commands.');
-        await rest.put(
-            Routes.applicationCommands(clientId),
-            { body: commands },
-        );
-        console.log('Successfully loaded moderation commands globally.');
-    } catch (error) {
-        console.error('Failed to deploy commands:', error.message);
-    }
-})();
+        /* Rectangular Sidebar Tabs with Lil Round Corners */
+        .sidebar-btn { 
+            border-radius: 8px; 
+            transition: all 0.2s ease; 
+            border: 1px solid transparent;
+        }
+        .sidebar-btn:hover:not(.active) { background-color: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.05); }
+        .sidebar-btn.active { 
+            background-color: rgba(99, 102, 241, 0.1); 
+            border: 1px solid rgba(99, 102, 241, 0.25); 
+            box-shadow: inset 0 0 12px rgba(99,102,241,0.05);
+        }
+        .sidebar-btn.active .server-name { color: #ffffff; font-weight: 700; }
+        .sidebar-btn.active .status-text { color: #818cf8; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+        /* Animations */
+        .animate-fade-in { animation: fadeIn 0.5s ease forwards; opacity: 0; }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .delay-50 { animation-delay: 50ms; }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-150 { animation-delay: 150ms; }
+        .delay-200 { animation-delay: 200ms; }
+        
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+        .unsaved-banner { transform: translateY(100px); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .unsaved-banner.show { transform: translateY(0); }
+    </style>
+</head>
+<body class="flex h-screen w-full relative">
+
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300" onclick="toggleMobileMenu()"></div>
+
+    <aside id="sidebar" class="w-[280px] md:w-72 glass-panel flex flex-col z-50 shrink-0 absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+        <div class="h-16 md:h-20 flex items-center px-6 border-b border-white/5 bg-black/20">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-3 border border-indigo-500/30">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-white tracking-widest uppercase">ServSecurity</span>
+        </div>
+        
+        <div class="p-4 border-b border-white/5" id="invite-zone">
+            <button id="invite-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold tracking-wide transition-all shadow-lg shadow-indigo-500/20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Invite Bot
+            </button>
+        </div>
+
+        <div class="px-5 py-3 border-b border-white/5 bg-black/10 flex justify-between items-center">
+            <span class="text-[10px] text-zinc-400 font-bold tracking-widest uppercase">Your Servers</span>
+            <div class="flex items-center gap-1.5" title="Auto-Updating Live">
+                <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-[9px] text-green-500/80 font-bold uppercase">Live</span>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-3 px-3 space-y-1.5" id="server-list">
+            <div class="flex items-center space-x-3 px-3 py-3 animate-pulse">
+                <div class="w-9 h-9 rounded-lg bg-white/5"></div>
+                <div class="flex-1 space-y-2">
+                    <div class="h-2.5 bg-white/5 rounded w-24"></div>
+                    <div class="h-2 bg-white/5 rounded w-16"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-white/5 bg-black/20" id="auth-zone">
+            <div class="flex items-center space-x-3 text-zinc-500 animate-pulse">
+                <div class="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-indigo-500 animate-spin"></div>
+                <span class="text-xs font-medium">Syncing Session...</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative h-full min-w-0 overflow-hidden bg-black/10">
+        
+        <!-- Mobile Header -->
+        <div class="md:hidden h-16 border-b border-white/5 bg-[#0a0b10]/80 backdrop-blur-xl flex items-center justify-between px-5 shrink-0 z-30">
+            <div class="flex items-center">
+                <div class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-2 border border-indigo-500/30">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <span class="text-xs font-bold text-white tracking-widest uppercase">ServSecurity</span>
+            </div>
+            <button onclick="toggleMobileMenu()" class="text-zinc-300 hover:text-white p-1">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </div>
+
+        <header class="hidden md:flex h-20 border-b border-white/5 items-center justify-between px-10 bg-black/20 backdrop-blur-md z-10 shrink-0 sticky top-0">
+            <div class="animate-fade-in">
+                <h2 id="active-server-name" class="text-2xl font-extrabold text-white tracking-tight drop-shadow-md">System Standby</h2>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-5 md:p-10 relative scroll-smooth">
+            
+            <div id="blank-view" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-slide-up px-4 text-center">
+                <div class="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-white/5 backdrop-blur-sm shadow-xl">
+                    <svg class="w-8 h-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <h3 class="text-xl font-bold text-white tracking-tight">No Terminal Selected</h3>
+                <p class="text-sm text-zinc-500 mt-2">Open the menu and select a connected server.</p>
+            </div>
+
+            <div id="dashboard-view" class="hidden max-w-5xl mx-auto flex-col space-y-6 pb-28">
+                
+                <!-- Master Override -->
+                <div class="glass-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-slide-up relative overflow-hidden">
+                    <div class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-600/10 blur-[80px] rounded-full pointer-events-none"></div>
+                    <div class="relative z-10 flex-1">
+                        <div class="flex items-center space-x-3 mb-1">
+                            <h3 class="text-lg font-bold text-white tracking-wide">Master System Override</h3>
+                            <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 uppercase tracking-widest transition-colors" id="masterBadge">ACTIVE</span>
+                        </div>
+                        <p class="text-sm text-zinc-400">Globally arm or disarm all active system shield modules.</p>
+                    </div>
+                    <label class="switch z-10 scale-125 md:mr-2">
+                        <input type="checkbox" id="masterSwitch" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Anti Invite Module -->
+                <div class="glass-card p-7 flex flex-col md:flex-row gap-8 animate-slide-up delay-50">
+                    <div class="w-full md:w-1/3 flex flex-col justify-center border-b md:border-b-0 md:border-r border-white/10 pb-6 md:pb-0 md:pr-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-base font-bold text-white tracking-wide">Anti Invite</h4>
+                            <label class="switch">
+                                <input type="checkbox" id="linksEnabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed mt-2">Universal URL filtering to block unauthorized Discord invite links.</p>
+                    </div>
+                    <div class="w-full md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Timeout Duration</label>
+                            <div class="flex gap-2 h-10">
+                                <input type="number" id="linkTimeoutVal" class="w-1/2 input-base px-3 text-sm h-full" value="30">
+                                <div class="relative custom-dropdown w-1/2 h-full" id="linkTimeoutUnitContainer">
+                                    <input type="hidden" id="linkTimeoutUnit" value="minutes">
+                                    <div class="w-full h-full input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('linkTimeoutUnitMenu', 'linkTimeoutUnitIcon')">
+                                        <span id="linkTimeoutUnitText" class="text-sm text-zinc-200">Minutes</span>
+                                        <svg id="linkTimeoutUnitIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                    <div id="linkTimeoutUnitMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Allowed Codes</label>
+                            <textarea id="linkAvoids" placeholder="discord.gg/yourinvite" class="w-full input-base px-4 py-2.5 text-sm resize-none overflow-hidden"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instant Shield Modules -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-slide-up delay-100">
+                    <div class="glass-card p-6 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Nuke</h4>
+                            <label class="switch scale-90 origin-right">
+                                <input type="checkbox" id="antiNukeEnabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-zinc-400 leading-relaxed">Reverts unauthorized server changes & bans rogue bots instantly.</p>
+                    </div>
+                    <div class="glass-card p-6 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti Raid</h4>
+                            <label class="switch scale-90 origin-right">
+                                <input type="checkbox" id="raidEnabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-zinc-400 leading-relaxed">Isolates instant raid-app joins and malicious OAuth command links.</p>
+                    </div>
+                    <div class="glass-card p-6 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Anti File</h4>
+                            <label class="switch scale-90 origin-right">
+                                <input type="checkbox" id="fileShieldEnabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-zinc-400 leading-relaxed">Flags and purges harmful executables, batch files, and scripts.</p>
+                    </div>
+                </div>
+
+                <!-- Welcome Message Setup -->
+                <div class="glass-card p-7 mt-2 animate-slide-up delay-150">
+                    <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-white/10">Welcome Message Builder</h4>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/5">
+                                <div>
+                                    <span class="text-sm font-semibold text-white">Enable Welcome Embed</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="welcomeEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Channel</label>
+                                    <div class="relative custom-dropdown" id="welcomeChannelIdContainer">
+                                        <input type="hidden" id="welcomeChannelId">
+                                        <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('welcomeChannelIdMenu', 'welcomeChannelIdIcon')">
+                                            <span id="welcomeChannelIdText" class="truncate text-sm text-zinc-500">Select Channel...</span>
+                                            <svg id="welcomeChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="welcomeChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Embed Color</label>
+                                    <input type="color" id="welcomeColor" class="w-full h-10 p-1 input-base cursor-pointer" value="#6366f1">
+                                </div>
+                            </div>
+                            <div class="space-y-2 flex flex-col h-full">
+                                <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Custom Message</label>
+                                <textarea id="welcomeMessage" class="w-full min-h-[60px] input-base px-4 py-3 text-sm resize-none overflow-hidden" placeholder="Welcome {user} to {server}!"></textarea>
+                                <p class="text-[10px] text-zinc-500 mt-1 leading-relaxed">Variables: <code class="text-indigo-400 font-bold bg-indigo-500/10 px-1 rounded">{user}</code>, <code class="text-indigo-400 font-bold bg-indigo-500/10 px-1 rounded">{username}</code>, <code class="text-indigo-400 font-bold bg-indigo-500/10 px-1 rounded">{server}</code>, <code class="text-indigo-400 font-bold bg-indigo-500/10 px-1 rounded">{membercount}</code></p>
+                            </div>
+                        </div>
+
+                        <!-- Live Embed Viewer -->
+                        <div class="bg-black/30 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
+                            <span class="absolute top-4 left-5 text-[9px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-1 rounded">Live Discord Preview</span>
+                            
+                            <div class="bg-[#2b2d31] rounded-lg flex shadow-2xl w-full max-w-[340px] mt-8 overflow-hidden transform hover:scale-[1.02] transition-transform">
+                                <div id="preview-border" class="w-1.5 shrink-0" style="background-color: #6366f1;"></div>
+                                <div class="p-4 w-full flex flex-col">
+                                    <div class="flex items-center space-x-2 mb-3">
+                                        <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
+                                            <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        </div>
+                                        <span class="text-sm font-semibold text-white">ServSecurity</span>
+                                        <span class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-bold">APP</span>
+                                    </div>
+                                    <div id="preview-desc" class="text-[14px] text-zinc-300 leading-relaxed mb-4 whitespace-pre-wrap word-break">
+                                        Welcome <span class="bg-indigo-500/30 text-indigo-300 px-1 rounded">@NewUser</span> to **Your Server**! We are now at 1,337 members.
+                                    </div>
+                                    <div class="mt-auto w-full flex justify-center">
+                                        <img id="preview-icon" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-24 h-24 rounded-lg object-cover shadow-lg border border-white/10">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Support Ticket System -->
+                <div class="glass-card p-7 mt-2 animate-slide-up delay-150">
+                    <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-white/10">Support Ticket System</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-6 md:border-r border-white/5 md:pr-8">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/5">
+                                <div><span class="text-sm font-semibold text-white">Enable Tickets</span></div>
+                                <label class="switch">
+                                    <input type="checkbox" id="ticketEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Panel Channel</label>
+                                    <div class="relative custom-dropdown" id="ticketPanelChannelIdContainer">
+                                        <input type="hidden" id="ticketPanelChannelId">
+                                        <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('ticketPanelChannelIdMenu', 'ticketPanelChannelIdIcon')">
+                                            <span id="ticketPanelChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
+                                            <svg id="ticketPanelChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="ticketPanelChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Ticket Category</label>
+                                    <div class="relative custom-dropdown" id="ticketCategoryIdContainer">
+                                        <input type="hidden" id="ticketCategoryId">
+                                        <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('ticketCategoryIdMenu', 'ticketCategoryIdIcon')">
+                                            <span id="ticketCategoryIdText" class="truncate text-sm text-zinc-500">Select...</span>
+                                            <svg id="ticketCategoryIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="ticketCategoryIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="space-y-2 flex flex-col h-full">
+                                <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Panel Embed Message</label>
+                                <textarea id="ticketMessage" class="w-full min-h-[60px] input-base px-4 py-3 text-sm resize-none overflow-hidden" placeholder="Click below to open a ticket."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 flex flex-col">
+                            <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Recent Ticket Logs</label>
+                            <div class="flex-1 bg-black/30 border border-white/5 rounded-xl p-4 overflow-y-auto max-h-[250px] shadow-inner" id="ticketLogsList">
+                                <p class="text-xs text-zinc-500 italic text-center mt-10">No recent ticket activity.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verification & Auto Role -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-up delay-200">
+                    <div class="glass-card p-7">
+                        <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-white/10">Verification Setup</h4>
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/5">
+                                <div><span class="text-sm font-semibold text-white">Enable Button Verify</span></div>
+                                <label class="switch">
+                                    <input type="checkbox" id="verifyEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Channel</label>
+                                <div class="relative custom-dropdown" id="verifyChannelIdContainer">
+                                    <input type="hidden" id="verifyChannelId">
+                                    <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyChannelIdMenu', 'verifyChannelIdIcon')">
+                                        <span id="verifyChannelIdText" class="truncate text-sm text-zinc-500">Select Channel...</span>
+                                        <svg id="verifyChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                    <div id="verifyChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Roles to Assign (Multi)</label>
+                                <div class="relative custom-dropdown" id="verifyRoleDropdownContainer">
+                                    <div id="verifyRoleSelectBtn" class="w-full min-h-[40px] input-base px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyRoleDropdownMenu', 'verifyRoleDropdownIcon')">
+                                        <span id="verifyRoleSelectText" class="text-zinc-500 pr-2">Select roles...</span>
+                                        <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="verifyRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                    <div id="verifyRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card p-7">
+                        <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-white/10">Auto Role on Join</h4>
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/5">
+                                <div><span class="text-sm font-semibold text-white">Enable Auto Role</span></div>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoRoleEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Roles to Assign (Multi)</label>
+                                <div class="relative custom-dropdown" id="autoRoleDropdownContainer">
+                                    <div id="autoRoleSelectBtn" class="w-full min-h-[40px] input-base px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('autoRoleDropdownMenu', 'autoRoleDropdownIcon')">
+                                        <span id="autoRoleSelectText" class="text-zinc-500 pr-2">Select roles...</span>
+                                        <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="autoRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                    <div id="autoRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Honeypot Trap & Base Settings -->
+                <div class="glass-card p-7 mt-2 animate-slide-up delay-200">
+                    <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-white/10">Honeypot Trap & Logging</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div class="space-y-6 col-span-1 lg:col-span-2 border-b lg:border-b-0 lg:border-r border-white/10 pb-6 lg:pb-0 lg:pr-8">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/5">
+                                <div>
+                                    <span class="text-sm font-semibold text-white">Enable Honeypot Trap</span>
+                                    <p class="text-[10px] text-zinc-500 mt-1">Punish whoever talks in trap channel</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="honeypotEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Trap Channel</label>
+                                    <div class="relative custom-dropdown" id="honeypotChannelIdContainer">
+                                        <input type="hidden" id="honeypotChannelId">
+                                        <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('honeypotChannelIdMenu', 'honeypotChannelIdIcon')">
+                                            <span id="honeypotChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
+                                            <svg id="honeypotChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="honeypotChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Trap Action</label>
+                                    <div class="relative custom-dropdown" id="honeypotActionContainer">
+                                        <input type="hidden" id="honeypotAction" value="TIMEOUT">
+                                        <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('honeypotActionMenu', 'honeypotActionIcon')">
+                                            <span id="honeypotActionText" class="truncate text-sm text-zinc-200">Timeout 24h</span>
+                                            <svg id="honeypotActionIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="honeypotActionMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-6 col-span-1 lg:col-span-2">
+                            <div class="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/5">
+                                <div>
+                                    <span class="text-sm font-semibold text-white">Track Deletions</span>
+                                    <p class="text-[10px] text-zinc-500 mt-1">Save purged text and media</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="logDeletedEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Target Log Channel</label>
+                                <div class="relative custom-dropdown" id="logChannelIdContainer">
+                                    <input type="hidden" id="logChannelId">
+                                    <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('logChannelIdMenu', 'logChannelIdIcon')">
+                                        <span id="logChannelIdText" class="truncate text-sm text-zinc-500">None (Disabled)</span>
+                                        <svg id="logChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                    <div id="logChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Bypass Roles</label>
+                                    <div class="relative custom-dropdown" id="roleDropdownContainer">
+                                        <div id="roleSelectBtn" class="w-full min-h-10 input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('roleDropdownMenu', 'roleDropdownIcon')">
+                                            <span id="roleSelectText" class="text-zinc-500 pr-2">Select...</span>
+                                            <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="roleDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-48 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Bypass Bots</label>
+                                    <div class="relative custom-dropdown" id="botDropdownContainer">
+                                        <div id="botSelectBtn" class="w-full min-h-10 input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('botDropdownMenu', 'botDropdownIcon')">
+                                            <span id="botSelectText" class="text-zinc-500 pr-2">Select...</span>
+                                            <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="botDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="botDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-48 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Save Banner -->
+    <div class="fixed bottom-0 left-0 right-0 h-24 bg-[#050608]/90 backdrop-blur-xl border-t border-white/10 z-50 flex items-center justify-between px-6 md:px-16 unsaved-banner shadow-[0_-10px_40px_rgba(0,0,0,0.5)]" id="unsaved-changes-banner">
+        <div class="flex items-center space-x-3 md:space-x-4">
+            <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.6)] animate-pulse hidden md:block"></div>
+            <div>
+                <p class="text-sm md:text-base font-bold text-white tracking-wide">Unsaved configuration</p>
+                <p class="text-[10px] md:text-xs text-zinc-400 mt-0.5">Save changes to deploy to terminal.</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <button onclick="discardChanges()" class="px-3 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all">Discard</button>
+            <button onclick="saveConfig()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 md:px-8 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-bold tracking-wide flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all transform hover:-translate-y-0.5">
+                Save
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let activeGuildId = null;
+        let originalConfig = {};
+        let systemBotClientId = "";
+        let activeGuildData = null;
+
+        // Auto-Resize Textareas
+        function autoResizeTextarea(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        // Master Custom Dropdown Toggler (Fixes Z-Index overlap)
+        function toggleCustomDropdown(menuId, iconId) {
+            const menu = document.getElementById(menuId);
+            const icon = document.getElementById(iconId);
+            const isShowing = menu.classList.contains('show');
+            
+            // Close all
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                m.classList.remove('show');
+                const card = m.closest('.glass-card');
+                if(card) card.style.zIndex = '10'; // Reset parent card Z-Index
+            });
+            document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
+            
+            if (!isShowing) {
+                menu.classList.add('show');
+                if(icon) icon.style.transform = 'rotate(180deg)';
+                const card = menu.closest('.glass-card');
+                if(card) card.style.zIndex = '50'; // Bring parent card to front
+            }
+        }
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-dropdown')) {
+                document.querySelectorAll('.dropdown-menu').forEach(m => {
+                    m.classList.remove('show');
+                    const card = m.closest('.glass-card');
+                    if(card) card.style.zIndex = '10';
+                });
+                document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
+            }
+        });
+
+        function resolveUrl(path) {
+            let base = window.location.origin;
+            if (base === 'null' || window.location.protocol === 'blob:') {
+                try {
+                    const urlObj = new URL(window.location.href);
+                    if (urlObj.protocol === 'blob:') base = new URL(urlObj.pathname).origin;
+                } catch (e) { base = ''; }
+            }
+            return new URL(path, base).toString();
+        }
+
+        function showNotification(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'fixed bottom-28 right-4 md:bottom-8 md:right-8 z- flex flex-col space-y-3 pointer-events-none';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `px-5 py-4 rounded-xl text-sm font-bold border transition-all duration-300 transform translate-y-6 opacity-0 pointer-events-auto flex items-center space-x-3 bg-[#12141d]/95 backdrop-blur-xl shadow-2xl ${
+                type === 'success' ? 'border-green-500/30 text-green-400' : 'border-red-500/30 text-red-400'
+            }`;
+            toast.innerHTML = `<div class="w-2.5 h-2.5 rounded-full ${type === 'success' ? 'bg-green-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 shadow-[0_0_10px_#ef4444]'}"></div><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-6', 'opacity-0'), 10);
+            setTimeout(() => { toast.classList.add('translate-y-6', 'opacity-0'); setTimeout(() => toast.remove(), 400); }, 3000);
+        }
+
+        function updateMasterBadge() {
+            const masterCheck = document.getElementById('masterSwitch').checked;
+            const badge = document.getElementById('masterBadge');
+            if(masterCheck) {
+                badge.innerText = 'ACTIVE';
+                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 uppercase tracking-widest transition-colors';
+            } else {
+                badge.innerText = 'OFFLINE';
+                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 uppercase tracking-widest transition-colors';
+            }
+        }
+
+        function updateMultiSelectText(selector, textId, defaultText) {
+            const checked = Array.from(document.querySelectorAll(selector + ':checked'));
+            const textSpan = document.getElementById(textId);
+            if (checked.length === 0) {
+                textSpan.textContent = defaultText;
+                textSpan.classList.add('text-zinc-500');
+                textSpan.classList.remove('text-zinc-200');
+            } else {
+                const names = checked.map(cb => cb.parentElement.querySelector('.item-name').textContent).join(', ');
+                textSpan.textContent = names;
+                textSpan.classList.remove('text-zinc-500');
+                textSpan.classList.add('text-zinc-200');
+            }
+        }
+
+        function updateWelcomePreview() {
+            const msgInput = document.getElementById('welcomeMessage').value || 'Welcome {user} to **{server}**! We are now at {membercount} members.';
+            const colInput = document.getElementById('welcomeColor').value || '#6366f1';
+            const previewBorder = document.getElementById('preview-border');
+            if(previewBorder) previewBorder.style.backgroundColor = colInput;
+
+            let serverName = activeGuildData ? activeGuildData.name : 'Your Server Name';
+            let iconSrc = activeGuildData && activeGuildData.icon ? activeGuildData.icon : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+            let previewText = msgInput
+                .replace(/{user}/g, '<span class="bg-indigo-500/30 text-indigo-300 px-1 rounded">@NewUser</span>')
+                .replace(/{username}/g, 'NewUser')
+                .replace(/{server}/g, serverName)
+                .replace(/{membercount}/g, '1,337');
+            
+            previewText = previewText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const previewDesc = document.getElementById('preview-desc');
+            if(previewDesc) previewDesc.innerHTML = previewText;
+
+            const iconEl = document.getElementById('preview-icon');
+            if(iconEl) {
+                iconEl.src = iconSrc;
+                if(iconSrc.includes('/0.png')) iconEl.classList.add('hidden'); else iconEl.classList.remove('hidden');
+            }
+        }
+
+        function getCalculatedTimeout() {
+            const val = parseInt(document.getElementById('linkTimeoutVal').value) || 30;
+            const unit = document.getElementById('linkTimeoutUnit').value;
+            if (unit === 'days') return val * 1440;
+            if (unit === 'hours') return val * 60;
+            return val;
+        }
+
+        function setCalculatedTimeout(totalMinutes) {
+            const valInput = document.getElementById('linkTimeoutVal');
+            const unitInput = document.getElementById('linkTimeoutUnit');
+            const unitText = document.getElementById('linkTimeoutUnitText');
+            if (totalMinutes % 1440 === 0 && totalMinutes !== 0) {
+                valInput.value = totalMinutes / 1440;
+                unitInput.value = 'days';
+                if(unitText) { unitText.textContent = 'Days'; unitText.className = 'text-sm text-zinc-200'; }
+            } else if (totalMinutes % 60 === 0 && totalMinutes !== 0) {
+                valInput.value = totalMinutes / 60;
+                unitInput.value = 'hours';
+                if(unitText) { unitText.textContent = 'Hours'; unitText.className = 'text-sm text-zinc-200'; }
+            } else {
+                valInput.value = totalMinutes || 30;
+                unitInput.value = 'minutes';
+                if(unitText) { unitText.textContent = 'Minutes'; unitText.className = 'text-sm text-zinc-200'; }
+            }
+        }
+
+        function checkUnsavedChanges() {
+            if (!activeGuildId) return;
+            const currentInputs = {
+                masterSwitch: !!document.getElementById('masterSwitch')?.checked,
+                linksEnabled: !!document.getElementById('linksEnabled')?.checked,
+                linkTimeout: getCalculatedTimeout(),
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0).join(', ') || '',
+                raidEnabled: !!document.getElementById('raidEnabled')?.checked,
+                fileShieldEnabled: !!document.getElementById('fileShieldEnabled')?.checked,
+                logDeletedEnabled: !!document.getElementById('logDeletedEnabled')?.checked,
+                antiNukeEnabled: !!document.getElementById('antiNukeEnabled')?.checked,
+                logChannelId: document.getElementById('logChannelId')?.value || '',
+                verifyEnabled: !!document.getElementById('verifyEnabled')?.checked,
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || '',
+                verifyRoleIds: Array.from(document.querySelectorAll('.verify-role-checkbox:checked')).map(cb => cb.value).join(', '),
+                honeypotEnabled: !!document.getElementById('honeypotEnabled')?.checked,
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || '',
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT',
+                autoRoleEnabled: !!document.getElementById('autoRoleEnabled')?.checked,
+                autoRoleIds: Array.from(document.querySelectorAll('.auto-role-checkbox:checked')).map(cb => cb.value).join(', '),
+                welcomeEnabled: !!document.getElementById('welcomeEnabled')?.checked,
+                welcomeChannelId: document.getElementById('welcomeChannelId')?.value || '',
+                welcomeMessage: document.getElementById('welcomeMessage')?.value || 'Welcome {user} to **{server}**! We are now at {membercount} members.',
+                welcomeColor: document.getElementById('welcomeColor')?.value || '#6366f1',
+                ticketEnabled: !!document.getElementById('ticketEnabled')?.checked,
+                ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || '',
+                ticketCategoryId: document.getElementById('ticketCategoryId')?.value || '',
+                ticketMessage: document.getElementById('ticketMessage')?.value || '',
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '),
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', ')
+            };
+            const cleanOriginal = {
+                masterSwitch: originalConfig.masterSwitch,
+                linksEnabled: originalConfig.linksEnabled,
+                linkTimeout: originalConfig.linkTimeout,
+                linkAvoids: originalConfig.linkAvoids.join(', '),
+                raidEnabled: originalConfig.raidEnabled,
+                fileShieldEnabled: originalConfig.fileShieldEnabled,
+                logDeletedEnabled: originalConfig.logDeletedEnabled,
+                antiNukeEnabled: originalConfig.antiNukeEnabled,
+                logChannelId: originalConfig.logChannelId || '',
+                verifyEnabled: originalConfig.verifyEnabled || false,
+                verifyChannelId: originalConfig.verifyChannelId || '',
+                verifyRoleIds: (originalConfig.verifyRoleIds || []).join(', '),
+                honeypotEnabled: originalConfig.honeypotEnabled || false,
+                honeypotChannelId: originalConfig.honeypotChannelId || '',
+                honeypotAction: originalConfig.honeypotAction || 'TIMEOUT',
+                autoRoleEnabled: originalConfig.autoRoleEnabled || false,
+                autoRoleIds: (originalConfig.autoRoleIds || []).join(', '),
+                welcomeEnabled: originalConfig.welcomeEnabled || false,
+                welcomeChannelId: originalConfig.welcomeChannelId || '',
+                welcomeMessage: originalConfig.welcomeMessage || 'Welcome {user} to **{server}**! We are now at {membercount} members.',
+                welcomeColor: originalConfig.welcomeColor || '#6366f1',
+                ticketEnabled: originalConfig.ticketEnabled || false,
+                ticketPanelChannelId: originalConfig.ticketPanelChannelId || '',
+                ticketCategoryId: originalConfig.ticketCategoryId || '',
+                ticketMessage: originalConfig.ticketMessage || 'Please click the button below to open a support ticket.',
+                allowedAccess: originalConfig.allowedAccess.join(', '),
+                allowedBots: (originalConfig.allowedBots || []).join(', ')
+            };
+            const hasChanged = JSON.stringify(currentInputs) !== JSON.stringify(cleanOriginal);
+            const banner = document.getElementById('unsaved-changes-banner');
+            if (hasChanged) banner.classList.add('show'); else banner.classList.remove('show');
+        }
+
+        function addInputListeners() {
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeoutVal', 'linkAvoids', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'verifyEnabled', 'honeypotEnabled', 'autoRoleEnabled', 'welcomeEnabled', 'welcomeMessage', 'welcomeColor', 'ticketEnabled', 'ticketMessage'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', checkUnsavedChanges);
+                    el.addEventListener('input', checkUnsavedChanges);
+                    if(el.tagName === 'TEXTAREA') {
+                        el.addEventListener('input', () => autoResizeTextarea(el));
+                        setTimeout(() => autoResizeTextarea(el), 10);
+                    }
+                    if(id === 'welcomeMessage' || id === 'welcomeColor') el.addEventListener('input', updateWelcomePreview);
+                }
+            });
+        }
+
+        // Dynamic Single Select Builder
+        function renderSingleSelect(inputId, options, defaultText, isChannel = false) {
+            const input = document.getElementById(inputId);
+            const textSpan = document.getElementById(inputId + 'Text');
+            const menu = document.getElementById(inputId + 'Menu');
+            if(!input || !textSpan || !menu) return;
+
+            menu.innerHTML = '';
+            
+            const addOpt = (val, label, customClass = '') => {
+                const el = document.createElement('div');
+                el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg mb-1 ${customClass}`;
+                el.innerHTML = `
+                    <svg class="w-4 h-4 mr-2 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span class="text-sm font-medium ${val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${label}</span>
+                `;
+                if (input.value === val) el.classList.add('selected-option');
+
+                el.addEventListener('click', () => {
+                    input.value = val;
+                    textSpan.textContent = label;
+                    if(!val) { textSpan.className = 'truncate text-sm text-zinc-500'; }
+                    else { textSpan.className = 'truncate text-sm text-zinc-200'; }
+                    
+                    Array.from(menu.children).forEach(c => c.classList.remove('selected-option'));
+                    el.classList.add('selected-option');
+                    
+                    menu.classList.remove('show');
+                    document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
+                    const card = menu.closest('.glass-card');
+                    if(card) card.style.zIndex = '10'; // Reset zIndex
+
+                    checkUnsavedChanges();
+                });
+                menu.appendChild(el);
+            };
+
+            addOpt('', defaultText);
+
+            if(inputId === 'honeypotChannelId') addOpt('CREATE_NEW', '✨ Auto-Create "⚠️-do-not-talk-here"', 'bg-indigo-500/10 text-indigo-400');
+            if(inputId === 'ticketCategoryId') addOpt('CREATE_NEW', '✨ Auto-Create "🎫 Tickets" Category', 'bg-indigo-500/10 text-indigo-400');
+
+            options.forEach(opt => {
+                let label = opt.name;
+                if(isChannel) label = `# ${label}`;
+                if(inputId === 'ticketCategoryId') label = `📁 ${label}`;
+                addOpt(opt.id, label);
+            });
+
+            const selectedOpt = options.find(o => o.id === input.value);
+            if (selectedOpt) {
+                let label = selectedOpt.name;
+                if(isChannel) label = `# ${label}`;
+                if(inputId === 'ticketCategoryId') label = `📁 ${label}`;
+                textSpan.textContent = label;
+                textSpan.className = 'truncate text-sm text-zinc-200';
+            } else if (!input.value) {
+                textSpan.textContent = defaultText;
+                textSpan.className = 'truncate text-sm text-zinc-500';
+            }
+        }
+
+        // Dynamic Multi Select Builder
+        function renderMultiSelect(menuId, inputClass, textId, defaultText, items) {
+            const menu = document.getElementById(menuId);
+            if(!menu) return;
+            menu.innerHTML = '';
+            
+            items.forEach(item => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-3 p-2.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group relative mb-1';
+                
+                let iconHtml = `<div class="w-3 h-3 rounded-full shadow-sm shrink-0" style="background-color: ${item.color === '#000000' ? '#99aab5' : (item.color || '#99aab5')}"></div>`;
+                if(item.avatar !== undefined) {
+                    const avatarUrl = item.avatar ? `https://cdn.discordapp.com/avatars/${item.id}/${item.avatar}.png?size=32` : `https://cdn.discordapp.com/embed/avatars/${parseInt(item.id) % 5}.png`;
+                    iconHtml = `<img src="${avatarUrl}" class="w-5 h-5 rounded-full object-cover border border-white/10 shrink-0">`;
+                }
+
+                label.innerHTML = `
+                    <input type="checkbox" value="${item.id}" class="${inputClass} peer hidden">
+                    <div class="w-4 h-4 rounded border border-white/10 bg-black/30 peer-checked:bg-indigo-500 peer-checked:border-indigo-500 flex items-center justify-center transition-all shrink-0">
+                        <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 scale-50 peer-checked:scale-100 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    ${iconHtml}
+                    <span class="text-sm font-medium text-zinc-300 item-name truncate">${item.name}</span>
+                `;
+                
+                const cb = label.querySelector(`.${inputClass}`);
+                cb.addEventListener('change', () => {
+                    updateMultiSelectText(`.${inputClass}`, textId, defaultText);
+                    checkUnsavedChanges();
+                });
+                menu.appendChild(label);
+            });
+            updateMultiSelectText(`.${inputClass}`, textId, defaultText);
+        }
+
+        function buildStaticDropdown(inputId, options) {
+            const input = document.getElementById(inputId);
+            const textSpan = document.getElementById(inputId + 'Text');
+            const menu = document.getElementById(inputId + 'Menu');
+            if(!input || !textSpan || !menu) return;
+            menu.innerHTML = '';
+            
+            options.forEach(opt => {
+                const el = document.createElement('div');
+                el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg mb-1`;
+                el.innerHTML = `
+                    <svg class="w-4 h-4 mr-2 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span class="text-sm font-medium ${opt.val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${opt.label}</span>
+                `;
+                if (input.value === opt.val) el.classList.add('selected-option');
+
+                el.addEventListener('click', () => {
+                    input.value = opt.val;
+                    textSpan.textContent = opt.label;
+                    textSpan.className = opt.val ? 'truncate text-sm text-zinc-200' : 'truncate text-sm text-zinc-500';
+                    
+                    Array.from(menu.children).forEach(c => c.classList.remove('selected-option'));
+                    el.classList.add('selected-option');
+                    
+                    menu.classList.remove('show');
+                    document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
+                    const card = menu.closest('.glass-card');
+                    if(card) card.style.zIndex = '10'; // Reset zIndex
+                    
+                    if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout());
+                    checkUnsavedChanges();
+                });
+                menu.appendChild(el);
+            });
+        }
+
+        function populateDropdowns(channels, roles, bots, categories) {
+            renderSingleSelect('logChannelId', channels, 'None (Disabled)', true);
+            renderSingleSelect('verifyChannelId', channels, 'Select Channel...', true);
+            renderSingleSelect('honeypotChannelId', channels, 'Select Channel...', true);
+            renderSingleSelect('welcomeChannelId', channels, 'Select Channel...', true);
+            renderSingleSelect('ticketPanelChannelId', channels, 'Select Channel...', true);
+            renderSingleSelect('ticketCategoryId', categories || [], 'Select Category...', false);
+
+            renderMultiSelect('roleDropdownMenu', 'role-checkbox', 'roleSelectText', 'Select roles...', roles);
+            renderMultiSelect('verifyRoleDropdownMenu', 'verify-role-checkbox', 'verifyRoleSelectText', 'Select roles...', roles);
+            renderMultiSelect('autoRoleDropdownMenu', 'auto-role-checkbox', 'autoRoleSelectText', 'Select roles...', roles);
+            renderMultiSelect('botDropdownMenu', 'bot-checkbox', 'botSelectText', 'Select bots...', bots);
+
+            buildStaticDropdown('linkTimeoutUnit', [
+                {val: 'minutes', label: 'Minutes'},
+                {val: 'hours', label: 'Hours'},
+                {val: 'days', label: 'Days'}
+            ]);
+            buildStaticDropdown('honeypotAction', [
+                {val: 'TIMEOUT', label: 'Timeout 24h'},
+                {val: 'KICK', label: 'Kick'},
+                {val: 'BAN', label: 'Ban'}
+            ]);
+        }
+
+        async function silentFetchUserData() {
+            try {
+                const response = await fetch(resolveUrl('/api/user-data'), { credentials: 'include' });
+                const data = await response.json();
+                if (data.loggedIn && data.guilds) {
+                    const currentStateStr = data.guilds.map(g => `${g.id}-${g.botPresent}`).join(',');
+                    if (window.lastGuildState && window.lastGuildState === currentStateStr) return;
+
+                    window.lastGuildState = currentStateStr;
+                    const serverList = document.getElementById('server-list');
+                    
+                    if(serverList) {
+                        let newHtml = '';
+                        data.guilds.forEach((guild, index) => {
+                            const iconHtml = guild.icon ? `<img src="${guild.icon}" class="h-9 w-9 rounded-lg shrink-0 object-cover shadow border border-white/5">` : `<div class="h-9 w-9 rounded-lg bg-white/5 text-zinc-400 flex items-center justify-center font-bold text-sm shrink-0 border border-white/5 shadow">${guild.name.charAt(0)}</div>`;
+                            const isActive = activeGuildId === guild.id ? 'active' : '';
+                            
+                            if (guild.botPresent) {
+                                newHtml += `
+                                    <button onclick="selectServer('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')" id="btn-${guild.id}" class="sidebar-btn w-full flex items-center px-5 py-3 text-left text-zinc-400 group relative ${isActive}">
+                                        ${iconHtml}
+                                        <div class="ml-3 overflow-hidden flex-1">
+                                            <span class="block text-sm font-semibold truncate server-name transition-colors group-hover:text-white">${guild.name}</span>
+                                            <span class="block text-[10px] text-indigo-500/70 font-bold uppercase tracking-widest mt-0.5 status-text">Connected</span>
+                                        </div>
+                                    </button>
+                                `;
+                            } else {
+                                const inviteLink = `https://discord.com/api/oauth2/authorize?client_id=${data.botClientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&disable_guild_select=true`;
+                                newHtml += `
+                                    <div class="w-full flex items-center px-5 py-3 text-left text-zinc-600 group">
+                                        <div class="opacity-40 grayscale">${iconHtml}</div>
+                                        <div class="ml-3 flex-1 flex justify-between items-center overflow-hidden">
+                                            <div class="overflow-hidden">
+                                                <span class="block text-sm font-medium truncate">${guild.name}</span>
+                                                <span class="block text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Setup Required</span>
+                                            </div>
+                                            <a href="${inviteLink}" target="_blank" class="text-[9px] bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 hover:text-indigo-300 px-2.5 py-1.5 rounded uppercase font-bold tracking-wider ml-2 transition-colors">Setup</a>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        serverList.innerHTML = newHtml;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function fetchSystemInitialization() {
+            const authZone = document.getElementById('auth-zone');
+            const serverList = document.getElementById('server-list');
+            const inviteBtn = document.getElementById('invite-btn');
+            try {
+                const response = await fetch(resolveUrl('/api/user-data'), { credentials: 'include' });
+                const data = await response.json();
+                if (!data.loggedIn) {
+                    if (authZone) authZone.innerHTML = `<a href="/api/auth/login" class="bg-indigo-600 hover:bg-indigo-500 text-white w-full py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm font-bold shadow-lg transition-colors">Sign In with Discord</a>`;
+                    if (serverList) serverList.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-center p-6 opacity-60"><p class="text-sm font-medium text-zinc-500">Authentication required.</p></div>`;
+                    if (inviteBtn) inviteBtn.style.display = 'none';
+                    return;
+                }
+                systemBotClientId = data.botClientId;
+                if (inviteBtn) {
+                    inviteBtn.style.display = 'flex';
+                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank'); };
+                }
+                if (authZone) {
+                    authZone.innerHTML = `
+                        <div class="flex items-center justify-between animate-fade-in bg-black/20 p-3 rounded-xl border border-white/5 shadow-inner">
+                            <div class="flex items-center space-x-3 overflow-hidden">
+                                <img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-white/10 shadow">
+                                <div class="flex-1 overflow-hidden pr-2">
+                                    <h4 class="text-sm font-bold text-white truncate w-full">${data.user.username}</h4>
+                                    <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5 block">Administrator</span>
+                                </div>
+                            </div>
+                            <a href="/api/auth/logout" class="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Logout">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </a>
+                        </div>
+                    `;
+                }
+                
+                window.lastGuildState = ''; 
+                await silentFetchUserData(); 
+                setInterval(silentFetchUserData, 10000);
+
+                if (data.guilds.length > 0) {
+                    const firstGuild = data.guilds.find(g => g.botPresent);
+                    if (firstGuild) setTimeout(() => { selectServer(firstGuild.id, firstGuild.name); }, 100);
+                }
+
+            } catch (err) { showNotification('Network authentication error.', 'error'); }
+        }
+
+        async function fetchDiscordData(guildId) {
+            try {
+                const res = await fetch(resolveUrl(`/api/discord-data/${guildId}`), { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    activeGuildData = { id: guildId, name: document.getElementById('active-server-name').innerText, icon: null };
+                    
+                    const btnHtml = document.getElementById(`btn-${guildId}`)?.innerHTML || '';
+                    if (btnHtml.includes('src=')) {
+                        const match = btnHtml.match(/src="([^"]+)"/);
+                        if (match) activeGuildData.icon = match;
+                    }
+
+                    populateDropdowns(data.channels, data.roles, data.bots, data.categories);
+                }
+            } catch (e) {}
+        }
+
+        async function selectServer(guildId, name) {
+            const banner = document.getElementById('unsaved-changes-banner');
+            if (banner && banner.classList.contains('show')) {
+                const proceed = confirm("You have unsaved changes. Navigating away will lose your unsaved edits. Proceed?");
+                if (!proceed) return;
+            }
+
+            if (window.innerWidth < 768) toggleMobileMenu();
+
+            document.querySelectorAll('.sidebar-btn').forEach(b => { b.classList.remove('active'); });
+            const selectedBtn = document.getElementById(`btn-${guildId}`);
+            if (selectedBtn) { selectedBtn.classList.add('active'); }
+            activeGuildId = guildId;
+            const titleEl = document.getElementById('active-server-name');
+            if (titleEl) titleEl.innerText = name;
+            
+            const blankView = document.getElementById('blank-view');
+            if (blankView) blankView.classList.add('hidden');
+            const dashboardView = document.getElementById('dashboard-view');
+            if (dashboardView) {
+                dashboardView.classList.remove('hidden');
+                dashboardView.classList.add('flex');
+                const animatableElements = dashboardView.querySelectorAll('.animate-slide-up');
+                animatableElements.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = null; });
+            }
+            await fetchDiscordData(guildId);
+            await loadConfig(guildId);
+        }
+
+        async function loadConfig(guildId) {
+            try {
+                const res = await fetch(resolveUrl(`/api/config/${guildId}`), { credentials: 'include' });
+                const config = await res.json();
+                originalConfig = JSON.parse(JSON.stringify(config));
+                
+                const setVal = (id, prop, isCheck = false) => {
+                    const el = document.getElementById(id);
+                    if(el) { if(isCheck) el.checked = !!config[prop]; else el.value = config[prop] || ''; }
+                };
+                const syncInputHidden = (id, prop) => {
+                    const el = document.getElementById(id);
+                    if(el) el.value = config[prop] || '';
+                }
+
+                setVal('masterSwitch', 'masterSwitch', true);
+                setVal('linksEnabled', 'linksEnabled', true);
+                setVal('raidEnabled', 'raidEnabled', true);
+                setVal('fileShieldEnabled', 'fileShieldEnabled', true);
+                setVal('logDeletedEnabled', 'logDeletedEnabled', true);
+                setVal('antiNukeEnabled', 'antiNukeEnabled', true);
+                setVal('verifyEnabled', 'verifyEnabled', true);
+                setVal('honeypotEnabled', 'honeypotEnabled', true);
+                setVal('autoRoleEnabled', 'autoRoleEnabled', true);
+                setVal('welcomeEnabled', 'welcomeEnabled', true);
+                setVal('ticketEnabled', 'ticketEnabled', true);
+
+                setCalculatedTimeout(config.linkTimeout);
+
+                const avoidsIn = document.getElementById('linkAvoids');
+                if (avoidsIn) { avoidsIn.value = (config.linkAvoids || []).join(', '); autoResizeTextarea(avoidsIn); }
+                
+                syncInputHidden('honeypotAction', 'honeypotAction');
+                
+                const welcomeMsgIn = document.getElementById('welcomeMessage');
+                if(welcomeMsgIn) { welcomeMsgIn.value = config.welcomeMessage || 'Welcome {user} to **{server}**! We are now at {membercount} members.'; autoResizeTextarea(welcomeMsgIn); }
+                
+                const wColor = document.getElementById('welcomeColor');
+                if (wColor) wColor.value = config.welcomeColor || '#6366f1';
+                
+                const ticketMsgIn = document.getElementById('ticketMessage');
+                if(ticketMsgIn) { ticketMsgIn.value = config.ticketMessage || 'Please click the button below to open a support ticket.'; autoResizeTextarea(ticketMsgIn); }
+                
+                syncInputHidden('logChannelId', 'logChannelId');
+                syncInputHidden('verifyChannelId', 'verifyChannelId');
+                syncInputHidden('honeypotChannelId', 'honeypotChannelId');
+                syncInputHidden('welcomeChannelId', 'welcomeChannelId');
+                syncInputHidden('ticketPanelChannelId', 'ticketPanelChannelId');
+                syncInputHidden('ticketCategoryId', 'ticketCategoryId');
+
+                document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = (config.allowedAccess || []).includes(cb.value); });
+                document.querySelectorAll('.bot-checkbox').forEach(cb => { cb.checked = (config.allowedBots || []).includes(cb.value); });
+                document.querySelectorAll('.verify-role-checkbox').forEach(cb => { cb.checked = (config.verifyRoleIds || []).includes(cb.value); });
+                document.querySelectorAll('.auto-role-checkbox').forEach(cb => { cb.checked = (config.autoRoleIds || []).includes(cb.value); });
+
+                updateMultiSelectText('.role-checkbox', 'roleSelectText', 'Select roles...');
+                updateMultiSelectText('.bot-checkbox', 'botSelectText', 'Select bots...');
+                updateMultiSelectText('.verify-role-checkbox', 'verifyRoleSelectText', 'Select roles...');
+                updateMultiSelectText('.auto-role-checkbox', 'autoRoleSelectText', 'Select roles...');
+
+                document.querySelectorAll('.dropdown-menu > div').forEach(div => {
+                    const hiddenInput = div.closest('.custom-dropdown').querySelector('input[type="hidden"]');
+                    if(hiddenInput && hiddenInput.value) {
+                        const valToFind = hiddenInput.value;
+                        const labelText = div.querySelector('span.text-sm').textContent;
+                    }
+                });
+                
+                const ticketLogsList = document.getElementById('ticketLogsList');
+                if (ticketLogsList) {
+                    const tLogs = config.ticketLogs || [];
+                    if (tLogs.length === 0) {
+                        ticketLogsList.innerHTML = '<p class="text-xs text-zinc-500 italic text-center mt-10">No recent ticket activity.</p>';
+                    } else {
+                        ticketLogsList.innerHTML = tLogs.map(l => `<div class="text-[11px] text-zinc-400 mb-2 bg-black/20 p-2.5 rounded border border-white/5 flex flex-col"><span class="text-indigo-400 font-bold uppercase tracking-wider mb-1">[${l.type}]</span> <span class="text-white font-medium">${l.username}</span> <span class="opacity-80">${l.reason}</span></div>`).join('');
+                    }
+                }
+
+                updateMasterBadge();
+                updateWelcomePreview();
+                checkUnsavedChanges();
+
+                if(activeGuildId) {
+                    fetch(resolveUrl(`/api/discord-data/${activeGuildId}`), { credentials: 'include' }).then(res => res.json()).then(data => {
+                        populateDropdowns(data.channels, data.roles, data.bots, data.categories);
+                    }).catch(e=>{});
+                }
+            } catch (err) { showNotification('Failed to load settings', 'error'); }
+        }
+
+        function discardChanges() {
+            if (!activeGuildId) return;
+            loadConfig(activeGuildId);
+            showNotification('Edits reverted successfully.');
+        }
+
+        async function saveConfig() {
+            if (!activeGuildId) return;
+            
+            const payload = {
+                masterSwitch: !!document.getElementById('masterSwitch')?.checked,
+                linksEnabled: !!document.getElementById('linksEnabled')?.checked,
+                linkTimeout: getCalculatedTimeout(),
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) || [],
+                raidEnabled: !!document.getElementById('raidEnabled')?.checked,
+                fileShieldEnabled: !!document.getElementById('fileShieldEnabled')?.checked,
+                logDeletedEnabled: !!document.getElementById('logDeletedEnabled')?.checked,
+                antiNukeEnabled: !!document.getElementById('antiNukeEnabled')?.checked,
+                logChannelId: document.getElementById('logChannelId')?.value || null,
+                verifyEnabled: !!document.getElementById('verifyEnabled')?.checked,
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || null,
+                verifyRoleIds: Array.from(document.querySelectorAll('.verify-role-checkbox:checked')).map(cb => cb.value),
+                honeypotEnabled: !!document.getElementById('honeypotEnabled')?.checked,
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || null,
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT',
+                autoRoleEnabled: !!document.getElementById('autoRoleEnabled')?.checked,
+                autoRoleIds: Array.from(document.querySelectorAll('.auto-role-checkbox:checked')).map(cb => cb.value),
+                welcomeEnabled: !!document.getElementById('welcomeEnabled')?.checked,
+                welcomeChannelId: document.getElementById('welcomeChannelId')?.value || null,
+                welcomeMessage: document.getElementById('welcomeMessage')?.value || 'Welcome {user} to **{server}**! We are now at {membercount} members.',
+                welcomeColor: document.getElementById('welcomeColor')?.value || '#6366f1',
+                ticketEnabled: !!document.getElementById('ticketEnabled')?.checked,
+                ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || null,
+                ticketCategoryId: document.getElementById('ticketCategoryId')?.value || null,
+                ticketMessage: document.getElementById('ticketMessage')?.value || 'Please click the button below to open a support ticket.',
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value),
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value)
+            };
+            
+            try {
+                const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification('Settings saved successfully.');
+                    originalConfig = JSON.parse(JSON.stringify(payload));
+                    
+                    const resJson = await res.json();
+
+                    if (resJson.config) {
+                        if (resJson.config.verifyPanelMessageId) originalConfig.verifyPanelMessageId = resJson.config.verifyPanelMessageId;
+                        if (resJson.config.ticketPanelMessageId) originalConfig.ticketPanelMessageId = resJson.config.ticketPanelMessageId;
+                        
+                        if (resJson.config.honeypotChannelId === 'CREATE_NEW' || payload.honeypotChannelId === 'CREATE_NEW') {
+                            originalConfig.honeypotChannelId = resJson.config.honeypotChannelId;
+                            document.getElementById('honeypotChannelId').value = resJson.config.honeypotChannelId;
+                        }
+                        if (resJson.config.ticketCategoryId === 'CREATE_NEW' || payload.ticketCategoryId === 'CREATE_NEW') {
+                            originalConfig.ticketCategoryId = resJson.config.ticketCategoryId;
+                            document.getElementById('ticketCategoryId').value = resJson.config.ticketCategoryId;
+                        }
+                        fetch(resolveUrl(`/api/discord-data/${activeGuildId}`), { credentials: 'include' }).then(r => r.json()).then(data => {
+                            populateDropdowns(data.channels, data.roles, data.bots, data.categories);
+                        }).catch(e=>{});
+                    }
+
+                    updateMasterBadge();
+                    checkUnsavedChanges();
+                } else throw new Error();
+            } catch (err) { showNotification('Failed to deploy settings', 'error'); }
+        }
+        
+        const mSwitch = document.getElementById('masterSwitch');
+        if (mSwitch) mSwitch.addEventListener('change', updateMasterBadge);
+        window.onload = () => { fetchSystemInitialization(); addInputListeners(); };
+    </script>
+</body>
+</html>
