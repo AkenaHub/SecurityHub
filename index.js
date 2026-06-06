@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.4.0";
+const CURRENT_VERSION = "v2.5.1";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -155,12 +155,13 @@ const getSettings = async (guildId) => {
             welcomeEnabled: false,
             welcomeChannelId: null,
             welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.',
-            welcomeColor: '#3b82f6',
+            welcomeColor: '#6366f1',
             ticketEnabled: false,
             ticketPanelChannelId: null,
             ticketCategoryId: null,
             ticketMessage: 'Please click the button below to open a support ticket.',
             ticketLogs: [],
+            ticketPanelMessageId: null,
             lastVersion: null,
             history: []
         };
@@ -209,7 +210,8 @@ const setupVerifyMessage = async (guildId, channelId) => {
         if (!channel) return;
 
         const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0 && m.components.components.customId === 'verify_user_btn')) return;
+        // FIXED CRASH BUG: Uses optional chaining array indices to safely read components
+        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn')) return;
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('verify_user_btn').setLabel('Verify Account').setEmoji('✅').setStyle(ButtonStyle.Success)
@@ -217,7 +219,7 @@ const setupVerifyMessage = async (guildId, channelId) => {
         const embed = new EmbedBuilder()
             .setTitle('🔐 Server Verification Required')
             .setDescription('Welcome to the server!\n\nTo protect our community from malicious bots and raids, we require all new members to verify their account.\n\n**Please click the ✅ Verify Account button below to gain full access to the server channels.**')
-            .setColor('#4f46e5').setFooter({ text: 'Secured by ServSecurity' });
+            .setColor('#6366f1').setFooter({ text: 'Secured by ServSecurity' });
 
         await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
     } catch (e) { console.error(e); }
@@ -230,8 +232,7 @@ const setupTicketPanel = async (guildId, channelId, messageText) => {
         const channel = guild.channels.cache.get(channelId);
         if (!channel) return;
 
-        const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.some(c => c.components.customId === 'open_ticket_btn'))) return;
+        const settings = await getSettings(guildId);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('open_ticket_btn').setLabel('Open Ticket').setEmoji('📩').setStyle(ButtonStyle.Primary)
@@ -239,9 +240,19 @@ const setupTicketPanel = async (guildId, channelId, messageText) => {
         const embed = new EmbedBuilder()
             .setTitle('📩 Support Tickets')
             .setDescription(messageText || 'Please click the button below to open a support ticket.')
-            .setColor('#3b82f6').setFooter({ text: 'Secured by ServSecurity' });
+            .setColor('#6366f1').setFooter({ text: 'Secured by ServSecurity' });
 
-        await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
+        if (settings.ticketPanelMessageId) {
+            try {
+                const existingMsg = await channel.messages.fetch(settings.ticketPanelMessageId);
+                await existingMsg.edit({ embeds: [embed], components: [row] });
+                return; 
+            } catch (e) {}
+        }
+
+        const newMsg = await channel.send({ embeds: [embed], components: [row] });
+        await updateSetting(guildId, 'ticketPanelMessageId', newMsg.id);
+        
     } catch (e) { console.error(e); }
 };
 
@@ -280,14 +291,14 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Implemented complete Ticket System with private channels and dashboard activity logs.
-\u001b[2;32m[+]\u001b[0m Added Live Discord Embed Preview viewer to the Welcome Message module.
-\u001b[2;34m[!]\u001b[0m Upgraded Verification roles to support true multi-selection.
+\u001b[2;32m[+]\u001b[0m Fixed 502 Bad Gateway crash bug caused by missing component data.
+\u001b[2;32m[+]\u001b[0m Restored all dashboard modules and fully implemented the Glass UI theme.
+\u001b[2;34m[!]\u001b[0m Upgraded Anti-Raid module to detect and auto-delete common phishing scams (Free Nitro, Steam Gifts, etc) sent by hacked accounts in any channel.
 \`\`\``;
 
         const embed = new EmbedBuilder()
             .setTitle('🚀 System Update Deployed')
-            .setColor(0x4f46e5)
+            .setColor(0x6366f1)
             .setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`)
             .setTimestamp()
             .setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -296,9 +307,11 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
+// Strict regex definitions for tracking invites and malicious activity
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
 const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=|oauth2\/authorize)/i;
+const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 const createLogEmbed = (title, description, color) => {
@@ -338,7 +351,7 @@ client.on('guildMemberAdd', async member => {
             msg = msg.replace(/{user}/g, `<@${member.id}>`).replace(/{username}/g, member.user.username)
                      .replace(/{server}/g, member.guild.name).replace(/{membercount}/g, member.guild.memberCount);
 
-            const embed = new EmbedBuilder().setDescription(msg).setColor(settings.welcomeColor || '#3b82f6').setTimestamp();
+            const embed = new EmbedBuilder().setDescription(msg).setColor(settings.welcomeColor || '#6366f1').setTimestamp();
             const iconUrl = member.guild.iconURL({ size: 512 });
             if (iconUrl) embed.setImage(iconUrl);
             await channel.send({ embeds: [embed] }).catch(() => {});
@@ -388,7 +401,7 @@ client.on('interactionCreate', async interaction => {
                 const embed = new EmbedBuilder()
                     .setTitle(`Ticket: ${interaction.user.username}`)
                     .setDescription('Support will be with you shortly. Click the button below to close this ticket.')
-                    .setColor('#3b82f6');
+                    .setColor('#6366f1');
 
                 await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
                 await interaction.reply({ content: `✅ Ticket opened in <#${ticketChan.id}>`, ephemeral: true });
@@ -643,10 +656,9 @@ client.on('messageCreate', async message => {
         if (settings.allowedAccess.includes(message.author.id)) hasBypass = true;
         if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
     }
-    
-    if (hasBypass) return; 
 
     if (settings.honeypotEnabled && settings.honeypotChannelId && message.channel.id === settings.honeypotChannelId) {
+        if (hasBypass) return; // Admins won't be trapped
         try {
             await message.delete().catch(()=>{});
             const action = settings.honeypotAction || 'TIMEOUT';
@@ -661,16 +673,22 @@ client.on('messageCreate', async message => {
             return; 
         } catch (e) {}
     }
+    
+    if (hasBypass) return; // If not in honeypot, bypass the rest of the checks for admins
 
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
-        const isRaid = content.includes('﷽') || maliciousAppRegex.test(message.content) || (content.includes('@everyone') && linkRegex.test(content)) || (content.includes('@here') && linkRegex.test(content));
+        const isRaid = content.includes('﷽') || 
+                       maliciousAppRegex.test(message.content) || 
+                       scamRegex.test(message.content) || 
+                       (content.includes('@everyone') && linkRegex.test(content)) || 
+                       (content.includes('@here') && linkRegex.test(content));
 
         if (isRaid) {
             try {
                 await message.delete().catch(() => {});
-                if (message.member && message.member.timeout) await message.member.timeout(86400000, 'Using Malicious Raid App Commands').catch(() => {});
-                await message.channel.send(`🚨 **RAID BLOCKED:** <@${message.author.id}> tried to use a malicious raid app or link!`);
+                if (message.member && message.member.moderatable) await message.member.timeout(86400000, 'Malicious Phishing/Raid Activity').catch(() => {});
+                await message.channel.send(`🚨 **SECURITY ALERT:** <@${message.author.id}> tried to post a malicious phishing link or raid command!`);
                 return; 
             } catch (e) {}
         }
@@ -732,13 +750,13 @@ app.get('/', (req, res) => {
     const rootPath = path.join(__dirname, 'index.html');
     if (fs.existsSync(publicPath)) res.sendFile(publicPath);
     else if (fs.existsSync(rootPath)) res.sendFile(rootPath);
-    else res.status(404).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>System Error: Missing UI</h2></div>");
+    else res.status(404).send("<div style='background:#0f1115;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
 app.get('/api/auth/login', (req, res) => {
     const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
     const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
-    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>Configuration Error</h2></div>");
+    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#0f1115;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>Configuration Error - Missing Auth URI</h2></div>");
     const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
     res.redirect(authorizeUrl);
 });
