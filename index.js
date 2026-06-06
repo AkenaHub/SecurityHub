@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.0.0";
+const CURRENT_VERSION = "v3.0.1";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -35,11 +35,11 @@ const initRemoteStorage = async () => {
         const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : process.env.FIREBASE_CONFIG;
         if (!configStr) return;
         const config = JSON.parse(configStr);
-        const app = initializeApp(config);
-        const auth = getAuth(app);
+        const fbApp = initializeApp(config);
+        const auth = getAuth(fbApp);
         const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : process.env.FIREBASE_AUTH_TOKEN;
         if (token) await signInWithCustomToken(auth, token); else await signInAnonymously(auth);
-        firestoreDb = getFirestore(app);
+        firestoreDb = getFirestore(fbApp);
     } catch (e) {}
 };
 
@@ -156,10 +156,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Overhauled UI with horizontal Tabs, User Status Charts, and Server Cloning Interface.
-\u001b[2;32m[+]\u001b[0m Webhooks are no longer ignored. If a webhook spams phishing links, it is instantly deleted.
-\u001b[2;32m[+]\u001b[0m Added /massrole, /purge, and /lock commands natively.
-\u001b[2;34m[!]\u001b[0m Tickets now pop up a reason modal and dynamically name channels based on the user.
+\u001b[2;32m[+]\u001b[0m Fixed "Cannot GET /" routing error in backend.
+\u001b[2;34m[!]\u001b[0m Express server fully restored for complete dashboard connectivity.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -455,12 +453,21 @@ client.on('messageCreate', async message => {
 });
 
 // Structural Clone Endpoint
-app = express();
+const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cookieSession({ name: 'servsecurity.sid', keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], maxAge: 7 * 24 * 60 * 60 * 1000 }));
+
+// Root Route explicitly defined to prevent 'Cannot GET /'
+app.get('/', (req, res) => {
+    const publicPath = path.join(__dirname, 'public', 'index.html');
+    const rootPath = path.join(__dirname, 'index.html');
+    if (fs.existsSync(publicPath)) res.sendFile(publicPath);
+    else if (fs.existsSync(rootPath)) res.sendFile(rootPath);
+    else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
+});
 
 app.post('/api/clone/:sourceId/:targetId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
