@@ -43,6 +43,7 @@
             transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease;
             box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3);
             position: relative;
+            z-index: 10;
         }
         .glass-card:hover {
             border-color: rgba(99, 102, 241, 0.4);
@@ -469,7 +470,7 @@
                                 <div class="relative custom-dropdown" id="verifyChannelIdContainer">
                                     <input type="hidden" id="verifyChannelId">
                                     <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyChannelIdMenu', 'verifyChannelIdIcon')">
-                                        <span id="verifyChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
+                                        <span id="verifyChannelIdText" class="truncate text-sm text-zinc-500">Select Channel...</span>
                                         <svg id="verifyChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
                                     <div id="verifyChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
@@ -653,23 +654,16 @@
             const icon = document.getElementById(iconId);
             const isShowing = menu.classList.contains('show');
             
-            // Close all
+            // Close all first
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
             document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
-            document.querySelectorAll('.z-\\[9999\\]').forEach(el => el.classList.remove('z-', 'relative'));
+            document.querySelectorAll('.glass-card').forEach(card => card.style.zIndex = '10');
             
             if (!isShowing) {
                 menu.classList.add('show');
                 if(icon) icon.style.transform = 'rotate(180deg)';
-                
-                // Climb up the DOM and give all wrappers a high z-index
-                let curr = menu.parentElement;
-                while(curr && curr.id !== 'dashboard-view') {
-                    if (curr.tagName === 'DIV') {
-                        curr.classList.add('relative', 'z-');
-                    }
-                    curr = curr.parentElement;
-                }
+                const card = menu.closest('.glass-card');
+                if(card) card.style.zIndex = '9999';
             }
         }
 
@@ -678,7 +672,7 @@
             if (!e.target.closest('.custom-dropdown')) {
                 document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
                 document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
-                document.querySelectorAll('.z-\\[9999\\]').forEach(el => el.classList.remove('z-', 'relative'));
+                document.querySelectorAll('.glass-card').forEach(card => card.style.zIndex = '10');
             }
         });
 
@@ -939,8 +933,8 @@
                     
                     menu.classList.remove('show');
                     document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
-                    
-                    document.querySelectorAll('.z-\\[9999\\]').forEach(wrap => wrapper.classList.remove('z-', 'relative'));
+                    const card = menu.closest('.glass-card');
+                    if(card) card.style.zIndex = '10'; // Reset zIndex
 
                     checkUnsavedChanges();
                 });
@@ -1059,7 +1053,8 @@
                     
                     menu.classList.remove('show');
                     document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
-                    document.querySelectorAll('.z-\\[9999\\]').forEach(wrap => wrap.classList.remove('z-', 'relative'));
+                    const card = menu.closest('.glass-card');
+                    if(card) card.style.zIndex = '10'; // Reset zIndex
                     
                     if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout());
                     if(inputId === 'welcomeImageType') {
