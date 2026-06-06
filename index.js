@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.7.0";
+const CURRENT_VERSION = "v2.8.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -311,9 +311,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Dashboard Dropdowns now feature instant live search filtering.
-\u001b[2;32m[+]\u001b[0m Welcome embeds now support Server Banners and Custom Image URL overrides.
-\u001b[2;34m[!]\u001b[0m Deployed final UI enhancements, z-index fixes, and auto-resizing text fields.
+\u001b[2;32m[+]\u001b[0m Verification and Ticket Panels now use smart diff tracking to strictly edit instead of re-sending on configuration saves!
+\u001b[2;34m[!]\u001b[0m Eliminated the final Z-Index CSS overlap bug affecting custom dropdowns.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -327,6 +326,7 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
+// Strict regex definitions for tracking invites and malicious activity
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
 const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=|oauth2\/authorize)/i;
@@ -886,12 +886,22 @@ app.post('/api/config/:guildId', async (req, res) => {
     saveLocalDatabase();
     await saveToCloud(req.params.guildId, newSettings);
     
-    if (newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleIds && newSettings.verifyRoleIds.length > 0 && guild) {
+    // SMART DIFF: Only deploy/edit Verify message if a verification setting was actually altered
+    const verifyChanged = current.verifyEnabled !== newSettings.verifyEnabled || 
+                          current.verifyChannelId !== newSettings.verifyChannelId || 
+                          JSON.stringify(current.verifyRoleIds) !== JSON.stringify(newSettings.verifyRoleIds);
+
+    if (verifyChanged && newSettings.verifyEnabled && newSettings.verifyChannelId && newSettings.verifyRoleIds && newSettings.verifyRoleIds.length > 0 && guild) {
         await setupVerifyMessage(req.params.guildId, newSettings.verifyChannelId);
         await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleIds);
     }
 
-    if (newSettings.ticketEnabled && newSettings.ticketPanelChannelId && guild) {
+    // SMART DIFF: Only deploy/edit Ticket message if a ticket setting was actually altered
+    const ticketChanged = current.ticketEnabled !== newSettings.ticketEnabled || 
+                          current.ticketPanelChannelId !== newSettings.ticketPanelChannelId || 
+                          current.ticketMessage !== newSettings.ticketMessage;
+
+    if (ticketChanged && newSettings.ticketEnabled && newSettings.ticketPanelChannelId && guild) {
         await setupTicketPanel(req.params.guildId, newSettings.ticketPanelChannelId, newSettings.ticketMessage);
     }
     
