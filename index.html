@@ -42,6 +42,8 @@
             border-radius: 14px;
             transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease;
             box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 10;
         }
         .glass-card:hover {
             border-color: rgba(99, 102, 241, 0.4);
@@ -57,7 +59,7 @@
             color: #e4e4e7; 
             transition: all 0.2s ease; 
         }
-        .input-base:focus, .custom-dropdown.active .input-base { 
+        .input-base:focus, .custom-dropdown.show > .input-base { 
             border-color: #6366f1; 
             outline: none; 
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); 
@@ -216,7 +218,6 @@
         <header class="hidden md:flex h-20 border-b border-white/5 items-center justify-between px-10 bg-black/20 backdrop-blur-md z-10 shrink-0 sticky top-0">
             <div class="animate-fade-in">
                 <h2 id="active-server-name" class="text-2xl font-extrabold text-white tracking-tight drop-shadow-md">System Standby</h2>
-                <p class="text-[11px] text-indigo-400/80 font-bold mt-1 uppercase tracking-widest" id="active-server-subtitle">Awaiting Terminal Selection</p>
             </div>
         </header>
 
@@ -330,23 +331,46 @@
                                     <span class="slider"></span>
                                 </label>
                             </div>
+                            
+                            <!-- New Row: Channel & Image Type -->
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Channel</label>
+                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Welcome Channel</label>
                                     <div class="relative custom-dropdown" id="welcomeChannelIdContainer">
                                         <input type="hidden" id="welcomeChannelId">
                                         <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('welcomeChannelIdMenu', 'welcomeChannelIdIcon')">
-                                            <span id="welcomeChannelIdText" class="truncate text-sm text-zinc-500">Select Channel...</span>
+                                            <span id="welcomeChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
                                             <svg id="welcomeChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="welcomeChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                        <div id="welcomeChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                     </div>
                                 </div>
                                 <div class="space-y-2">
+                                    <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Embed Image</label>
+                                    <div class="relative custom-dropdown" id="welcomeImageTypeContainer">
+                                        <input type="hidden" id="welcomeImageType" value="icon">
+                                        <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('welcomeImageTypeMenu', 'welcomeImageTypeIcon')">
+                                            <span id="welcomeImageTypeText" class="truncate text-sm text-zinc-200">Server Icon</span>
+                                            <svg id="welcomeImageTypeIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="welcomeImageTypeMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom Image URL Textbox (Hidden by default) -->
+                            <div class="space-y-2 hidden animate-fade-in" id="welcomeCustomImageUrlContainer">
+                                <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Custom Image URL</label>
+                                <input type="text" id="welcomeCustomImageUrl" placeholder="https://..." class="w-full input-base px-4 py-2.5 text-sm">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2 col-span-2">
                                     <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Embed Color</label>
                                     <input type="color" id="welcomeColor" class="w-full h-10 p-1 input-base cursor-pointer" value="#6366f1">
                                 </div>
                             </div>
+
                             <div class="space-y-2 flex flex-col h-full">
                                 <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Custom Message</label>
                                 <textarea id="welcomeMessage" class="w-full min-h-[60px] input-base px-4 py-3 text-sm resize-none overflow-hidden" placeholder="Welcome {user} to {server}!"></textarea>
@@ -401,7 +425,7 @@
                                             <span id="ticketPanelChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
                                             <svg id="ticketPanelChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="ticketPanelChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                        <div id="ticketPanelChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                     </div>
                                 </div>
                                 <div class="space-y-2">
@@ -412,11 +436,11 @@
                                             <span id="ticketCategoryIdText" class="truncate text-sm text-zinc-500">Select...</span>
                                             <svg id="ticketCategoryIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="ticketCategoryIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                        <div id="ticketCategoryIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="space-y-2 flex flex-col">
+                            <div class="space-y-2 flex flex-col h-full">
                                 <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Panel Embed Message</label>
                                 <textarea id="ticketMessage" class="w-full min-h-[60px] input-base px-4 py-3 text-sm resize-none overflow-hidden" placeholder="Click below to open a ticket."></textarea>
                             </div>
@@ -448,20 +472,20 @@
                                 <div class="relative custom-dropdown" id="verifyChannelIdContainer">
                                     <input type="hidden" id="verifyChannelId">
                                     <div class="w-full h-10 input-base px-3 flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyChannelIdMenu', 'verifyChannelIdIcon')">
-                                        <span id="verifyChannelIdText" class="truncate text-sm text-zinc-500">Select Channel...</span>
+                                        <span id="verifyChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
                                         <svg id="verifyChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
-                                    <div id="verifyChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                    <div id="verifyChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                 </div>
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Roles to Assign (Multi)</label>
                                 <div class="relative custom-dropdown" id="verifyRoleDropdownContainer">
-                                    <div id="verifyRoleSelectBtn" class="w-full min-h-10 input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyRoleDropdownMenu', 'verifyRoleDropdownIcon')">
+                                    <div id="verifyRoleSelectBtn" class="w-full min-h-[40px] input-base px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyRoleDropdownMenu', 'verifyRoleDropdownIcon')">
                                         <span id="verifyRoleSelectText" class="text-zinc-500 pr-2">Select roles...</span>
                                         <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="verifyRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
-                                    <div id="verifyRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-"></div>
+                                    <div id="verifyRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-hidden flex flex-col z-"></div>
                                 </div>
                             </div>
                         </div>
@@ -479,11 +503,11 @@
                             <div class="space-y-2">
                                 <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Roles to Assign (Multi)</label>
                                 <div class="relative custom-dropdown" id="autoRoleDropdownContainer">
-                                    <div id="autoRoleSelectBtn" class="w-full min-h-10 input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('autoRoleDropdownMenu', 'autoRoleDropdownIcon')">
+                                    <div id="autoRoleSelectBtn" class="w-full min-h-[40px] input-base px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('autoRoleDropdownMenu', 'autoRoleDropdownIcon')">
                                         <span id="autoRoleSelectText" class="text-zinc-500 pr-2">Select roles...</span>
                                         <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="autoRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
-                                    <div id="autoRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-"></div>
+                                    <div id="autoRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-hidden flex flex-col z-"></div>
                                 </div>
                             </div>
                         </div>
@@ -514,7 +538,7 @@
                                             <span id="honeypotChannelIdText" class="truncate text-sm text-zinc-500">Select...</span>
                                             <svg id="honeypotChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="honeypotChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                        <div id="honeypotChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                     </div>
                                 </div>
                                 <div class="space-y-2">
@@ -549,28 +573,28 @@
                                         <span id="logChannelIdText" class="truncate text-sm text-zinc-500">None (Disabled)</span>
                                         <svg id="logChannelIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
-                                    <div id="logChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-y-auto"></div>
+                                    <div id="logChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-2">
                                     <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Bypass Roles</label>
                                     <div class="relative custom-dropdown" id="roleDropdownContainer">
-                                        <div id="roleSelectBtn" class="w-full min-h-10 input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('roleDropdownMenu', 'roleDropdownIcon')">
+                                        <div id="roleSelectBtn" class="w-full min-h-[40px] input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('roleDropdownMenu', 'roleDropdownIcon')">
                                             <span id="roleSelectText" class="text-zinc-500 pr-2">Select...</span>
                                             <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="roleDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-48 overflow-y-auto"></div>
+                                        <div id="roleDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                     </div>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">Bypass Bots</label>
                                     <div class="relative custom-dropdown" id="botDropdownContainer">
-                                        <div id="botSelectBtn" class="w-full min-h-10 input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('botDropdownMenu', 'botDropdownIcon')">
+                                        <div id="botSelectBtn" class="w-full min-h-[40px] input-base px-3 py-2 text-sm flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('botDropdownMenu', 'botDropdownIcon')">
                                             <span id="botSelectText" class="text-zinc-500 pr-2">Select...</span>
                                             <svg class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform shrink-0" id="botDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="botDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-48 overflow-y-auto"></div>
+                                        <div id="botDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col"></div>
                                     </div>
                                 </div>
                             </div>
@@ -587,14 +611,14 @@
         <div class="flex items-center space-x-3 md:space-x-4">
             <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.6)] animate-pulse hidden md:block"></div>
             <div>
-                <p class="text-sm md:text-base font-bold text-white tracking-wide">Unsaved configuration</p>
+                <p class="text-sm md:text-base font-bold text-white tracking-wide">Unsaved config</p>
                 <p class="text-[10px] md:text-xs text-zinc-400 mt-0.5">Save changes to deploy to terminal.</p>
             </div>
         </div>
         <div class="flex items-center space-x-2 md:space-x-4">
             <button onclick="discardChanges()" class="px-3 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all">Discard</button>
-            <button onclick="saveConfig()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 md:px-8 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-bold tracking-wide flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all transform hover:-translate-y-0.5">
-                Save & Deploy
+            <button onclick="saveConfig()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 md:px-8 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-bold tracking-wide flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all transform hover:-translate-y-0.5">
+                Save
             </button>
         </div>
     </div>
@@ -626,26 +650,36 @@
             }
         }
 
-        // Master Custom Dropdown Toggler
+        // Master Custom Dropdown Toggler (Fixes Z-Index overlap)
         function toggleCustomDropdown(menuId, iconId) {
             const menu = document.getElementById(menuId);
             const icon = document.getElementById(iconId);
             const isShowing = menu.classList.contains('show');
             
             // Close all
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                m.classList.remove('show');
+                const card = m.closest('.glass-card');
+                if(card) card.style.zIndex = '10';
+            });
             document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
             
             if (!isShowing) {
                 menu.classList.add('show');
                 if(icon) icon.style.transform = 'rotate(180deg)';
+                const card = menu.closest('.glass-card');
+                if(card) card.style.zIndex = '50';
             }
         }
 
         // Close dropdowns on outside click
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.custom-dropdown')) {
-                document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+                document.querySelectorAll('.dropdown-menu').forEach(m => {
+                    m.classList.remove('show');
+                    const card = m.closest('.glass-card');
+                    if(card) card.style.zIndex = '10';
+                });
                 document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
             }
         });
@@ -691,7 +725,6 @@
             }
         }
 
-        // Dynamic Multi-Select Text (Shows Names instead of "X Selected")
         function updateMultiSelectText(selector, textId, defaultText) {
             const checked = Array.from(document.querySelectorAll(selector + ':checked'));
             const textSpan = document.getElementById(textId);
@@ -707,14 +740,34 @@
             }
         }
 
+        function toggleCustomImageInput() {
+            const type = document.getElementById('welcomeImageType')?.value;
+            const container = document.getElementById('welcomeCustomImageUrlContainer');
+            if (container) {
+                if (type === 'custom') container.classList.remove('hidden');
+                else container.classList.add('hidden');
+            }
+        }
+
         function updateWelcomePreview() {
             const msgInput = document.getElementById('welcomeMessage').value || 'Welcome {user} to **{server}**! We are now at {membercount} members.';
             const colInput = document.getElementById('welcomeColor').value || '#6366f1';
+            const imgType = document.getElementById('welcomeImageType')?.value || 'icon';
+            const customUrl = document.getElementById('welcomeCustomImageUrl')?.value || '';
+            
             const previewBorder = document.getElementById('preview-border');
             if(previewBorder) previewBorder.style.backgroundColor = colInput;
 
             let serverName = activeGuildData ? activeGuildData.name : 'Your Server Name';
-            let iconSrc = activeGuildData && activeGuildData.icon ? activeGuildData.icon : 'https://cdn.discordapp.com/embed/avatars/0.png';
+            
+            let iconSrc = 'https://cdn.discordapp.com/embed/avatars/0.png';
+            if (imgType === 'icon') {
+                iconSrc = activeGuildData?.icon || iconSrc;
+            } else if (imgType === 'banner') {
+                iconSrc = activeGuildData?.banner || 'https://via.placeholder.com/600x240/12141d/6366f1?text=Server+Banner';
+            } else if (imgType === 'custom') {
+                iconSrc = customUrl || iconSrc;
+            }
 
             let previewText = msgInput
                 .replace(/{user}/g, '<span class="bg-indigo-500/30 text-indigo-300 px-1 rounded">@NewUser</span>')
@@ -729,7 +782,14 @@
             const iconEl = document.getElementById('preview-icon');
             if(iconEl) {
                 iconEl.src = iconSrc;
-                if(iconSrc.includes('/0.png')) iconEl.classList.add('hidden'); else iconEl.classList.remove('hidden');
+                if (imgType === 'banner') {
+                    iconEl.className = "w-full h-24 rounded-lg object-cover shadow-lg border border-white/10 mt-2";
+                } else {
+                    iconEl.className = "w-24 h-24 rounded-lg object-cover shadow-lg border border-white/10 mt-2";
+                }
+                
+                if(iconSrc.includes('/0.png') && imgType === 'icon') iconEl.classList.add('hidden'); 
+                else iconEl.classList.remove('hidden');
             }
         }
 
@@ -784,6 +844,8 @@
                 welcomeChannelId: document.getElementById('welcomeChannelId')?.value || '',
                 welcomeMessage: document.getElementById('welcomeMessage')?.value || 'Welcome {user} to **{server}**! We are now at {membercount} members.',
                 welcomeColor: document.getElementById('welcomeColor')?.value || '#6366f1',
+                welcomeImageType: document.getElementById('welcomeImageType')?.value || 'icon',
+                welcomeCustomImageUrl: document.getElementById('welcomeCustomImageUrl')?.value || '',
                 ticketEnabled: !!document.getElementById('ticketEnabled')?.checked,
                 ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || '',
                 ticketCategoryId: document.getElementById('ticketCategoryId')?.value || '',
@@ -813,6 +875,8 @@
                 welcomeChannelId: originalConfig.welcomeChannelId || '',
                 welcomeMessage: originalConfig.welcomeMessage || 'Welcome {user} to **{server}**! We are now at {membercount} members.',
                 welcomeColor: originalConfig.welcomeColor || '#6366f1',
+                welcomeImageType: originalConfig.welcomeImageType || 'icon',
+                welcomeCustomImageUrl: originalConfig.welcomeCustomImageUrl || '',
                 ticketEnabled: originalConfig.ticketEnabled || false,
                 ticketPanelChannelId: originalConfig.ticketPanelChannelId || '',
                 ticketCategoryId: originalConfig.ticketCategoryId || '',
@@ -826,7 +890,7 @@
         }
 
         function addInputListeners() {
-            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeoutVal', 'linkAvoids', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'verifyEnabled', 'honeypotEnabled', 'autoRoleEnabled', 'welcomeEnabled', 'welcomeMessage', 'welcomeColor', 'ticketEnabled', 'ticketMessage'];
+            const inputs = ['masterSwitch', 'linksEnabled', 'linkTimeoutVal', 'linkAvoids', 'raidEnabled', 'fileShieldEnabled', 'logDeletedEnabled', 'antiNukeEnabled', 'verifyEnabled', 'honeypotEnabled', 'autoRoleEnabled', 'welcomeEnabled', 'welcomeMessage', 'welcomeColor', 'welcomeCustomImageUrl', 'ticketEnabled', 'ticketMessage'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -836,23 +900,31 @@
                         el.addEventListener('input', () => autoResizeTextarea(el));
                         setTimeout(() => autoResizeTextarea(el), 10);
                     }
-                    if(id === 'welcomeMessage' || id === 'welcomeColor') el.addEventListener('input', updateWelcomePreview);
+                    if(['welcomeMessage', 'welcomeColor', 'welcomeCustomImageUrl'].includes(id)) {
+                        el.addEventListener('input', updateWelcomePreview);
+                    }
                 }
             });
         }
 
-        // Dynamic Single Select Builder
+        // Dynamic Single Select Builder (With Search!)
         function renderSingleSelect(inputId, options, defaultText, isChannel = false) {
             const input = document.getElementById(inputId);
             const textSpan = document.getElementById(inputId + 'Text');
             const menu = document.getElementById(inputId + 'Menu');
             if(!input || !textSpan || !menu) return;
 
-            menu.innerHTML = '';
-            
+            menu.innerHTML = `
+                <div class="sticky top-0 bg-[#12141d] pt-0 pb-2 z-10 border-b border-white/5 mb-2 -mx-1.5 -mt-1.5 px-2 pt-2">
+                    <input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search...">
+                </div>
+                <div class="options-container flex flex-col overflow-y-auto overflow-x-hidden"></div>
+            `;
+            const optionsContainer = menu.querySelector('.options-container');
+
             const addOpt = (val, label, customClass = '') => {
                 const el = document.createElement('div');
-                el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg mb-1 ${customClass}`;
+                el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg dropdown-option mb-1 mx-1 ${customClass}`;
                 el.innerHTML = `
                     <svg class="w-4 h-4 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     <span class="text-sm font-medium ${val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${label}</span>
@@ -862,17 +934,19 @@
                 el.addEventListener('click', () => {
                     input.value = val;
                     textSpan.textContent = label;
-                    if(!val) { textSpan.className = 'truncate text-sm text-zinc-500'; }
-                    else { textSpan.className = 'truncate text-sm text-zinc-200'; }
+                    textSpan.className = val ? 'truncate text-sm text-zinc-200' : 'truncate text-sm text-zinc-500';
                     
-                    Array.from(menu.children).forEach(c => c.classList.remove('selected-option'));
+                    Array.from(optionsContainer.children).forEach(c => c.classList.remove('selected-option'));
                     el.classList.add('selected-option');
                     
                     menu.classList.remove('show');
                     document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
+                    const card = menu.closest('.glass-card');
+                    if(card) card.style.zIndex = '10';
+
                     checkUnsavedChanges();
                 });
-                menu.appendChild(el);
+                optionsContainer.appendChild(el);
             };
 
             addOpt('', defaultText);
@@ -885,6 +959,15 @@
                 if(isChannel) label = `# ${label}`;
                 if(inputId === 'ticketCategoryId') label = `📁 ${label}`;
                 addOpt(opt.id, label);
+            });
+
+            const searchInput = menu.querySelector('.dropdown-search');
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                Array.from(optionsContainer.children).forEach(opt => {
+                    const text = opt.textContent.toLowerCase();
+                    opt.style.display = text.includes(term) ? 'flex' : 'none';
+                });
             });
 
             // Set initial selected text
@@ -901,15 +984,22 @@
             }
         }
 
-        // Dynamic Multi Select Builder
+        // Dynamic Multi Select Builder (With Search!)
         function renderMultiSelect(menuId, inputClass, textId, defaultText, items) {
             const menu = document.getElementById(menuId);
             if(!menu) return;
-            menu.innerHTML = '';
             
+            menu.innerHTML = `
+                <div class="sticky top-0 bg-[#12141d] pt-0 pb-2 z-10 border-b border-white/5 mb-2 -mx-1.5 -mt-1.5 px-2 pt-2">
+                    <input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search...">
+                </div>
+                <div class="options-container flex flex-col overflow-y-auto overflow-x-hidden"></div>
+            `;
+            const optionsContainer = menu.querySelector('.options-container');
+
             items.forEach(item => {
                 const label = document.createElement('label');
-                label.className = 'flex items-center space-x-3 p-2.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group relative mb-1';
+                label.className = 'flex items-center space-x-3 p-2.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group relative mb-1 mx-1 dropdown-option';
                 
                 let iconHtml = `<div class="w-3 h-3 rounded-full shadow-sm shrink-0" style="background-color: ${item.color === '#000000' ? '#99aab5' : (item.color || '#99aab5')}"></div>`;
                 if(item.avatar !== undefined) {
@@ -931,9 +1021,18 @@
                     updateMultiSelectText(`.${inputClass}`, textId, defaultText);
                     checkUnsavedChanges();
                 });
-                menu.appendChild(label);
+                optionsContainer.appendChild(label);
             });
             updateMultiSelectText(`.${inputClass}`, textId, defaultText);
+
+            const searchInput = menu.querySelector('.dropdown-search');
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                Array.from(optionsContainer.children).forEach(opt => {
+                    const text = opt.textContent.toLowerCase();
+                    opt.style.display = text.includes(term) ? 'flex' : 'none';
+                });
+            });
         }
 
         function buildStaticDropdown(inputId, options) {
@@ -945,9 +1044,9 @@
             
             options.forEach(opt => {
                 const el = document.createElement('div');
-                el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg mb-1`;
+                el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg mb-1 mx-1`;
                 el.innerHTML = `
-                    <svg class="w-4 h-4 mr-2 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <svg class="w-4 h-4 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     <span class="text-sm font-medium ${opt.val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${opt.label}</span>
                 `;
                 if (input.value === opt.val) el.classList.add('selected-option');
@@ -962,8 +1061,14 @@
                     
                     menu.classList.remove('show');
                     document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
+                    const card = menu.closest('.glass-card');
+                    if(card) card.style.zIndex = '10';
                     
                     if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout());
+                    if(inputId === 'welcomeImageType') {
+                        toggleCustomImageInput();
+                        updateWelcomePreview();
+                    }
                     checkUnsavedChanges();
                 });
                 menu.appendChild(el);
@@ -992,6 +1097,11 @@
                 {val: 'TIMEOUT', label: 'Timeout 24h'},
                 {val: 'KICK', label: 'Kick'},
                 {val: 'BAN', label: 'Ban'}
+            ]);
+            buildStaticDropdown('welcomeImageType', [
+                {val: 'icon', label: 'Server Icon'},
+                {val: 'banner', label: 'Server Banner'},
+                {val: 'custom', label: 'Custom Image URL'}
             ]);
         }
 
@@ -1096,15 +1206,15 @@
                 const res = await fetch(resolveUrl(`/api/discord-data/${guildId}`), { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
-                    activeGuildData = { id: guildId, name: document.getElementById('active-server-name').innerText, icon: null };
+                    activeGuildData = { id: guildId, name: document.getElementById('active-server-name').innerText, icon: null, banner: null };
                     
-                    const btnHtml = document.getElementById(`btn-${guildId}`)?.innerHTML || '';
-                    if (btnHtml.includes('src=')) {
-                        const match = btnHtml.match(/src="([^"]+)"/);
-                        if (match) activeGuildData.icon = match;
+                    if (data.guildInfo) {
+                        activeGuildData.icon = data.guildInfo.icon;
+                        activeGuildData.banner = data.guildInfo.banner;
                     }
 
                     populateDropdowns(data.channels, data.roles, data.bots, data.categories);
+                    updateWelcomePreview();
                 }
             } catch (e) {}
         }
@@ -1123,9 +1233,8 @@
             if (selectedBtn) { selectedBtn.classList.add('active'); }
             activeGuildId = guildId;
             const titleEl = document.getElementById('active-server-name');
-            const subEl = document.getElementById('active-server-subtitle');
             if (titleEl) titleEl.innerText = name;
-            if (subEl) subEl.innerText = "Configuring Terminal Parameters";
+            
             const blankView = document.getElementById('blank-view');
             if (blankView) blankView.classList.add('hidden');
             const dashboardView = document.getElementById('dashboard-view');
@@ -1172,6 +1281,11 @@
                 if (avoidsIn) { avoidsIn.value = (config.linkAvoids || []).join(', '); autoResizeTextarea(avoidsIn); }
                 
                 syncInputHidden('honeypotAction', 'honeypotAction');
+                syncInputHidden('welcomeImageType', 'welcomeImageType');
+                toggleCustomImageInput();
+
+                const customUrlIn = document.getElementById('welcomeCustomImageUrl');
+                if(customUrlIn) customUrlIn.value = config.welcomeCustomImageUrl || '';
                 
                 const welcomeMsgIn = document.getElementById('welcomeMessage');
                 if(welcomeMsgIn) { welcomeMsgIn.value = config.welcomeMessage || 'Welcome {user} to **{server}**! We are now at {membercount} members.'; autoResizeTextarea(welcomeMsgIn); }
@@ -1198,16 +1312,6 @@
                 updateMultiSelectText('.bot-checkbox', 'botSelectText', 'Select bots...');
                 updateMultiSelectText('.verify-role-checkbox', 'verifyRoleSelectText', 'Select roles...');
                 updateMultiSelectText('.auto-role-checkbox', 'autoRoleSelectText', 'Select roles...');
-
-                // Trigger a re-render to highlight selected items in dropdowns correctly
-                document.querySelectorAll('.dropdown-menu > div').forEach(div => {
-                    const hiddenInput = div.closest('.custom-dropdown').querySelector('input[type="hidden"]');
-                    if(hiddenInput && hiddenInput.value) {
-                        const valToFind = hiddenInput.value;
-                        const labelText = div.querySelector('span.text-sm').textContent;
-                        // Rough sync for initial render styling
-                    }
-                });
                 
                 const ticketLogsList = document.getElementById('ticketLogsList');
                 if (ticketLogsList) {
@@ -1223,10 +1327,10 @@
                 updateWelcomePreview();
                 checkUnsavedChanges();
 
-                // Call fetchDiscordData again silently to re-render the single-select names correctly now that values are populated
                 if(activeGuildId) {
                     fetch(resolveUrl(`/api/discord-data/${activeGuildId}`), { credentials: 'include' }).then(res => res.json()).then(data => {
                         populateDropdowns(data.channels, data.roles, data.bots, data.categories);
+                        updateWelcomePreview();
                     }).catch(e=>{});
                 }
             } catch (err) { showNotification('Failed to load settings', 'error'); }
@@ -1263,6 +1367,8 @@
                 welcomeChannelId: document.getElementById('welcomeChannelId')?.value || null,
                 welcomeMessage: document.getElementById('welcomeMessage')?.value || 'Welcome {user} to **{server}**! We are now at {membercount} members.',
                 welcomeColor: document.getElementById('welcomeColor')?.value || '#6366f1',
+                welcomeImageType: document.getElementById('welcomeImageType')?.value || 'icon',
+                welcomeCustomImageUrl: document.getElementById('welcomeCustomImageUrl')?.value || '',
                 ticketEnabled: !!document.getElementById('ticketEnabled')?.checked,
                 ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || null,
                 ticketCategoryId: document.getElementById('ticketCategoryId')?.value || null,
@@ -1283,20 +1389,33 @@
                     originalConfig = JSON.parse(JSON.stringify(payload));
                     
                     const resJson = await res.json();
-                    
+
                     if (resJson.config) {
+                        if (resJson.config.verifyPanelMessageId) originalConfig.verifyPanelMessageId = resJson.config.verifyPanelMessageId;
+                        if (resJson.config.ticketPanelMessageId) originalConfig.ticketPanelMessageId = resJson.config.ticketPanelMessageId;
+                        
+                        const addOptionIfNew = (id, newId, name) => {
+                            if(newId) {
+                                const dropSelect = document.getElementById(id);
+                                if (dropSelect && !dropSelect.querySelector(`option[value="${newId}"]`)) {
+                                    const newOpt = document.createElement('option');
+                                    newOpt.value = newId;
+                                    newOpt.className = 'bg-[#0b0b0e] text-zinc-300';
+                                    newOpt.textContent = name;
+                                    dropSelect.appendChild(newOpt);
+                                }
+                                if(dropSelect) dropSelect.value = newId;
+                            }
+                        };
+
                         if (resJson.config.honeypotChannelId === 'CREATE_NEW' || payload.honeypotChannelId === 'CREATE_NEW') {
                             originalConfig.honeypotChannelId = resJson.config.honeypotChannelId;
-                            document.getElementById('honeypotChannelId').value = resJson.config.honeypotChannelId;
+                            addOptionIfNew('honeypotChannelId', resJson.config.honeypotChannelId, `# ⚠️-do-not-talk-here`);
                         }
                         if (resJson.config.ticketCategoryId === 'CREATE_NEW' || payload.ticketCategoryId === 'CREATE_NEW') {
                             originalConfig.ticketCategoryId = resJson.config.ticketCategoryId;
-                            document.getElementById('ticketCategoryId').value = resJson.config.ticketCategoryId;
+                            addOptionIfNew('ticketCategoryId', resJson.config.ticketCategoryId, `📁 🎫 Tickets`);
                         }
-                        if (resJson.config.ticketPanelMessageId) {
-                            originalConfig.ticketPanelMessageId = resJson.config.ticketPanelMessageId;
-                        }
-                        // Refresh dropdowns to show newly created channels/categories
                         fetch(resolveUrl(`/api/discord-data/${activeGuildId}`), { credentials: 'include' }).then(r => r.json()).then(data => {
                             populateDropdowns(data.channels, data.roles, data.bots, data.categories);
                         }).catch(e=>{});
