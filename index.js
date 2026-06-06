@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.6.0";
+const CURRENT_VERSION = "v2.6.1";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -147,6 +147,7 @@ const getSettings = async (guildId) => {
             verifyEnabled: false,
             verifyChannelId: null,
             verifyRoleIds: [],
+            verifyPanelMessageId: null,
             honeypotEnabled: false,
             honeypotChannelId: null,
             honeypotAction: 'TIMEOUT',
@@ -209,8 +210,7 @@ const setupVerifyMessage = async (guildId, channelId) => {
         const channel = guild.channels.cache.get(channelId);
         if (!channel) return;
 
-        const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn')) return;
+        const settings = await getSettings(guildId);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('verify_user_btn').setLabel('Verify Account').setEmoji('✅').setStyle(ButtonStyle.Success)
@@ -220,7 +220,29 @@ const setupVerifyMessage = async (guildId, channelId) => {
             .setDescription('Welcome to the server!\n\nTo protect our community from malicious bots and raids, we require all new members to verify their account.\n\n**Please click the ✅ Verify Account button below to gain full access to the server channels.**')
             .setColor('#6366f1').setFooter({ text: 'Secured by ServSecurity' });
 
-        await channel.send({ embeds: [embed], components: [row] }).catch(console.error);
+        // Try to edit if we have the ID saved
+        if (settings.verifyPanelMessageId) {
+            try {
+                const existingMsg = await channel.messages.fetch(settings.verifyPanelMessageId);
+                await existingMsg.edit({ embeds: [embed], components: [row] });
+                return;
+            } catch (e) {} // ID was invalid/deleted, continue to fallback
+        }
+
+        // Fallback: Scan recent messages to see if one already exists
+        const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+        const existingBtnMsg = msgs ? msgs.find(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn') : null;
+
+        if (existingBtnMsg) {
+            await existingBtnMsg.edit({ embeds: [embed], components: [row] });
+            await updateSetting(guildId, 'verifyPanelMessageId', existingBtnMsg.id);
+            return;
+        }
+
+        // Send brand new message
+        const newMsg = await channel.send({ embeds: [embed], components: [row] });
+        await updateSetting(guildId, 'verifyPanelMessageId', newMsg.id);
+
     } catch (e) { console.error(e); }
 };
 
@@ -290,9 +312,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Massive UI Overhaul: Fully redesigned mobile-friendly dashboard with seamless dropdowns and animated glass effects.
-\u001b[2;34m[!]\u001b[0m Fixed infinite loading skeleton loop to ensure proper server list fetching.
-\u001b[2;34m[!]\u001b[0m Refined Auto-Role logic and added deep diagnostic logging.
+\u001b[2;32m[+]\u001b[0m Verification Panel now correctly edits itself instead of duplicating on save.
+\u001b[2;34m[!]\u001b[0m Resolved Z-Index CSS overlap issues across all Custom Dropdowns on the dashboard.
+\u001b[2;31m[-]\u001b[0m Removed unnecessary subtitle texts for cleaner UI.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -306,6 +328,7 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
+// Strict regex definitions for tracking invites and malicious activity
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
 const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=|oauth2\/authorize)/i;
@@ -335,15 +358,12 @@ client.on('guildMemberAdd', async member => {
     const settings = await getSettings(member.guild.id);
     if (!settings.masterSwitch) return;
 
-    // Important: AutoRole relies on "Server Members Intent" in Discord Developer Portal!
     if (settings.autoRoleEnabled && settings.autoRoleIds && settings.autoRoleIds.length > 0) {
         for (const roleId of settings.autoRoleIds) {
             const role = member.guild.roles.cache.get(roleId);
-            if (role) {
-                await member.roles.add(role).catch((err) => {
-                    console.error(`[AutoRole] Failed to assign role to ${member.user.tag}. Check bot permissions and role hierarchy! Error: ${err.message}`);
-                });
-            }
+            if (role) await member.roles.add(role).catch((err) => {
+                console.error(`[AutoRole] Failed to assign role to ${member.user.tag}. Check bot permissions and role hierarchy! Error: ${err.message}`);
+            });
         }
     }
 
@@ -677,7 +697,7 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
     
-    if (hasBypass) return; 
+    if (hasBypass) return; // If not in honeypot, bypass the rest of the checks for admins
 
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
@@ -749,13 +769,13 @@ app.get('/', (req, res) => {
     const rootPath = path.join(__dirname, 'index.html');
     if (fs.existsSync(publicPath)) res.sendFile(publicPath);
     else if (fs.existsSync(rootPath)) res.sendFile(rootPath);
-    else res.status(404).send("<div style='background:#0f1115;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
+    else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
 app.get('/api/auth/login', (req, res) => {
     const clientId = process.env.DISCORD_CLIENT_ID?.replace(/['"]/g, '').trim();
     const redirectUri = process.env.REDIRECT_URI?.replace(/['"]/g, '').trim();
-    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#0f1115;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>Configuration Error - Missing Auth URI</h2></div>");
+    if (!clientId || !redirectUri) return res.status(500).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>Configuration Error - Missing Auth URI</h2></div>");
     const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds`;
     res.redirect(authorizeUrl);
 });
