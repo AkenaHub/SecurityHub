@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.6.1";
+const CURRENT_VERSION = "v2.6.2";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -220,16 +220,14 @@ const setupVerifyMessage = async (guildId, channelId) => {
             .setDescription('Welcome to the server!\n\nTo protect our community from malicious bots and raids, we require all new members to verify their account.\n\n**Please click the ✅ Verify Account button below to gain full access to the server channels.**')
             .setColor('#6366f1').setFooter({ text: 'Secured by ServSecurity' });
 
-        // Try to edit if we have the ID saved
         if (settings.verifyPanelMessageId) {
             try {
                 const existingMsg = await channel.messages.fetch(settings.verifyPanelMessageId);
                 await existingMsg.edit({ embeds: [embed], components: [row] });
                 return;
-            } catch (e) {} // ID was invalid/deleted, continue to fallback
+            } catch (e) {} 
         }
 
-        // Fallback: Scan recent messages to see if one already exists
         const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
         const existingBtnMsg = msgs ? msgs.find(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn') : null;
 
@@ -239,7 +237,6 @@ const setupVerifyMessage = async (guildId, channelId) => {
             return;
         }
 
-        // Send brand new message
         const newMsg = await channel.send({ embeds: [embed], components: [row] });
         await updateSetting(guildId, 'verifyPanelMessageId', newMsg.id);
 
@@ -312,9 +309,8 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Verification Panel now correctly edits itself instead of duplicating on save.
-\u001b[2;34m[!]\u001b[0m Resolved Z-Index CSS overlap issues across all Custom Dropdowns on the dashboard.
-\u001b[2;31m[-]\u001b[0m Removed unnecessary subtitle texts for cleaner UI.
+\u001b[2;32m[+]\u001b[0m Fixed "Application failed to respond" error by implementing interaction deferring mechanics.
+\u001b[2;34m[!]\u001b[0m Firebase logging tasks have been successfully offloaded to background threads.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -328,7 +324,6 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
-// Strict regex definitions for tracking invites and malicious activity
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
 const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=|oauth2\/authorize)/i;
@@ -387,22 +382,24 @@ client.on('interactionCreate', async interaction => {
         const settings = await getSettings(interaction.guildId);
         
         if (interaction.customId === 'verify_user_btn') {
+            await interaction.deferReply({ ephemeral: true }); // Tell Discord to wait
             if (settings.verifyEnabled && settings.verifyRoleIds && settings.verifyRoleIds.length > 0) {
                 let added = 0;
                 for (const roleId of settings.verifyRoleIds) {
                     const role = interaction.guild.roles.cache.get(roleId);
                     if (role) { await interaction.member.roles.add(role).catch(() => {}); added++; }
                 }
-                if (added > 0) await interaction.reply({ content: '✅ You have been successfully verified!', ephemeral: true });
-                else await interaction.reply({ content: '❌ Verification roles could not be configured. Please contact an admin.', ephemeral: true });
+                if (added > 0) await interaction.editReply({ content: '✅ You have been successfully verified!' });
+                else await interaction.editReply({ content: '❌ Verification roles could not be configured. Please contact an admin.' });
             } else {
-                await interaction.reply({ content: '❌ Verification system is currently offline.', ephemeral: true });
+                await interaction.editReply({ content: '❌ Verification system is currently offline.' });
             }
             return;
         }
 
         if (interaction.customId === 'open_ticket_btn') {
-            if (!settings.ticketEnabled) return interaction.reply({ content: '❌ The ticket system is currently offline.', ephemeral: true });
+            await interaction.deferReply({ ephemeral: true }); // Tell Discord to wait
+            if (!settings.ticketEnabled) return interaction.editReply({ content: '❌ The ticket system is currently offline.' });
             
             try {
                 const ticketChan = await interaction.guild.channels.create({
@@ -416,7 +413,8 @@ client.on('interactionCreate', async interaction => {
                     ]
                 });
 
-                await logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Opened <#${ticketChan.id}>`);
+                // Do logging in the background so it doesn't hold up the reply
+                logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Opened <#${ticketChan.id}>`).catch(console.error);
 
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('close_ticket_btn').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
@@ -427,20 +425,19 @@ client.on('interactionCreate', async interaction => {
                     .setColor('#6366f1');
 
                 await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
-                await interaction.reply({ content: `✅ Ticket opened in <#${ticketChan.id}>`, ephemeral: true });
+                await interaction.editReply({ content: `✅ Ticket opened in <#${ticketChan.id}>` });
             } catch (e) {
                 console.error(e);
-                await interaction.reply({ content: '❌ Failed to create ticket channel. Check bot permissions.', ephemeral: true });
+                await interaction.editReply({ content: '❌ Failed to create ticket channel. Check bot permissions.' });
             }
             return;
         }
 
         if (interaction.customId === 'close_ticket_btn') {
-            try {
-                await logTicketAction(interaction.guildId, 'CLOSED', interaction.user.username, `Closed ticket ${interaction.channel.name}`);
-                await interaction.reply({ content: '🔒 Ticket will automatically close in 5 seconds...', ephemeral: false });
-                setTimeout(() => { interaction.channel.delete().catch(()=>{}); }, 5000);
-            } catch (e) {}
+            await interaction.reply({ content: '🔒 Ticket will automatically close in 5 seconds...', ephemeral: false });
+            // Background logging
+            logTicketAction(interaction.guildId, 'CLOSED', interaction.user.username, `Closed ticket ${interaction.channel.name}`).catch(console.error);
+            setTimeout(() => { interaction.channel.delete().catch(()=>{}); }, 5000);
             return;
         }
     }
@@ -448,6 +445,7 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'dashboard') {
+        await interaction.deferReply({ ephemeral: true });
         const settings = await getSettings(interaction.guildId);
         const allowedUserId = '1284247278957367337';
         const isServerOwner = interaction.user.id === interaction.guild?.ownerId;
@@ -462,60 +460,62 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (!hasAccess) {
-            return interaction.reply({ content: '❌ **Access Denied:** You do not have permission to view the security panel.', ephemeral: true });
+            return interaction.editReply({ content: '❌ **Access Denied:** You do not have permission to view the security panel.' });
         }
 
         const dashboardUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
-        await interaction.reply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}`, ephemeral: true });
+        await interaction.editReply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${dashboardUrl}` });
     }
 
     if (['kick', 'ban', 'timeout', 'unmute', 'role'].includes(interaction.commandName)) {
+        await interaction.deferReply({ ephemeral: false }); 
+        
         const target = interaction.options.getUser('target');
         const reason = interaction.options.getString('reason') || 'No reason provided by moderator.';
         const member = await interaction.guild.members.fetch(target.id).catch(() => null);
 
         if (!member) {
-            return interaction.reply({ content: '❌ Could not find that user in the server.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Could not find that user in the server.' });
         }
 
         try {
             if (interaction.commandName === 'kick') {
-                if (!member.kickable) return interaction.reply({ content: '❌ I do not have permission to kick this user.', ephemeral: true });
+                if (!member.kickable) return interaction.editReply({ content: '❌ I do not have permission to kick this user.' });
                 await member.kick(reason);
-                await interaction.reply({ content: `✅ Successfully kicked **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'KICK', target.username, target.id, `Manual Kick: ${reason}`);
+                await interaction.editReply({ content: `✅ Successfully kicked **${target.tag}**. Reason: ${reason}` });
+                logAction(interaction.guildId, 'KICK', target.username, target.id, `Manual Kick: ${reason}`).catch(console.error);
             } 
             else if (interaction.commandName === 'ban') {
-                if (!member.bannable) return interaction.reply({ content: '❌ I do not have permission to ban this user.', ephemeral: true });
+                if (!member.bannable) return interaction.editReply({ content: '❌ I do not have permission to ban this user.' });
                 await member.ban({ reason: reason });
-                await interaction.reply({ content: `✅ Successfully banned **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'BAN', target.username, target.id, `Manual Ban: ${reason}`);
+                await interaction.editReply({ content: `✅ Successfully banned **${target.tag}**. Reason: ${reason}` });
+                logAction(interaction.guildId, 'BAN', target.username, target.id, `Manual Ban: ${reason}`).catch(console.error);
             }
             else if (interaction.commandName === 'timeout') {
                 const duration = interaction.options.getInteger('duration');
-                if (!member.moderatable) return interaction.reply({ content: '❌ I do not have permission to timeout this user.', ephemeral: true });
+                if (!member.moderatable) return interaction.editReply({ content: '❌ I do not have permission to timeout this user.' });
                 await member.timeout(duration * 60000, reason);
-                await interaction.reply({ content: `✅ Successfully timed out **${target.tag}** for ${duration} minutes. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, `Manual Timeout (${duration}m): ${reason}`);
+                await interaction.editReply({ content: `✅ Successfully timed out **${target.tag}** for ${duration} minutes. Reason: ${reason}` });
+                logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, `Manual Timeout (${duration}m): ${reason}`).catch(console.error);
             }
             else if (interaction.commandName === 'unmute') {
-                if (!member.moderatable) return interaction.reply({ content: '❌ I do not have permission to unmute this user.', ephemeral: true });
+                if (!member.moderatable) return interaction.editReply({ content: '❌ I do not have permission to unmute this user.' });
                 await member.timeout(null, reason);
-                await interaction.reply({ content: `✅ Successfully unmuted **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'UNMUTE', target.username, target.id, `Manual Unmute: ${reason}`);
+                await interaction.editReply({ content: `✅ Successfully unmuted **${target.tag}**. Reason: ${reason}` });
+                logAction(interaction.guildId, 'UNMUTE', target.username, target.id, `Manual Unmute: ${reason}`).catch(console.error);
             }
             else if (interaction.commandName === 'role') {
                 const role = interaction.options.getRole('role');
                 if (role.position >= interaction.guild.members.me.roles.highest.position) {
-                    return interaction.reply({ content: '❌ I cannot assign a role higher than or equal to my own highest role.', ephemeral: true });
+                    return interaction.editReply({ content: '❌ I cannot assign a role higher than or equal to my own highest role.' });
                 }
                 await member.roles.add(role, reason);
-                await interaction.reply({ content: `✅ Successfully gave the role **${role.name}** to **${target.tag}**. Reason: ${reason}` });
-                await logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, `Assigned Role ${role.name}: ${reason}`);
+                await interaction.editReply({ content: `✅ Successfully gave the role **${role.name}** to **${target.tag}**. Reason: ${reason}` });
+                logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, `Assigned Role ${role.name}: ${reason}`).catch(console.error);
             }
         } catch (error) {
             console.error(error);
-            interaction.reply({ content: '❌ An error occurred while trying to execute the command.', ephemeral: true });
+            interaction.editReply({ content: '❌ An error occurred while trying to execute the command.' });
         }
     }
 });
@@ -538,7 +538,7 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
             const member = await newGuild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
-                await logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt');
+                logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt').catch(console.error);
             }
         } catch (e) {}
     }
@@ -563,7 +563,7 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
             const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
-                await logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt');
+                logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt').catch(console.error);
             }
         } catch (e) {}
     }
@@ -587,7 +587,7 @@ client.on('channelDelete', async channel => {
         const member = await channel.guild.members.fetch(executor.id).catch(() => null);
         if (member && member.bannable) {
             await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
-            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt');
+            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt').catch(console.error);
         }
     } catch (e) {}
 });
@@ -610,7 +610,7 @@ client.on('channelCreate', async channel => {
         const member = await channel.guild.members.fetch(executor.id).catch(() => null);
         if (member && member.bannable) {
             await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
-            await logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt');
+            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt').catch(console.error);
         }
     } catch (e) {}
 });
@@ -636,7 +636,7 @@ client.on('roleDelete', async role => {
         const member = await role.guild.members.fetch(executor.id).catch(() => null);
         if (member && member.bannable) {
             await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
-            await logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt');
+            logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt').catch(console.error);
         }
     } catch (e) {}
 });
@@ -661,7 +661,7 @@ client.on('roleUpdate', async (oldRole, newRole) => {
             const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
-                await logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt');
+                logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt').catch(console.error);
             }
         } catch (e) {}
     }
@@ -697,7 +697,7 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
     
-    if (hasBypass) return; // If not in honeypot, bypass the rest of the checks for admins
+    if (hasBypass) return; 
 
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
