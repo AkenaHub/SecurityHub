@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v2.5.1";
+const CURRENT_VERSION = "v2.6.0";
 
 process.on('unhandledRejection', error => {
     console.error('Unhandled Promise Rejection:', error);
@@ -210,7 +210,6 @@ const setupVerifyMessage = async (guildId, channelId) => {
         if (!channel) return;
 
         const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        // FIXED CRASH BUG: Uses optional chaining array indices to safely read components
         if (msgs && msgs.some(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn')) return;
 
         const row = new ActionRowBuilder().addComponents(
@@ -291,9 +290,9 @@ const sendChangelog = async (guild) => {
         }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Fixed 502 Bad Gateway crash bug caused by missing component data.
-\u001b[2;32m[+]\u001b[0m Restored all dashboard modules and fully implemented the Glass UI theme.
-\u001b[2;34m[!]\u001b[0m Upgraded Anti-Raid module to detect and auto-delete common phishing scams (Free Nitro, Steam Gifts, etc) sent by hacked accounts in any channel.
+\u001b[2;32m[+]\u001b[0m Massive UI Overhaul: Fully redesigned mobile-friendly dashboard with seamless dropdowns and animated glass effects.
+\u001b[2;34m[!]\u001b[0m Fixed infinite loading skeleton loop to ensure proper server list fetching.
+\u001b[2;34m[!]\u001b[0m Refined Auto-Role logic and added deep diagnostic logging.
 \`\`\``;
 
         const embed = new EmbedBuilder()
@@ -307,7 +306,6 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
-// Strict regex definitions for tracking invites and malicious activity
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
 const maliciousAppRegex = /(discord\.com\/api\/oauth2|discord\.com\/oauth2|client_id=|oauth2\/authorize)/i;
@@ -337,10 +335,15 @@ client.on('guildMemberAdd', async member => {
     const settings = await getSettings(member.guild.id);
     if (!settings.masterSwitch) return;
 
+    // Important: AutoRole relies on "Server Members Intent" in Discord Developer Portal!
     if (settings.autoRoleEnabled && settings.autoRoleIds && settings.autoRoleIds.length > 0) {
         for (const roleId of settings.autoRoleIds) {
             const role = member.guild.roles.cache.get(roleId);
-            if (role) await member.roles.add(role).catch(() => {});
+            if (role) {
+                await member.roles.add(role).catch((err) => {
+                    console.error(`[AutoRole] Failed to assign role to ${member.user.tag}. Check bot permissions and role hierarchy! Error: ${err.message}`);
+                });
+            }
         }
     }
 
@@ -674,15 +677,11 @@ client.on('messageCreate', async message => {
         } catch (e) {}
     }
     
-    if (hasBypass) return; // If not in honeypot, bypass the rest of the checks for admins
+    if (hasBypass) return; 
 
     if (settings.raidEnabled) {
         const content = message.content.toLowerCase();
-        const isRaid = content.includes('﷽') || 
-                       maliciousAppRegex.test(message.content) || 
-                       scamRegex.test(message.content) || 
-                       (content.includes('@everyone') && linkRegex.test(content)) || 
-                       (content.includes('@here') && linkRegex.test(content));
+        const isRaid = content.includes('﷽') || maliciousAppRegex.test(message.content) || scamRegex.test(message.content) || (content.includes('@everyone') && linkRegex.test(content)) || (content.includes('@here') && linkRegex.test(content));
 
         if (isRaid) {
             try {
