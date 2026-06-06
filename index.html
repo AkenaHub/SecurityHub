@@ -654,7 +654,7 @@
             const icon = document.getElementById(iconId);
             const isShowing = menu.classList.contains('show');
             
-            // Close all first
+            // Close all
             document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
             document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)');
             document.querySelectorAll('.glass-card').forEach(card => card.style.zIndex = '10');
@@ -663,7 +663,13 @@
                 menu.classList.add('show');
                 if(icon) icon.style.transform = 'rotate(180deg)';
                 const card = menu.closest('.glass-card');
-                if(card) card.style.zIndex = '9999';
+                if(card) card.style.zIndex = '50';
+                
+                // Focus the search input if it exists
+                const searchInput = menu.querySelector('.dropdown-search');
+                if(searchInput) {
+                    setTimeout(() => searchInput.focus(), 50);
+                }
             }
         }
 
@@ -899,7 +905,7 @@
             });
         }
 
-        // Dynamic Single Select Builder (With Search!)
+        // Dynamic Single Select Builder (With Search and "Enter to Select" Feature)
         function renderSingleSelect(inputId, options, defaultText, isChannel = false) {
             const input = document.getElementById(inputId);
             const textSpan = document.getElementById(inputId + 'Text');
@@ -908,7 +914,7 @@
 
             menu.innerHTML = `
                 <div class="sticky top-0 bg-[#12141d] pt-0 pb-2 z-10 border-b border-white/5 mb-2 -mx-1.5 -mt-1.5 px-2 pt-2">
-                    <input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search...">
+                    <input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search & press Enter...">
                 </div>
                 <div class="options-container flex flex-col overflow-y-auto overflow-x-hidden"></div>
             `;
@@ -934,7 +940,7 @@
                     menu.classList.remove('show');
                     document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
                     const card = menu.closest('.glass-card');
-                    if(card) card.style.zIndex = '10'; // Reset zIndex
+                    if(card) card.style.zIndex = '10';
 
                     checkUnsavedChanges();
                 });
@@ -954,12 +960,26 @@
             });
 
             const searchInput = menu.querySelector('.dropdown-search');
+            
             searchInput.addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
                 Array.from(optionsContainer.children).forEach(opt => {
                     const text = opt.textContent.toLowerCase();
                     opt.style.display = text.includes(term) ? 'flex' : 'none';
                 });
+            });
+
+            // Smart Option Finder: Press Enter to select the top visible result
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none');
+                    if (firstVisible) {
+                        firstVisible.click();
+                        searchInput.value = '';
+                        Array.from(optionsContainer.children).forEach(opt => opt.style.display = 'flex');
+                    }
+                }
             });
 
             // Set initial selected text
@@ -976,14 +996,14 @@
             }
         }
 
-        // Dynamic Multi Select Builder (With Search!)
+        // Dynamic Multi Select Builder (With Search and "Enter to Select" Feature)
         function renderMultiSelect(menuId, inputClass, textId, defaultText, items) {
             const menu = document.getElementById(menuId);
             if(!menu) return;
             
             menu.innerHTML = `
                 <div class="sticky top-0 bg-[#12141d] pt-0 pb-2 z-10 border-b border-white/5 mb-2 -mx-1.5 -mt-1.5 px-2 pt-2">
-                    <input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search...">
+                    <input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search & press Enter...">
                 </div>
                 <div class="options-container flex flex-col overflow-y-auto overflow-x-hidden"></div>
             `;
@@ -1018,12 +1038,27 @@
             updateMultiSelectText(`.${inputClass}`, textId, defaultText);
 
             const searchInput = menu.querySelector('.dropdown-search');
+            
             searchInput.addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
                 Array.from(optionsContainer.children).forEach(opt => {
                     const text = opt.textContent.toLowerCase();
                     opt.style.display = text.includes(term) ? 'flex' : 'none';
                 });
+            });
+
+            // Smart Option Finder: Press Enter to select the top visible result and clear search
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none');
+                    if (firstVisible) {
+                        firstVisible.click();
+                        // Reset search for fast multi-selecting
+                        searchInput.value = '';
+                        Array.from(optionsContainer.children).forEach(opt => opt.style.display = 'flex');
+                    }
+                }
             });
         }
 
@@ -1054,7 +1089,7 @@
                     menu.classList.remove('show');
                     document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)';
                     const card = menu.closest('.glass-card');
-                    if(card) card.style.zIndex = '10'; // Reset zIndex
+                    if(card) card.style.zIndex = '10';
                     
                     if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout());
                     if(inputId === 'welcomeImageType') {
