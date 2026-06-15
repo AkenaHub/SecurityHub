@@ -2,7 +2,8 @@ require('dotenv').config();
 
 const { 
     Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle
+    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType,
+    ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder
 } = require('discord.js');
 const express = require('express');
 const cookieSession = require('cookie-session');
@@ -14,14 +15,23 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.0.1";
+const CURRENT_VERSION = "v3.1.0";
 
-process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
-process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
+process.on('unhandledRejection', error => {
+    console.error('Unhandled Promise Rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('Uncaught Exception:', error);
+});
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildModeration,
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildModeration,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
@@ -79,7 +89,7 @@ const saveToCloud = async (guildId, settings) => {
 const getSettings = async (guildId) => {
     if (!guildSettings[guildId]) {
         guildSettings[guildId] = {
-            masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [], allowedAccess: [], allowedBots: [], raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, antiNukeEnabled: false, logChannelId: null, verifyEnabled: false, verifyChannelId: null, verifyRoleIds: [], verifyPanelMessageId: null, honeypotEnabled: false, honeypotChannelId: null, honeypotAction: 'TIMEOUT', autoRoleEnabled: false, autoRoleIds: [], welcomeEnabled: false, welcomeChannelId: null, welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.', welcomeColor: '#6366f1', welcomeImageType: 'icon', welcomeCustomImageUrl: '', ticketEnabled: false, ticketPanelChannelId: null, ticketCategoryId: null, ticketMessage: 'Please click the button below to open a support ticket.', ticketLogs: [], ticketPanelMessageId: null, lastVersion: null, history: [],
+            masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [], allowedAccess: [], allowedBots: [], raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, antiNukeEnabled: false, logChannelId: null, ticketLogChannelId: null, verifyEnabled: false, verifyChannelId: null, verifyRoleIds: [], verifyPanelMessageId: null, honeypotEnabled: false, honeypotChannelId: null, honeypotAction: 'TIMEOUT', autoRoleEnabled: false, autoRoleIds: [], welcomeEnabled: false, welcomeChannelId: null, welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.', welcomeColor: '#6366f1', welcomeImageType: 'icon', welcomeCustomImageUrl: '', ticketEnabled: false, ticketPanelChannelId: null, ticketCategoryId: null, ticketMessage: 'Please click the button below to open a support ticket.', ticketLogs: [], ticketPanelMessageId: null, lastVersion: null, history: [],
             joinHistory: {}, verifiedUsers: []
         };
         saveLocalDatabase();
@@ -103,6 +113,22 @@ const logTicketAction = async (guildId, type, username, reason) => {
     settings.ticketLogs.unshift({ type, username, reason, timestamp: Math.floor(Date.now() / 1000) });
     if (settings.ticketLogs.length > 15) settings.ticketLogs = settings.ticketLogs.slice(0, 15);
     guildSettings[guildId] = settings; saveLocalDatabase(); await saveToCloud(guildId, settings);
+    
+    // Independent Ticket Log Channel Pipeline
+    if (settings.ticketLogChannelId) {
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            const chan = guild?.channels.cache.get(settings.ticketLogChannelId);
+            if (chan) {
+                const embed = new EmbedBuilder()
+                    .setTitle(`🎫 Ticket Log Event - ${type}`)
+                    .setDescription(`**Moderator/Member:** ${username}\n**Context:** ${reason}`)
+                    .setColor('#6366f1')
+                    .setTimestamp();
+                await chan.send({ embeds: [embed] }).catch(()=>{});
+            }
+        } catch(e) {}
+    }
 };
 
 const setupVerifyMessage = async (guildId, channelId) => {
@@ -138,8 +164,19 @@ const setupTicketPanel = async (guildId, channelId, messageText) => {
         if (!channel) return;
 
         const settings = await getSettings(guildId);
-        const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('open_ticket_btn').setLabel('Open Ticket').setEmoji('📩').setStyle(ButtonStyle.Primary));
-        const embed = new EmbedBuilder().setTitle('📩 Support Tickets').setDescription(messageText || 'Please click the button below to open a support ticket.').setColor('#6366f1').setFooter({ text: 'Secured by ServSecurity' });
+        
+        // Multi-Step ticket panel deployment containing dropdown option selector
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('ticket_type_dropdown')
+            .setPlaceholder('Select Ticket Support Type...')
+            .addOptions([
+                { label: 'Purchase Support', value: 'Purchase', description: 'Billing, store purchases, and checkout help.' },
+                { label: 'General Assistance', value: 'Support', description: 'Ask questions or report members.' },
+                { label: 'Bug Reporting', value: 'Bug Report', description: 'Report technical errors directly.' }
+            ]);
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+        const embed = new EmbedBuilder().setTitle('📩 Support Tickets').setDescription(messageText || 'Please click the dropdown menu below to select your ticket type.').setColor('#6366f1').setFooter({ text: 'Secured by ServSecurity' });
 
         if (settings.ticketPanelMessageId) {
             try { const existingMsg = await channel.messages.fetch(settings.ticketPanelMessageId); await existingMsg.edit({ embeds: [embed], components: [row] }); return; } catch (e) {}
@@ -149,20 +186,22 @@ const setupTicketPanel = async (guildId, channelId, messageText) => {
     } catch (e) { console.error(e); }
 };
 
-const sendChangelog = async (guild) => {
-    if (guild.id !== '1499199296522944522') return;
+const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleIds) => {
     try {
-        let channel = guild.channels.cache.find(c => c.name === 'bot-changelog' && c.type === ChannelType.GuildText);
-        if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
-
-        const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Fixed "Cannot GET /" routing error in backend.
-\u001b[2;34m[!]\u001b[0m Express server fully restored for complete dashboard connectivity.
-\`\`\``;
-
-        const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
-        await channel.send({ content: '@here', embeds: [embed] });
-    } catch (e) {}
+        await guild.roles.everyone.setPermissions(guild.roles.everyone.permissions.remove(PermissionFlagsBits.ViewChannel)).catch(()=>{});
+        if (verifyRoleIds && verifyRoleIds.length > 0) {
+            for (const roleId of verifyRoleIds) {
+                const verifiedRole = guild.roles.cache.get(roleId);
+                if (verifiedRole) await verifiedRole.setPermissions(verifiedRole.permissions.add(PermissionFlagsBits.ViewChannel)).catch(()=>{});
+            }
+        }
+        const verifyChannel = guild.channels.cache.get(verifyChannelId);
+        if (verifyChannel) {
+            await verifyChannel.permissionOverwrites.edit(guild.roles.everyone.id, {
+                ViewChannel: true, SendMessages: false, AddReactions: false, ReadMessageHistory: true
+            }).catch(()=>{});
+        }
+    } catch (error) { console.error("Verification Setup Error:", error); }
 };
 
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
@@ -190,17 +229,12 @@ client.once('ready', async () => {
     for (const [id, guild] of client.guilds.cache) {
         await syncWithDiscord(guild);
         const settings = await getSettings(guild.id);
-        if (settings.lastVersion !== CURRENT_VERSION) {
-            if (guild.id === '1499199296522944522') await sendChangelog(guild);
-            await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
-        }
     }
 });
 
 client.on('guildMemberAdd', async member => {
     const settings = await getSettings(member.guild.id);
     
-    // Log join for Chart.js
     const today = new Date().toISOString().split('T');
     if(!settings.joinHistory) settings.joinHistory = {};
     settings.joinHistory[today] = (settings.joinHistory[today] || 0) + 1;
@@ -235,11 +269,31 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // Ticket Modal Submission Handling
-    if (interaction.isModalSubmit() && interaction.customId === 'ticket_modal') {
+    // Ticket Select Menu Handling
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_type_dropdown') {
+        const selectedType = interaction.values;
+        const modal = new ModalBuilder()
+            .setCustomId(`ticket_modal_${selectedType}`)
+            .setTitle(`${selectedType} Support Submission`);
+
+        const reasonInput = new TextInputBuilder()
+            .setCustomId('ticket_reason')
+            .setLabel("Details / Reason")
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder("Please write out the details of your support query...")
+            .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+        await interaction.showModal(modal);
+        return;
+    }
+
+    // Modal Submission for Support Tickets
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_modal_')) {
+        const selectedType = interaction.customId.replace('ticket_modal_', '');
         const reason = interaction.fields.getTextInputValue('ticket_reason');
         const settings = await getSettings(interaction.guildId);
-        
+
         try {
             const safeUsername = interaction.user.username.replace(/[^a-z0-9]/gi, '').toLowerCase();
             const ticketChan = await interaction.guild.channels.create({
@@ -253,14 +307,23 @@ client.on('interactionCreate', async interaction => {
                 ]
             });
 
-            logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Reason: ${reason}`).catch(()=>{});
+            logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Type: ${selectedType} | Reason: ${reason}`).catch(()=>{});
 
             const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('close_ticket_btn').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger));
-            const embed = new EmbedBuilder().setTitle(`Ticket: ${interaction.user.username}`).setDescription(`**Reason for ticket:**\n${reason}\n\nSupport will be with you shortly. Click the button below to close this ticket.`).setColor('#6366f1');
+            const embed = new EmbedBuilder()
+                .setTitle(`🎫 Support Ticket Created`)
+                .addFields(
+                    { name: 'Support Category', value: selectedType, inline: true },
+                    { name: 'Submitted Reason', value: reason }
+                )
+                .setColor('#6366f1')
+                .setTimestamp();
 
             await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
-            await interaction.reply({ content: `✅ Ticket opened in <#${ticketChan.id}>`, ephemeral: true });
-        } catch (e) { await interaction.reply({ content: '❌ Failed to create ticket channel.', ephemeral: true }); }
+            await interaction.reply({ content: `✅ Support ticket generated successfully in <#${ticketChan.id}>`, ephemeral: true });
+        } catch (e) {
+            await interaction.reply({ content: '❌ Failed to create a private support ticket.', ephemeral: true });
+        }
         return;
     }
 
@@ -277,7 +340,6 @@ client.on('interactionCreate', async interaction => {
                 }
                 if (added > 0) {
                     await interaction.editReply({ content: '✅ You have been successfully verified!' });
-                    // Add to verified users list
                     if(!settings.verifiedUsers) settings.verifiedUsers = [];
                     if(!settings.verifiedUsers.find(u => u.id === interaction.user.id)) {
                         settings.verifiedUsers.push({ id: interaction.user.id, username: interaction.user.username });
@@ -285,22 +347,6 @@ client.on('interactionCreate', async interaction => {
                     }
                 } else await interaction.editReply({ content: '❌ Verification roles could not be assigned. Please contact an admin.' });
             } else { await interaction.editReply({ content: '❌ Verification system is offline.' }); }
-            return;
-        }
-
-        if (interaction.customId === 'open_ticket_btn') {
-            if (!settings.ticketEnabled) return interaction.reply({ content: '❌ The ticket system is currently offline.', ephemeral: true });
-            
-            const modal = new ModalBuilder().setCustomId('ticket_modal').setTitle('Open a Ticket');
-            const reasonInput = new TextInputBuilder()
-                .setCustomId('ticket_reason')
-                .setLabel("Why are you opening this ticket?")
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder("Please describe your issue...")
-                .setRequired(true);
-                
-            modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
-            await interaction.showModal(modal);
             return;
         }
 
@@ -373,7 +419,6 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('messageCreate', async message => {
-    // If it's the bot itself, ignore
     if (message.author.id === client.user.id) return; 
 
     const settings = await getSettings(message.guild.id);
@@ -385,7 +430,6 @@ client.on('messageCreate', async message => {
         if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
     }
     
-    // Check Webhooks for Anti-Raid / Phishing Links (Bypass doesn't apply to webhooks normally)
     if (message.webhookId) {
         if (settings.raidEnabled || settings.linksEnabled) {
             const content = message.content.toLowerCase();
@@ -398,7 +442,7 @@ client.on('messageCreate', async message => {
                 } catch(e) {}
             }
         }
-        return; // Don't process webhooks further
+        return; 
     }
 
     if (settings.honeypotEnabled && settings.honeypotChannelId && message.channel.id === settings.honeypotChannelId) {
@@ -452,7 +496,6 @@ client.on('messageCreate', async message => {
     }
 });
 
-// Structural Clone Endpoint
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
@@ -460,7 +503,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cookieSession({ name: 'servsecurity.sid', keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], maxAge: 7 * 24 * 60 * 60 * 1000 }));
 
-// Root Route explicitly defined to prevent 'Cannot GET /'
+// Root directory serving index.html cleanly
 app.get('/', (req, res) => {
     const publicPath = path.join(__dirname, 'public', 'index.html');
     const rootPath = path.join(__dirname, 'index.html');
@@ -469,37 +512,39 @@ app.get('/', (req, res) => {
     else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
-app.post('/api/clone/:sourceId/:targetId', async (req, res) => {
+// CREATE AND AUTO-CLONE NEW DISCORD SERVER
+app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    const { sourceId, targetId } = req.params;
-    const sourceGuild = client.guilds.cache.get(sourceId);
-    const targetGuild = client.guilds.cache.get(targetId);
-    
-    if(!sourceGuild || !targetGuild) return res.status(400).json({ error: 'Guilds not found' });
-    if(targetGuild.ownerId !== req.session.user.id) return res.status(403).json({ error: 'Must own target server' });
-
-    res.json({ success: true, message: 'Cloning started' });
+    const sourceGuild = client.guilds.cache.get(req.params.guildId);
+    if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
 
     try {
+        const newGuild = await client.guilds.create({
+            name: `${sourceGuild.name} [Backup]`
+        });
+
+        res.json({ success: true, message: 'Server generated successfully' });
+
         // Clone Roles
         for (const [id, role] of sourceGuild.roles.cache.sort((a,b) => a.position - b.position)) {
             if(role.name === '@everyone' || role.managed) continue;
-            await targetGuild.roles.create({ name: role.name, color: role.color, permissions: role.permissions, hoist: role.hoist }).catch(()=>{});
+            await newGuild.roles.create({ name: role.name, color: role.color, permissions: role.permissions, hoist: role.hoist }).catch(()=>{});
         }
         // Clone Categories and Channels
         for (const [id, category] of sourceGuild.channels.cache.filter(c => c.type === ChannelType.GuildCategory)) {
-            const newCat = await targetGuild.channels.create({ name: category.name, type: ChannelType.GuildCategory }).catch(()=>{});
+            const newCat = await newGuild.channels.create({ name: category.name, type: ChannelType.GuildCategory }).catch(()=>{});
             if(newCat) {
                 for (const [cid, channel] of sourceGuild.channels.cache.filter(c => c.parentId === category.id && c.type === ChannelType.GuildText)) {
-                    await targetGuild.channels.create({ name: channel.name, type: ChannelType.GuildText, parent: newCat.id }).catch(()=>{});
+                    await newGuild.channels.create({ name: channel.name, type: ChannelType.GuildText, parent: newCat.id }).catch(()=>{});
                 }
             }
         }
-        await targetGuild.setName(sourceGuild.name).catch(()=>{});
-    } catch(e) { console.error('Clone error:', e); }
+    } catch(e) {
+        console.error("Backup creation failed:", e);
+    }
 });
 
-// Rest of Auth & Routes
+// OAuth2 flows
 app.get('/api/auth/login', (req, res) => { res.redirect(`https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`); });
 app.get('/api/auth/callback', async (req, res) => {
     try {
@@ -541,6 +586,11 @@ app.post('/api/config/:guildId', async (req, res) => {
     if (newSettings.verifyEnabled && newSettings.verifyChannelId && guild && (current.verifyEnabled !== newSettings.verifyEnabled || current.verifyChannelId !== newSettings.verifyChannelId || JSON.stringify(current.verifyRoleIds) !== JSON.stringify(newSettings.verifyRoleIds))) { await setupVerifyMessage(guild.id, newSettings.verifyChannelId); await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleIds); }
     if (newSettings.ticketEnabled && newSettings.ticketPanelChannelId && guild && (current.ticketEnabled !== newSettings.ticketEnabled || current.ticketPanelChannelId !== newSettings.ticketPanelChannelId || current.ticketMessage !== newSettings.ticketMessage)) await setupTicketPanel(guild.id, newSettings.ticketPanelChannelId, newSettings.ticketMessage);
     res.json({ success: true, config: newSettings });
+});
+
+app.get('/api/auth/logout', (req, res) => {
+    req.session = null;
+    res.redirect('/');
 });
 
 if (process.env.DISCORD_TOKEN) client.login(process.env.DISCORD_TOKEN).catch(() => {});
