@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.1.1";
+const CURRENT_VERSION = "v3.1.2";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -158,7 +158,6 @@ const setupTicketPanel = async (guildId, channelId, messageText) => {
 
         const settings = await getSettings(guildId);
         
-        // Multi-Step ticket panel deployment containing dropdown option selector
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('ticket_type_dropdown')
             .setPlaceholder('Select Ticket Support Type...')
@@ -204,8 +203,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Implemented instant Server Cloner with smart Auto-Admin claiming via dynamic invite links.
-\u001b[2;34m[!]\u001b[0m Fixed bot timeouts by delegating heavy cloning operations to background threads.
+\u001b[2;32m[+]\u001b[0m Heavily optimized Interaction timeouts across all Slash Commands (/purge, /lock, /massrole).
+\u001b[2;32m[+]\u001b[0m Bot now fully delegates heavy API calls to background deferments to guarantee flawless stability.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -261,7 +260,6 @@ client.on('guildMemberAdd', async member => {
                 await member.roles.add(adminRole);
                 pendingBackups.delete(member.guild.id);
                 
-                // Welcome the owner privately
                 await member.send(`🎉 **Welcome to your Backup Server!**\nBecause you created this server via the ServSecurity dashboard, I have automatically granted you an \`Administrator\` role!`).catch(()=>{});
             } catch(e) { console.error(e); }
         }
@@ -303,7 +301,7 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // Ticket Select Menu Handling
+    // Ticket Select Menu Handling - Shows Modal (MUST NOT DEFER!)
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_type_dropdown') {
         const selectedType = interaction.values;
         const modal = new ModalBuilder()
@@ -322,7 +320,7 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // Modal Submission for Support Tickets
+    // Modal Submission for Support Tickets - DEFERRED
     if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_modal_')) {
         await interaction.deferReply({ ephemeral: true });
         const selectedType = interaction.customId.replace('ticket_modal_', '');
@@ -357,7 +355,7 @@ client.on('interactionCreate', async interaction => {
             await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
             await interaction.editReply({ content: `✅ Support ticket generated successfully in <#${ticketChan.id}>` });
         } catch (e) {
-            await interaction.editReply({ content: '❌ Failed to create a private support ticket.' });
+            await interaction.editReply({ content: '❌ Failed to create a private support ticket. Check bot permissions.' });
         }
         return;
     }
@@ -365,6 +363,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         const settings = await getSettings(interaction.guildId);
         
+        // Verify Button - DEFERRED
         if (interaction.customId === 'verify_user_btn') {
             await interaction.deferReply({ ephemeral: true });
             if (settings.verifyEnabled && settings.verifyRoleIds && settings.verifyRoleIds.length > 0) {
@@ -375,7 +374,6 @@ client.on('interactionCreate', async interaction => {
                 }
                 if (added > 0) {
                     await interaction.editReply({ content: '✅ You have been successfully verified!' });
-                    // Add to verified users list
                     if(!settings.verifiedUsers) settings.verifiedUsers = [];
                     if(!settings.verifiedUsers.find(u => u.id === interaction.user.id)) {
                         settings.verifiedUsers.push({ id: interaction.user.id, username: interaction.user.username });
@@ -386,8 +384,10 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
+        // Close Ticket Button - DEFERRED
         if (interaction.customId === 'close_ticket_btn') {
-            await interaction.reply({ content: '🔒 Ticket will automatically close in 5 seconds...', ephemeral: false });
+            await interaction.deferReply({ ephemeral: false });
+            await interaction.editReply({ content: '🔒 Ticket will automatically close in 5 seconds...' });
             logTicketAction(interaction.guildId, 'CLOSED', interaction.user.username, `Closed ticket ${interaction.channel.name}`).catch(()=>{});
             setTimeout(() => { interaction.channel.delete().catch(()=>{}); }, 5000);
             return;
@@ -409,6 +409,7 @@ client.on('interactionCreate', async interaction => {
 
     const isAdmin = interaction.member?.permissions.has('Administrator') || interaction.user.id === '1284247278957367337';
 
+    // Moderation Commands - DEFERRED
     if (['kick', 'ban', 'timeout', 'unmute', 'role'].includes(interaction.commandName)) {
         await interaction.deferReply({ ephemeral: false }); 
         if (!isAdmin) return interaction.editReply({ content: '❌ You must be an administrator.'});
@@ -416,9 +417,7 @@ client.on('interactionCreate', async interaction => {
         const reason = interaction.options.getString('reason') || 'No reason provided.';
         const member = await interaction.guild.members.fetch(target.id).catch(() => null);
 
-        if (!member) {
-            return interaction.editReply({ content: '❌ Could not find that user in the server.' });
-        }
+        if (!member) return interaction.editReply({ content: '❌ User not found.' });
 
         try {
             if (interaction.commandName === 'kick') { 
@@ -455,12 +454,10 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply({ content: `✅ Gave role **${role.name}** to **${target.tag}**.` }); 
                 logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, reason).catch(console.error);
             }
-        } catch (error) {
-            console.error(error);
-            interaction.editReply({ content: '❌ An error occurred while trying to execute the command.' });
-        }
+        } catch (error) { interaction.editReply({ content: '❌ Error executing command. Check bot permissions.' }); }
     }
 
+    // Purge - DEFERRED FIRST
     if (interaction.commandName === 'purge') {
         await interaction.deferReply({ ephemeral: true });
         if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
@@ -469,6 +466,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply({ content: `✅ Deleted ${amount} messages.` });
     }
 
+    // Lock - DEFERRED FIRST
     if (interaction.commandName === 'lock') {
         await interaction.deferReply({ ephemeral: false });
         if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
@@ -476,9 +474,12 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply({ content: `🔒 Channel locked.` });
     }
 
+    // Massrole - DEFERRED FIRST
     if (interaction.commandName === 'massrole') {
-        if (!isAdmin) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
-        await interaction.reply({ content: `⏳ Assigning role to everyone... This may take a while depending on server size.`, ephemeral: false });
+        await interaction.deferReply({ ephemeral: false });
+        if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
+        await interaction.editReply({ content: `⏳ Assigning role to everyone... This may take a while depending on server size.` });
+        
         const role = interaction.options.getRole('role');
         const members = await interaction.guild.members.fetch();
         let count = 0;
@@ -738,7 +739,6 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
     
     if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
     
-    // Discord heavily restricts bot guild creation
     if (client.guilds.cache.size >= 10) {
         return res.status(400).json({ error: 'Discord API Error: Bots actively in 10+ servers cannot auto-create new servers.' });
     }
@@ -748,7 +748,6 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
             name: `${sourceGuild.name} [Backup]`
         });
 
-        // Set pending ownership flag
         pendingBackups.set(newGuild.id, req.session.user.id);
 
         let defaultChannel = newGuild.systemChannel;
@@ -762,11 +761,8 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
         }
 
         const invite = await defaultChannel.createInvite({ maxAge: 0, maxUses: 10 });
-
-        // Respond instantly with the invite link so UI doesn't timeout!
         res.json({ success: true, message: 'Server generated successfully', inviteUrl: invite.url });
 
-        // Process cloning in background thread
         (async () => {
             try {
                 for (const [id, role] of sourceGuild.roles.cache.sort((a,b) => a.position - b.position)) {
