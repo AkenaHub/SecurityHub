@@ -414,9 +414,46 @@ client.on('interactionCreate', async interaction => {
         if (!isAdmin) return interaction.editReply({ content: '❌ You must be an administrator.'});
         const target = interaction.options.getUser('target');
         const reason = interaction.options.getString('reason') || 'No reason provided.';
-                await member.roles.add(role, reason);
-                await interaction.editReply({ content: `✅ Successfully gave the role **${role.name}** to **${target.tag}**. Reason: ${reason}` });
-                logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, `Assigned Role ${role.name}: ${reason}`).catch(console.error);
+        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+
+        if (!member) {
+            return interaction.editReply({ content: '❌ Could not find that user in the server.' });
+        }
+
+        try {
+            if (interaction.commandName === 'kick') { 
+                if (!member.kickable) return interaction.editReply({ content: '❌ I do not have permission to kick this user.' });
+                await member.kick(reason); 
+                await interaction.editReply({ content: `✅ Kicked **${target.tag}**.` }); 
+                logAction(interaction.guildId, 'KICK', target.username, target.id, reason).catch(console.error); 
+            } 
+            else if (interaction.commandName === 'ban') { 
+                if (!member.bannable) return interaction.editReply({ content: '❌ I do not have permission to ban this user.' });
+                await member.ban({ reason: reason }); 
+                await interaction.editReply({ content: `✅ Banned **${target.tag}**.` }); 
+                logAction(interaction.guildId, 'BAN', target.username, target.id, reason).catch(console.error); 
+            }
+            else if (interaction.commandName === 'timeout') { 
+                const duration = interaction.options.getInteger('duration');
+                if (!member.moderatable) return interaction.editReply({ content: '❌ I do not have permission to timeout this user.' });
+                await member.timeout(duration * 60000, reason); 
+                await interaction.editReply({ content: `✅ Timed out **${target.tag}** for ${duration}m.` }); 
+                logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, reason).catch(console.error); 
+            }
+            else if (interaction.commandName === 'unmute') { 
+                if (!member.moderatable) return interaction.editReply({ content: '❌ I do not have permission to unmute this user.' });
+                await member.timeout(null, reason); 
+                await interaction.editReply({ content: `✅ Unmuted **${target.tag}**.` }); 
+                logAction(interaction.guildId, 'UNMUTE', target.username, target.id, reason).catch(console.error);
+            }
+            else if (interaction.commandName === 'role') { 
+                const role = interaction.options.getRole('role');
+                if (role.position >= interaction.guild.members.me.roles.highest.position) {
+                    return interaction.editReply({ content: '❌ I cannot assign a role higher than or equal to my own highest role.' });
+                }
+                await member.roles.add(role, reason); 
+                await interaction.editReply({ content: `✅ Gave role **${role.name}** to **${target.tag}**.` }); 
+                logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, reason).catch(console.error);
             }
         } catch (error) {
             console.error(error);
