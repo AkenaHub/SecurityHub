@@ -324,6 +324,7 @@ client.on('interactionCreate', async interaction => {
 
     // Modal Submission for Support Tickets
     if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_modal_')) {
+        await interaction.deferReply({ ephemeral: true });
         const selectedType = interaction.customId.replace('ticket_modal_', '');
         const reason = interaction.fields.getTextInputValue('ticket_reason');
         const settings = await getSettings(interaction.guildId);
@@ -354,9 +355,9 @@ client.on('interactionCreate', async interaction => {
                 .setTimestamp();
 
             await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
-            await interaction.reply({ content: `✅ Support ticket generated successfully in <#${ticketChan.id}>`, ephemeral: true });
+            await interaction.editReply({ content: `✅ Support ticket generated successfully in <#${ticketChan.id}>` });
         } catch (e) {
-            await interaction.reply({ content: '❌ Failed to create a private support ticket.', ephemeral: true });
+            await interaction.editReply({ content: '❌ Failed to create a private support ticket.' });
         }
         return;
     }
@@ -413,29 +414,29 @@ client.on('interactionCreate', async interaction => {
         if (!isAdmin) return interaction.editReply({ content: '❌ You must be an administrator.'});
         const target = interaction.options.getUser('target');
         const reason = interaction.options.getString('reason') || 'No reason provided.';
-        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-        if (!member) return interaction.editReply({ content: '❌ User not found.' });
-
-        try {
-            if (interaction.commandName === 'kick') { await member.kick(reason); await interaction.editReply({ content: `✅ Kicked **${target.tag}**.` }); logAction(interaction.guildId, 'KICK', target.username, target.id, reason); } 
-            else if (interaction.commandName === 'ban') { await member.ban({ reason: reason }); await interaction.editReply({ content: `✅ Banned **${target.tag}**.` }); logAction(interaction.guildId, 'BAN', target.username, target.id, reason); }
-            else if (interaction.commandName === 'timeout') { const duration = interaction.options.getInteger('duration'); await member.timeout(duration * 60000, reason); await interaction.editReply({ content: `✅ Timed out **${target.tag}** for ${duration}m.` }); logAction(interaction.guildId, 'TIMEOUT', target.username, target.id, reason); }
-            else if (interaction.commandName === 'unmute') { await member.timeout(null, reason); await interaction.editReply({ content: `✅ Unmuted **${target.tag}**.` }); }
-            else if (interaction.commandName === 'role') { const role = interaction.options.getRole('role'); await member.roles.add(role); await interaction.editReply({ content: `✅ Gave role **${role.name}** to **${target.tag}**.` }); }
-        } catch (error) { interaction.editReply({ content: '❌ Error executing command. Check bot permissions.' }); }
+                await member.roles.add(role, reason);
+                await interaction.editReply({ content: `✅ Successfully gave the role **${role.name}** to **${target.tag}**. Reason: ${reason}` });
+                logAction(interaction.guildId, 'ROLE_ADD', target.username, target.id, `Assigned Role ${role.name}: ${reason}`).catch(console.error);
+            }
+        } catch (error) {
+            console.error(error);
+            interaction.editReply({ content: '❌ An error occurred while trying to execute the command.' });
+        }
     }
 
     if (interaction.commandName === 'purge') {
-        if (!isAdmin) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
+        if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
         const amount = interaction.options.getInteger('amount');
         await interaction.channel.bulkDelete(amount, true).catch(()=>{});
-        await interaction.reply({ content: `✅ Deleted ${amount} messages.`, ephemeral: true });
+        await interaction.editReply({ content: `✅ Deleted ${amount} messages.` });
     }
 
     if (interaction.commandName === 'lock') {
-        if (!isAdmin) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
+        if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
         await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: false });
-        await interaction.reply({ content: `🔒 Channel locked.` });
+        await interaction.editReply({ content: `🔒 Channel locked.` });
     }
 
     if (interaction.commandName === 'massrole') {
