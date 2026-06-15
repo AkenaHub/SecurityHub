@@ -2,8 +2,7 @@ require('dotenv').config();
 
 const { 
     Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType,
-    ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder
+    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder
 } = require('discord.js');
 const express = require('express');
 const cookieSession = require('cookie-session');
@@ -15,23 +14,14 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.1.0";
+const CURRENT_VERSION = "v3.1.1";
 
-process.on('unhandledRejection', error => {
-    console.error('Unhandled Promise Rejection:', error);
-});
-
-process.on('uncaughtException', error => {
-    console.error('Uncaught Exception:', error);
-});
+process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
+process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildModeration,
+        GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildModeration,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
@@ -39,6 +29,9 @@ const client = new Client({
 const dbFile = './database.json';
 let guildSettings = {};
 let firestoreDb = null;
+
+// Track backup servers awaiting their new owner to join via the special invite link
+const pendingBackups = new Map();
 
 const initRemoteStorage = async () => {
     try {
@@ -204,9 +197,26 @@ const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleId
     } catch (error) { console.error("Verification Setup Error:", error); }
 };
 
+const sendChangelog = async (guild) => {
+    if (guild.id !== '1499199296522944522') return;
+    try {
+        let channel = guild.channels.cache.find(c => c.name === 'bot-changelog' && c.type === ChannelType.GuildText);
+        if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
+
+        const ansiText = `\`\`\`ansi
+\u001b[2;32m[+]\u001b[0m Implemented instant Server Cloner with smart Auto-Admin claiming via dynamic invite links.
+\u001b[2;34m[!]\u001b[0m Fixed bot timeouts by delegating heavy cloning operations to background threads.
+\`\`\``;
+
+        const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
+        await channel.send({ content: '@here', embeds: [embed] });
+    } catch (e) {}
+};
+
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
 const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift|client_id=|oauth2\/authorize)/i;
+const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -229,10 +239,34 @@ client.once('ready', async () => {
     for (const [id, guild] of client.guilds.cache) {
         await syncWithDiscord(guild);
         const settings = await getSettings(guild.id);
+        if (settings.lastVersion !== CURRENT_VERSION) {
+            if (guild.id === '1499199296522944522') await sendChangelog(guild);
+            await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
+        }
     }
 });
 
 client.on('guildMemberAdd', async member => {
+    
+    // Auto-Admin Claiming for new Backup Guilds
+    if (pendingBackups.has(member.guild.id)) {
+        if (member.id === pendingBackups.get(member.guild.id)) {
+            try {
+                const adminRole = await member.guild.roles.create({
+                    name: 'Server Owner',
+                    permissions: [PermissionFlagsBits.Administrator],
+                    color: '#10b981',
+                    hoist: true
+                });
+                await member.roles.add(adminRole);
+                pendingBackups.delete(member.guild.id);
+                
+                // Welcome the owner privately
+                await member.send(`🎉 **Welcome to your Backup Server!**\nBecause you created this server via the ServSecurity dashboard, I have automatically granted you an \`Administrator\` role!`).catch(()=>{});
+            } catch(e) { console.error(e); }
+        }
+    }
+
     const settings = await getSettings(member.guild.id);
     
     const today = new Date().toISOString().split('T');
@@ -340,6 +374,7 @@ client.on('interactionCreate', async interaction => {
                 }
                 if (added > 0) {
                     await interaction.editReply({ content: '✅ You have been successfully verified!' });
+                    // Add to verified users list
                     if(!settings.verifiedUsers) settings.verifiedUsers = [];
                     if(!settings.verifiedUsers.find(u => u.id === interaction.user.id)) {
                         settings.verifiedUsers.push({ id: interaction.user.id, username: interaction.user.username });
@@ -415,6 +450,153 @@ client.on('interactionCreate', async interaction => {
             }
         }
         await interaction.followUp({ content: `✅ Assigned role **${role.name}** to ${count} members.` });
+    }
+});
+
+client.on('guildUpdate', async (oldGuild, newGuild) => {
+    const settings = await getSettings(newGuild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+    
+    if (oldGuild.name !== newGuild.name) {
+        try {
+            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+            await newGuild.setName(oldGuild.name).catch(() => {});
+            const member = await newGuild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
+                logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt').catch(console.error);
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!oldChannel.guild) return;
+    const settings = await getSettings(oldChannel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldChannel.name !== newChannel.name) {
+        try {
+            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+            await newChannel.setName(oldChannel.name).catch(() => {});
+            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
+                logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt').catch(console.error);
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelDelete', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+        await channel.clone().catch(()=>{});
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
+            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt').catch(console.error);
+        }
+    } catch (e) {}
+});
+
+client.on('channelCreate', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+        await channel.delete().catch(()=>{});
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
+            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt').catch(console.error);
+        }
+    } catch (e) {}
+});
+
+client.on('roleDelete', async role => {
+    if (!role.guild) return;
+    const settings = await getSettings(role.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+        await role.guild.roles.create({
+            name: role.name, color: role.color, hoist: role.hoist, permissions: role.permissions, position: role.position, mentionable: role.mentionable, reason: 'Anti-Nuke: Restoring deleted role'
+        }).catch(() => {});
+
+        const member = await role.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
+            logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt').catch(console.error);
+        }
+    } catch (e) {}
+});
+
+client.on('roleUpdate', async (oldRole, newRole) => {
+    if (!oldRole.guild) return;
+    const settings = await getSettings(oldRole.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldRole.name !== newRole.name || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+        try {
+            const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+            await newRole.edit({ name: oldRole.name, permissions: oldRole.permissions, color: oldRole.color, hoist: oldRole.hoist, mentionable: oldRole.mentionable }).catch(() => {});
+
+            const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
+                logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt').catch(console.error);
+            }
+        } catch (e) {}
     }
 });
 
@@ -503,7 +685,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cookieSession({ name: 'servsecurity.sid', keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], maxAge: 7 * 24 * 60 * 60 * 1000 }));
 
-// Root directory serving index.html cleanly
 app.get('/', (req, res) => {
     const publicPath = path.join(__dirname, 'public', 'index.html');
     const rootPath = path.join(__dirname, 'index.html');
@@ -512,39 +693,66 @@ app.get('/', (req, res) => {
     else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
-// CREATE AND AUTO-CLONE NEW DISCORD SERVER
+// NEW GUILD CREATION ENGINE
 app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const sourceGuild = client.guilds.cache.get(req.params.guildId);
+    
     if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
+    
+    // Discord heavily restricts bot guild creation
+    if (client.guilds.cache.size >= 10) {
+        return res.status(400).json({ error: 'Discord API Error: Bots actively in 10+ servers cannot auto-create new servers.' });
+    }
 
     try {
         const newGuild = await client.guilds.create({
             name: `${sourceGuild.name} [Backup]`
         });
 
-        res.json({ success: true, message: 'Server generated successfully' });
+        // Set pending ownership flag
+        pendingBackups.set(newGuild.id, req.session.user.id);
 
-        // Clone Roles
-        for (const [id, role] of sourceGuild.roles.cache.sort((a,b) => a.position - b.position)) {
-            if(role.name === '@everyone' || role.managed) continue;
-            await newGuild.roles.create({ name: role.name, color: role.color, permissions: role.permissions, hoist: role.hoist }).catch(()=>{});
+        let defaultChannel = newGuild.systemChannel;
+        if (!defaultChannel) {
+            const textChannels = newGuild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+            defaultChannel = textChannels.first();
         }
-        // Clone Categories and Channels
-        for (const [id, category] of sourceGuild.channels.cache.filter(c => c.type === ChannelType.GuildCategory)) {
-            const newCat = await newGuild.channels.create({ name: category.name, type: ChannelType.GuildCategory }).catch(()=>{});
-            if(newCat) {
-                for (const [cid, channel] of sourceGuild.channels.cache.filter(c => c.parentId === category.id && c.type === ChannelType.GuildText)) {
-                    await newGuild.channels.create({ name: channel.name, type: ChannelType.GuildText, parent: newCat.id }).catch(()=>{});
+
+        if (!defaultChannel) {
+            defaultChannel = await newGuild.channels.create({ name: 'general', type: ChannelType.GuildText });
+        }
+
+        const invite = await defaultChannel.createInvite({ maxAge: 0, maxUses: 10 });
+
+        // Respond instantly with the invite link so UI doesn't timeout!
+        res.json({ success: true, message: 'Server generated successfully', inviteUrl: invite.url });
+
+        // Process cloning in background thread
+        (async () => {
+            try {
+                for (const [id, role] of sourceGuild.roles.cache.sort((a,b) => a.position - b.position)) {
+                    if(role.name === '@everyone' || role.managed) continue;
+                    await newGuild.roles.create({ name: role.name, color: role.color, permissions: role.permissions, hoist: role.hoist }).catch(()=>{});
                 }
+                for (const [id, category] of sourceGuild.channels.cache.filter(c => c.type === ChannelType.GuildCategory)) {
+                    const newCat = await newGuild.channels.create({ name: category.name, type: ChannelType.GuildCategory }).catch(()=>{});
+                    if(newCat) {
+                        for (const [cid, channel] of sourceGuild.channels.cache.filter(c => c.parentId === category.id && c.type === ChannelType.GuildText)) {
+                            await newGuild.channels.create({ name: channel.name, type: ChannelType.GuildText, parent: newCat.id }).catch(()=>{});
+                        }
+                    }
+                }
+            } catch (backgroundError) {
+                console.error('Background cloning error:', backgroundError);
             }
-        }
+        })();
+
     } catch(e) {
-        console.error("Backup creation failed:", e);
+        res.status(500).json({ error: e.message || 'Failed to create backup server.' });
     }
 });
 
-// OAuth2 flows
 app.get('/api/auth/login', (req, res) => { res.redirect(`https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`); });
 app.get('/api/auth/callback', async (req, res) => {
     try {
