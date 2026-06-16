@@ -201,8 +201,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Resolved undefined variable reference in /syncallroles command.
-\u001b[2;34m[!]\u001b[0m Enhanced application startup health checks to prevent immediate crash loops on Railway.
+\u001b[2;32m[+]\u001b[0m Expanded invite filter to support raw codes like gg.AWSU8fDbH and gg/AWSU8fDbH.
+\u001b[2;34m[!]\u001b[0m Resolved clone route structure issues with deep role cloner fallbacks.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -212,7 +212,7 @@ const sendChangelog = async (guild) => {
 
 // Expanded invite pattern capturing raw formats: gg/code, gg.code, discord.gg/code, discord.com/invite/code, etc.
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
-const discordInviteRegex = /(?:discord\.(?:gg|com\/invite)\/|discordapp\.com\/invite\/|gg\/|gg\.)([a-zA-Z0-9\-]{2,32})/i;
+const discordInviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.(?:gg|io|me|li|com\/invite)|discordapp\.com\/invite)\/[a-zA-Z0-9\-]+/i;
 const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift|client_id=|oauth2\/authorize)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
@@ -559,29 +559,29 @@ client.on('interactionCreate', async interaction => {
         let usersSynced = 0;
         let rolesAssignedTotal = 0;
 
-        for (const [id, targetMember] of currentMembers) {
-            if (targetMember.user.bot) continue;
-
-            const sourceMember = await sourceGuild.members.fetch(id).catch(() => null);
-            if (sourceMember) {
-                const sourceRoles = sourceMember.roles.cache.filter(r => r.name !== '@everyone' && !r.managed);
-                let addedForThisUser = false;
-                for (const [sId, sRole] of sourceRoles) {
-                    const matchingRole = interaction.guild.roles.cache.find(r => r.name === sRole.name);
-                    if (matchingRole && !targetMember.roles.cache.has(matchingRole.id)) {
-                        // FIXED: Changed targetGuild to interaction.guild
-                        if (matchingRole.position < interaction.guild.members.me.roles.highest.position) {
-                            await targetMember.roles.add(matchingRole).catch(()=>{});
-                            rolesAssignedTotal++;
-                            addedForThisUser = true;
-                        }
-                    }
-                }
-                if (addedForThisUser) usersSynced++;
-            }
+    if (settings.fileShieldEnabled && message.attachments.size > 0) {
+        const hasDangerousFile = message.attachments.some(attachment => dangerousExtensions.some(ext => attachment.name.toLowerCase().endsWith(ext)));
+        if (hasDangerousFile) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
+                return; 
+            } catch (e) {}
         }
+    }
 
-        await interaction.followUp({ content: `✅ Sync complete! Restored **${rolesAssignedTotal}** roles across **${usersSynced}** users from **${sourceGuild.name}**.` });
+    if (settings.linksEnabled) {
+        const messageContentLower = message.content.toLowerCase();
+        const isInvite = discordInviteRegex.test(message.content);
+        const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => domain.length > 0 && messageContentLower.includes(domain));
+        
+        if (isInvite && !isAvoided) {
+            try {
+                await message.delete();
+                if (message.member && message.member.timeout) await message.member.timeout(settings.linkTimeout * 60000, 'Prohibited Server Invite').catch(() => {});
+                return;
+            } catch (e) {}
+        }
     }
 });
 
