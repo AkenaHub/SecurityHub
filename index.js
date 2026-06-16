@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 
 const { 
@@ -14,7 +15,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.1.3";
+const CURRENT_VERSION = "v3.2.0";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -203,8 +204,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Expanded invite filter to support raw codes like gg.AWSU8fDbH and gg/AWSU8fDbH.
-\u001b[2;34m[!]\u001b[0m Resolved clone route structure issues with deep role cloner fallbacks.
+\u001b[2;32m[+]\u001b[0m Added /restoreroles command to instantly sync a specific user's roles from your main server.
+\u001b[2;32m[+]\u001b[0m Added /syncallroles command to mass-restore roles for everyone in the backup server from the main server.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -232,7 +233,9 @@ client.once('ready', async () => {
         new SlashCommandBuilder().setName('role').setDescription('Give a role to a user').addUserOption(o => o.setName('target').setDescription('User').setRequired(true)).addRoleOption(o => o.setName('role').setDescription('Role').setRequired(true)),
         new SlashCommandBuilder().setName('massrole').setDescription('Give a role to EVERYONE').addRoleOption(o => o.setName('role').setDescription('Role').setRequired(true)),
         new SlashCommandBuilder().setName('purge').setDescription('Delete bulk messages').addIntegerOption(o => o.setName('amount').setDescription('Number of messages').setRequired(true).setMaxValue(100)),
-        new SlashCommandBuilder().setName('lock').setDescription('Lock the current channel from @everyone')
+        new SlashCommandBuilder().setName('lock').setDescription('Lock the current channel from @everyone'),
+        new SlashCommandBuilder().setName('restoreroles').setDescription('Restore a user\'s roles from another server.').addUserOption(o => o.setName('target').setDescription('The user').setRequired(true)).addStringOption(o => o.setName('source_server_id').setDescription('ID of the main server').setRequired(true)),
+        new SlashCommandBuilder().setName('syncallroles').setDescription('Restore roles for ALL users from another server.').addStringOption(o => o.setName('source_server_id').setDescription('ID of the main server').setRequired(true))
     ];
     await client.application.commands.set(commands).catch(console.error);
 
@@ -480,6 +483,85 @@ client.on('interactionCreate', async interaction => {
             }
         }
         await interaction.followUp({ content: `✅ Assigned role **${role.name}** to ${count} members.` });
+    }
+
+    if (interaction.commandName === 'restoreroles') {
+        await interaction.deferReply({ ephemeral: false });
+        if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
+
+        const targetUser = interaction.options.getUser('target');
+        const sourceServerId = interaction.options.getString('source_server_id');
+
+        const sourceGuild = client.guilds.cache.get(sourceServerId);
+        if (!sourceGuild) return interaction.editReply({ content: `❌ I am not in the server with ID \`${sourceServerId}\`.` });
+
+        const sourceMember = await sourceGuild.members.fetch(targetUser.id).catch(() => null);
+        if (!sourceMember) return interaction.editReply({ content: `❌ That user is not in the source server (**${sourceGuild.name}**).` });
+
+        const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+        if (!targetMember) return interaction.editReply({ content: `❌ That user is not in this server.` });
+
+        const sourceRoles = sourceMember.roles.cache.filter(r => r.name !== '@everyone' && !r.managed);
+        let rolesAdded = 0;
+        let rolesNotFound = [];
+
+        for (const [id, role] of sourceRoles) {
+            const matchingRole = interaction.guild.roles.cache.find(r => r.name === role.name);
+            if (matchingRole) {
+                if (matchingRole.position < interaction.guild.members.me.roles.highest.position) {
+                    if (!targetMember.roles.cache.has(matchingRole.id)) {
+                        await targetMember.roles.add(matchingRole).catch(() => {});
+                        rolesAdded++;
+                    }
+                } else {
+                    rolesNotFound.push(role.name + " (Too high)");
+                }
+            } else {
+                rolesNotFound.push(role.name);
+            }
+        }
+
+        let replyMsg = `✅ Restored **${rolesAdded}** roles to **${targetUser.tag}** from **${sourceGuild.name}**.`;
+        if (rolesNotFound.length > 0) replyMsg += `\n⚠️ Could not add: ${rolesNotFound.join(', ')}`;
+        await interaction.editReply({ content: replyMsg });
+    }
+
+    if (interaction.commandName === 'syncallroles') {
+        await interaction.deferReply({ ephemeral: false });
+        if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
+
+        const sourceServerId = interaction.options.getString('source_server_id');
+        const sourceGuild = client.guilds.cache.get(sourceServerId);
+        if (!sourceGuild) return interaction.editReply({ content: `❌ I am not in the server with ID \`${sourceServerId}\`.` });
+
+        await interaction.editReply({ content: `⏳ Syncing roles for all members from **${sourceGuild.name}**... This will take a while depending on server size.` });
+
+        const currentMembers = await interaction.guild.members.fetch();
+        let usersSynced = 0;
+        let rolesAssignedTotal = 0;
+
+        for (const [id, targetMember] of currentMembers) {
+            if (targetMember.user.bot) continue;
+
+            const sourceMember = await sourceGuild.members.fetch(id).catch(() => null);
+            if (sourceMember) {
+                const sourceRoles = sourceMember.roles.cache.filter(r => r.name !== '@everyone' && !r.managed);
+                let addedForThisUser = false;
+                for (const [sId, sRole] of sourceRoles) {
+                    const matchingRole = interaction.guild.roles.cache.find(r => r.name === sRole.name);
+                    if (matchingRole && !targetMember.roles.cache.has(matchingRole.id)) {
+                        if (matchingRole.position < interaction.guild.members.me.roles.highest.position) {
+                            await targetMember.roles.add(matchingRole).catch(()=>{});
+                            rolesAssignedTotal++;
+                            addedForThisUser = true;
+                        }
+                    }
+                }
+                if (addedForThisUser) usersSynced++;
+            }
+        }
+
+        await interaction.followUp({ content: `✅ Sync complete! Restored **${rolesAssignedTotal}** roles across **${usersSynced}** users from **${sourceGuild.name}**.` });
     }
 });
 
