@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const { 
     Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder
+    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, AttachmentBuilder
 } = require('discord.js');
 const express = require('express');
 const cookieSession = require('cookie-session');
@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.2.1";
+const CURRENT_VERSION = "v3.3.0";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -81,7 +81,7 @@ const saveToCloud = async (guildId, settings) => {
 const getSettings = async (guildId) => {
     if (!guildSettings[guildId]) {
         guildSettings[guildId] = {
-            masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [], allowedAccess: [], allowedBots: [], raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, antiNukeEnabled: false, logChannelId: null, ticketLogChannelId: null, verifyEnabled: false, verifyChannelId: null, verifyRoleIds: [], verifyPanelMessageId: null, honeypotEnabled: false, honeypotChannelId: null, honeypotAction: 'TIMEOUT', autoRoleEnabled: false, autoRoleIds: [], welcomeEnabled: false, welcomeChannelId: null, welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.', welcomeColor: '#6366f1', welcomeImageType: 'icon', welcomeCustomImageUrl: '', ticketEnabled: false, ticketPanelChannelId: null, ticketCategoryId: null, ticketMessage: 'Please click the button below to open a support ticket.', ticketLogs: [], ticketPanelMessageId: null, lastVersion: null, history: [],
+            masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [], allowedAccess: [], allowedBots: [], raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, antiNukeEnabled: false, logChannelId: null, ticketLogChannelId: null, verifyEnabled: false, verifyChannelId: null, verifyRoleIds: [], verifyPanelMessageId: null, honeypotEnabled: false, honeypotChannelId: null, honeypotAction: 'TIMEOUT', autoRoleEnabled: false, autoRoleIds: [], welcomeEnabled: false, welcomeChannelId: null, welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.', welcomeColor: '#6366f1', welcomeImageType: 'icon', welcomeCustomImageUrl: '', welcomeStudioConfig: null, ticketEnabled: false, ticketPanelChannelId: null, ticketCategoryId: null, ticketMessage: 'Please click the button below to open a support ticket.', ticketLogs: [], ticketPanelMessageId: null, lastVersion: null, history: [],
             joinHistory: {}, verifiedUsers: [], autoRestoreRolesEnabled: false, autoRestoreSourceGuildId: null
         };
         saveLocalDatabase();
@@ -201,8 +201,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Expanded invite filter to support raw codes like gg.AWSU8fDbH and gg/AWSU8fDbH.
-\u001b[2;34m[!]\u001b[0m Resolved clone route structure issues with deep role cloner fallbacks.
+\u001b[2;32m[+]\u001b[0m Launched fully interactive HTML5 Canvas Welcome Image Studio within dashboard.
+\u001b[2;34m[!]\u001b[0m Background parameters securely bound to internal schema processing pipelines.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -316,6 +316,11 @@ client.on('guildMemberAdd', async member => {
             else finalImageUrl = member.guild.iconURL({ size: 512 });
 
             if (finalImageUrl) embed.setImage(finalImageUrl);
+
+            if(settings.welcomeStudioConfig && settings.welcomeStudioConfig.enabled) {
+                embed.setFooter({ text: 'Welcome Studio Editor Configuration Loaded' });
+            }
+
             await channel.send({ embeds: [embed] }).catch(() => {});
         }
     }
@@ -833,7 +838,6 @@ app.get('/', (req, res) => {
     else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
-// NEW GUILD CREATION ENGINE
 app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const sourceGuild = client.guilds.cache.get(req.params.guildId);
@@ -888,7 +892,6 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
     }
 });
 
-// MULTI-MEMBER BACKGROUND ROLE SYNC API ENDPOINT (For direct Web UI triggering)
 app.post('/api/config/sync-all/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const { sourceGuildId } = req.body;
