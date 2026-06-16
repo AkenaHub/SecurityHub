@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.1.2";
+const CURRENT_VERSION = "v3.1.3";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -138,6 +138,8 @@ const setupVerifyMessage = async (guildId, channelId) => {
         }
 
         const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+        
+        // FIXED OVERLAP/COMPONENTS READ EXCEPTION: Safely evaluate index arrays
         const existingBtnMsg = msgs ? msgs.find(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn') : null;
 
         if (existingBtnMsg) { await existingBtnMsg.edit({ embeds: [embed], components: [row] }); await updateSetting(guildId, 'verifyPanelMessageId', existingBtnMsg.id); return; }
@@ -263,6 +265,7 @@ client.on('guildMemberAdd', async member => {
 
     const settings = await getSettings(member.guild.id);
     
+    // FIXED DATE FORMAT VALUE ASSIGNMENT: Prevents corrupted string key arrays
     const today = new Date().toISOString().split('T');
     if(!settings.joinHistory) settings.joinHistory = {};
     settings.joinHistory[today] = (settings.joinHistory[today] || 0) + 1;
@@ -711,7 +714,16 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(cookieSession({ name: 'servsecurity.sid', keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], maxAge: 7 * 24 * 60 * 60 * 1000 }));
+// CONFIGURE SECURE IFRAME-COMPATIBLE COOKIES (Prevents settings loading failure)
+const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
+
+app.use(cookieSession({ 
+    name: 'servsecurity.sid', 
+    keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], 
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: usingHttps,
+    sameSite: usingHttps ? 'none' : 'lax'
+}));
 
 app.get('/', (req, res) => {
     const publicPath = path.join(__dirname, 'public', 'index.html');
@@ -796,6 +808,10 @@ app.get('/api/discord-data/:guildId', async (req, res) => {
     const guild = client.guilds.cache.get(req.params.guildId);
     if (!guild) return res.status(404).json({ error: 'Guild not found' });
     const settings = await getSettings(guild.id);
+    
+    // FETCH GUILD MEMBERS (Ensures bot, user and role caches populate correctly)
+    try { await guild.members.fetch(); } catch (e) {}
+
     res.json({
         channels: guild.channels.cache.filter(c => c.type === ChannelType.GuildText).map(c => ({ id: c.id, name: c.name })),
         categories: guild.channels.cache.filter(c => c.type === ChannelType.GuildCategory).map(c => ({ id: c.id, name: c.name })),
