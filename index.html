@@ -57,7 +57,6 @@
 
         .animate-fade-in { animation: fadeIn 0.5s ease forwards; opacity: 0; }
         .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; transform: translateY(20px); }
-        .delay-50 { animation-delay: 50ms; } .delay-100 { animation-delay: 100ms; } .delay-150 { animation-delay: 150ms; } .delay-200 { animation-delay: 200ms; }
         
         @keyframes fadeIn { to { opacity: 1; } }
         @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
@@ -91,10 +90,10 @@
 <body class="flex h-screen w-full overflow-hidden select-none">
 
     <!-- Mobile Overlay -->
-    <div id="mobile-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-200" onclick="toggleMobileMenu()"></div>
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200" style="z-index: 40;" onclick="toggleMobileMenu()"></div>
 
     <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="w-[280px] md:w-72 glass-panel flex flex-col z-50 shrink-0 absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out">
+    <aside id="sidebar" class="w-[280px] md:w-72 glass-panel flex flex-col shrink-0 absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out" style="z-index: 50;">
         <div class="h-16 flex items-center px-6 border-b border-white/5 bg-black/20">
             <div class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-3 border border-indigo-500/30">
                 <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
@@ -125,7 +124,7 @@
     <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         
         <!-- Mobile Header Bar -->
-        <div class="md:hidden h-14 border-b border-white/5 bg-[#0a0b10]/95 backdrop-blur-xl flex items-center justify-between px-5 shrink-0 z-30">
+        <div class="md:hidden h-14 border-b border-white/5 bg-[#0a0b10]/95 backdrop-blur-xl flex items-center justify-between px-5 shrink-0" style="z-index: 30;">
             <div class="flex items-center">
                 <div class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-2 border border-indigo-500/30">
                     <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
@@ -138,7 +137,7 @@
         </div>
 
         <!-- Master View Header -->
-        <header class="hidden md:flex h-16 border-b border-white/5 items-center justify-between px-8 bg-black/20 backdrop-blur-md z-10 shrink-0 sticky top-0">
+        <header class="hidden md:flex h-16 border-b border-white/5 items-center justify-between px-8 bg-black/20 backdrop-blur-md shrink-0 sticky top-0" style="z-index: 10;">
             <div class="animate-fade-in flex items-center justify-between w-full">
                 <h2 id="active-server-name" class="text-lg font-bold text-white tracking-wide">Select Server Terminal</h2>
                 <div class="flex space-x-2" id="tabs-container" style="display: none;">
@@ -162,7 +161,6 @@
             <!-- TAB 1: MODULES -->
             <div id="tab-dashboard-content" class="hidden max-w-4xl mx-auto flex-col space-y-4 pb-20">
                 
-                <!-- Master Override Switch -->
                 <div class="glass-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-slide-up">
                     <div class="flex-1">
                         <div class="flex items-center space-x-3 mb-1">
@@ -174,7 +172,6 @@
                     <label class="switch scale-110 mr-1"><input type="checkbox" id="masterSwitch" checked><span class="slider"></span></label>
                 </div>
 
-                <!-- Anti Invite Module -->
                 <div class="glass-card p-6 flex flex-col lg:flex-row gap-6 animate-slide-up delay-50">
                     <div class="w-full lg:w-1/3 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/10 pb-4 lg:pb-0 lg:pr-6">
                         <div class="flex items-center justify-between mb-2">
@@ -205,7 +202,6 @@
                     </div>
                 </div>
 
-                <!-- Triple Shields Row -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-slide-up delay-100">
                     <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti Nuke</h4><label class="switch scale-90"><input type="checkbox" id="antiNukeEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Instantly bans rogue bots making unauthorized channel deletions or role edits.</p></div>
                     <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti Raid</h4><label class="switch scale-90"><input type="checkbox" id="raidEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Quarantines join floods, mass pings, and webhook token spam instantly.</p></div>
@@ -249,14 +245,13 @@
                             </div>
                             <h4 class="text-sm font-bold text-white mb-1">Advanced Image Studio</h4>
                             <p class="text-[10px] text-zinc-400 mb-4 px-4 leading-normal">Design a highly customized canvas layout to attach to your welcome messages automatically.</p>
-                            <button onclick="openStudio()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+                            <button onclick="openStudio()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)] relative z-20">
                                 Launch Studio Editor
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Support Ticket System -->
                 <div class="glass-card p-6 animate-slide-up delay-150">
                     <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Support Ticket System</h4>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -303,7 +298,6 @@
                     </div>
                 </div>
 
-                <!-- Verification Setup Card -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up delay-200">
                     <div class="glass-card p-6">
                         <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Verification Setup</h4>
@@ -357,7 +351,6 @@
                     </div>
                 </div>
 
-                <!-- Honeypot & Granular Logging Card -->
                 <div class="glass-card p-6 mt-2 animate-slide-up delay-200">
                     <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Honeypot Trap & Detailed Logging</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -391,7 +384,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="space-y-4 col-span-1 lg:col-span-2">
                             <div class="flex items-center justify-between p-3.5 rounded-xl bg-black/30 border border-white/5">
                                 <span class="text-xs font-bold text-white">Track Purged Messages</span>
@@ -417,7 +409,7 @@
                                             <span id="ticketLogChannelIdText">Select Channel...</span>
                                             <svg id="ticketLogChannelIdIcon" class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="ticketLogChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto font-medium"></div>
+                                        <div id="ticketLogChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
                                     </div>
                                 </div>
                             </div>
@@ -503,7 +495,7 @@
                                                 <span id="autoRestoreSourceGuildIdText" class="text-zinc-500 truncate">Select Source Server...</span>
                                                 <svg id="autoRestoreSourceGuildIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                             </div>
-                                            <div id="autoRestoreSourceGuildIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col font-medium"></div>
+                                            <div id="autoRestoreSourceGuildIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-56 overflow-hidden flex flex-col"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -520,28 +512,34 @@
     </main>
 
     <!-- STUDIO MODAL (CANVAS EDITOR) -->
-    <!-- The key change here is wrapping it in a container that sits securely in front of the entire app with a heavily blurred backdrop -->
-    <div id="studio-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xl z- studio-modal-overlay flex items-center justify-center p-4 md:p-10">
+    <!-- Absolutely positioned in front of everything with heavy backdrop blur -->
+    <div id="studio-modal" class="fixed inset-0 bg-black/80 backdrop-blur-2xl studio-modal-overlay flex items-center justify-center p-0 md:p-6" style="z-index: 999999 !important;">
         
-        <div class="w-full h-full max-w-[1400px] bg-[#050608] rounded-2xl border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden studio-modal-content">
+        <div class="w-full h-full md:max-w-[1200px] md:h-[85vh] bg-[#050608] md:rounded-2xl border-0 md:border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden studio-modal-content relative">
             <!-- Header -->
-            <div class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-black/40 shrink-0">
+            <div class="h-16 border-b border-white/10 flex items-center justify-between px-4 md:px-6 bg-black/40 shrink-0">
                 <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     </div>
-                    <h2 class="text-white font-bold tracking-wide">Welcome Image Studio</h2>
+                    <h2 class="text-white font-bold tracking-wide text-sm md:text-base">Image Studio</h2>
                 </div>
-                <div class="flex space-x-3">
-                    <button onclick="closeStudio()" class="px-5 py-2 rounded-lg text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
-                    <button onclick="saveStudio()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)]">Apply to Dashboard</button>
+                <div class="flex space-x-2 md:space-x-3">
+                    <button onclick="closeStudio()" class="px-3 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
+                    <button onclick="saveStudio()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 md:px-6 py-2 rounded-lg text-[10px] md:text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)]">Apply</button>
                 </div>
             </div>
 
             <!-- Workspace -->
-            <div class="flex flex-1 overflow-hidden font-sans bg-[#0a0b10]">
-                <!-- Properties Sidebar -->
-                <div class="w-72 bg-[#0a0b10] border-r border-white/5 flex flex-col shrink-0 overflow-y-auto">
+            <div class="flex flex-col md:flex-row flex-1 overflow-hidden font-sans bg-[#0a0b10]">
+                <!-- Canvas Area (On Top on Mobile) -->
+                <div class="flex-1 studio-canvas-container flex flex-col items-center justify-center p-4 md:p-8 overflow-auto relative order-1 md:order-2 min-h-[250px] md:min-h-0" id="canvas-wrapper">
+                    <span class="absolute top-2 right-2 md:top-6 md:right-8 text-[10px] font-bold text-zinc-500 tracking-widest uppercase">800 x 300</span>
+                    <canvas id="welcomeStudioCanvas" width="800" height="300" class="rounded-xl w-full max-w-[800px] h-auto border border-white/20 shadow-2xl" style="touch-action: none;"></canvas>
+                </div>
+
+                <!-- Properties Sidebar (Scrollable Below on Mobile) -->
+                <div class="w-full md:w-72 bg-[#0a0b10] border-t md:border-t-0 md:border-r border-white/5 flex flex-col shrink-0 overflow-y-auto order-2 md:order-1 h-[50vh] md:h-auto">
                     <div class="p-5 border-b border-white/5">
                         <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-4">Background Layer</h3>
                         <div class="space-y-4">
@@ -572,12 +570,6 @@
                     <div class="p-5 flex-1" id="studio-properties-panel">
                         <p class="text-xs text-zinc-500 italic text-center mt-10">Click an element on the canvas to edit its properties.</p>
                     </div>
-                </div>
-
-                <!-- Canvas Area -->
-                <div class="flex-1 studio-canvas-container flex flex-col items-center justify-center p-8 overflow-auto relative" id="canvas-wrapper">
-                    <span class="absolute top-6 right-8 text-[10px] font-bold text-zinc-500 tracking-widest uppercase">800 x 300</span>
-                    <canvas id="welcomeStudioCanvas" width="800" height="300" class="rounded-xl max-w-full"></canvas>
                 </div>
             </div>
         </div>
@@ -813,8 +805,7 @@
             return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
         }
 
-        canvas.addEventListener('mousedown', (e) => {
-            const pos = getMousePos(e);
+        function handleDragStart(pos) {
             selectedElementIndex = -1;
             
             for (let i = studioConfig.elements.length - 1; i >= 0; i--) {
@@ -839,8 +830,10 @@
             }
             renderStudioSidebar();
             renderStudioCanvas();
-        });
+        }
 
+        // Mouse Events
+        canvas.addEventListener('mousedown', (e) => { handleDragStart(getMousePos(e)); });
         canvas.addEventListener('mousemove', (e) => {
             if (isDragging && selectedElementIndex > -1) {
                 const pos = getMousePos(e);
@@ -849,9 +842,24 @@
                 renderStudioCanvas();
             }
         });
-
         canvas.addEventListener('mouseup', () => { isDragging = false; });
         canvas.addEventListener('mouseleave', () => { isDragging = false; });
+
+        // Touch Events for Mobile Dragging
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleDragStart(getMousePos(e.touches));
+        }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => {
+            if (isDragging && selectedElementIndex > -1) {
+                e.preventDefault();
+                const pos = getMousePos(e.touches);
+                studioConfig.elements[selectedElementIndex].x = pos.x - dragOffsetX;
+                studioConfig.elements[selectedElementIndex].y = pos.y - dragOffsetY;
+                renderStudioCanvas();
+            }
+        }, {passive: false});
+        canvas.addEventListener('touchend', () => { isDragging = false; });
 
         // ---- UI MODULE CONTROL PLUMBING ----
         function autoResizeTextarea(el) { 
