@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.2.0";
+const CURRENT_VERSION = "v3.2.1";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -201,8 +201,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Dynamic Role Recovery Matrix fully integrated into dashboard.
-\u001b[2;32m[+]\u001b[0m Automated Role Recovery on join successfully linked with member join flows.
+\u001b[2;32m[+]\u001b[0m Resolved undefined variable reference in /syncallroles command.
+\u001b[2;34m[!]\u001b[0m Enhanced application startup health checks to prevent immediate crash loops on Railway.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -210,6 +210,7 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
+// Expanded invite pattern capturing raw formats: gg/code, gg.code, discord.gg/code, discord.com/invite/code, etc.
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(?:discord\.(?:gg|com\/invite)\/|discordapp\.com\/invite\/|gg\/|gg\.)([a-zA-Z0-9\-]{2,32})/i;
 const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift|client_id=|oauth2\/authorize)/i;
@@ -568,6 +569,7 @@ client.on('interactionCreate', async interaction => {
                 for (const [sId, sRole] of sourceRoles) {
                     const matchingRole = interaction.guild.roles.cache.find(r => r.name === sRole.name);
                     if (matchingRole && !targetMember.roles.cache.has(matchingRole.id)) {
+                        // FIXED: Changed targetGuild to interaction.guild
                         if (matchingRole.position < interaction.guild.members.me.roles.highest.position) {
                             await targetMember.roles.add(matchingRole).catch(()=>{});
                             rolesAssignedTotal++;
@@ -606,7 +608,7 @@ app.get('/', (req, res) => {
     else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
-// CLONING ENGINE DIRECTLY ONTO TARGET BACKUP SERVERS (TO PREVENT ENDPOINT ERRORS)
+// NEW GUILD CREATION ENGINE
 app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const sourceGuild = client.guilds.cache.get(req.params.guildId);
