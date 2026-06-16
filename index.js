@@ -559,6 +559,231 @@ client.on('interactionCreate', async interaction => {
         let usersSynced = 0;
         let rolesAssignedTotal = 0;
 
+        for (const [id, targetMember] of currentMembers) {
+            if (targetMember.user.bot) continue;
+
+            const sourceMember = await sourceGuild.members.fetch(id).catch(() => null);
+            if (sourceMember) {
+                const sourceRoles = sourceMember.roles.cache.filter(r => r.name !== '@everyone' && !r.managed);
+                let addedForThisUser = false;
+                for (const [sId, sRole] of sourceRoles) {
+                    const matchingRole = interaction.guild.roles.cache.find(r => r.name === sRole.name);
+                    if (matchingRole && !targetMember.roles.cache.has(matchingRole.id)) {
+                        if (matchingRole.position < interaction.guild.members.me.roles.highest.position) {
+                            await targetMember.roles.add(matchingRole).catch(()=>{});
+                            rolesAssignedTotal++;
+                            addedForThisUser = true;
+                        }
+                    }
+                }
+                if (addedForThisUser) usersSynced++;
+            }
+        }
+
+        await interaction.followUp({ content: `✅ Sync complete! Restored **${rolesAssignedTotal}** roles across **${usersSynced}** users from **${sourceGuild.name}**.` });
+    }
+});
+
+client.on('guildUpdate', async (oldGuild, newGuild) => {
+    const settings = await getSettings(newGuild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+    
+    if (oldGuild.name !== newGuild.name) {
+        try {
+            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+            await newGuild.setName(oldGuild.name).catch(() => {});
+            const member = await newGuild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
+                logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt').catch(console.error);
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!oldChannel.guild) return;
+    const settings = await getSettings(oldChannel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldChannel.name !== newChannel.name) {
+        try {
+            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+            await newChannel.setName(oldChannel.name).catch(() => {});
+            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
+                logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt').catch(console.error);
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelDelete', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+        await channel.clone().catch(()=>{});
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
+            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt').catch(console.error);
+        }
+    } catch (e) {}
+});
+
+client.on('channelCreate', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+        await channel.delete().catch(()=>{});
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
+            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt').catch(console.error);
+        }
+    } catch (e) {}
+});
+
+client.on('roleDelete', async role => {
+    if (!role.guild) return;
+    const settings = await getSettings(role.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+        await role.guild.roles.create({
+            name: role.name, color: role.color, hoist: role.hoist, permissions: role.permissions, position: role.position, mentionable: role.mentionable, reason: 'Anti-Nuke: Restoring deleted role'
+        }).catch(() => {});
+
+        const member = await role.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
+            logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt').catch(console.error);
+        }
+    } catch (e) {}
+});
+
+client.on('roleUpdate', async (oldRole, newRole) => {
+    if (!oldRole.guild) return;
+    const settings = await getSettings(oldRole.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldRole.name !== newRole.name || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+        try {
+            const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
+
+            await newRole.edit({ name: oldRole.name, permissions: oldRole.permissions, color: oldRole.color, hoist: oldRole.hoist, mentionable: oldRole.mentionable }).catch(() => {});
+
+            const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
+                logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt').catch(console.error);
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('messageCreate', async message => {
+    if (message.author.id === client.user.id) return; 
+
+    const settings = await getSettings(message.guild.id);
+    if (!settings.masterSwitch) return;
+
+    let hasBypass = message.author?.id === message.guild.ownerId || (message.member && message.member.permissions.has('Administrator'));
+    if (!hasBypass && settings.allowedAccess && settings.allowedAccess.length > 0) {
+        if (message.author && settings.allowedAccess.includes(message.author.id)) hasBypass = true;
+        if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
+    }
+    
+    if (message.webhookId) {
+        if (settings.raidEnabled || settings.linksEnabled) {
+            const content = message.content.toLowerCase();
+            const isScam = scamRegex.test(content) || (content.includes('@everyone') && linkRegex.test(content));
+            if (isScam) {
+                try {
+                    await message.delete().catch(()=>{});
+                    const wh = await message.fetchWebhook().catch(()=>{});
+                    if (wh) await wh.delete('Deleted malicious webhook spammer').catch(()=>{});
+                } catch(e) {}
+            }
+        }
+        return; 
+    }
+
+    if (settings.honeypotEnabled && settings.honeypotChannelId && message.channel.id === settings.honeypotChannelId) {
+        if (hasBypass) return;
+        try {
+            await message.delete().catch(()=>{});
+            const action = settings.honeypotAction || 'TIMEOUT';
+            if (action === 'BAN') await message.member.ban({ reason: 'Security Trap' }).catch(()=>{});
+            else if (action === 'KICK') await message.member.kick('Security Trap').catch(()=>{});
+            else await message.member.timeout(1440 * 60000, 'Security Trap').catch(()=>{});
+            return; 
+        } catch (e) {}
+    }
+    
+    if (hasBypass) return; 
+
+    if (settings.raidEnabled) {
+        const content = message.content.toLowerCase();
+        const isRaid = content.includes('﷽') || scamRegex.test(message.content) || (content.includes('@everyone') && linkRegex.test(content)) || (content.includes('@here') && linkRegex.test(content));
+        if (isRaid) {
+            try {
+                await message.delete().catch(() => {});
+                if (message.member && message.member.moderatable) await message.member.timeout(86400000, 'Malicious Phishing/Raid Activity').catch(() => {});
+                return; 
+            } catch (e) {}
+        }
+    }
+
     if (settings.fileShieldEnabled && message.attachments.size > 0) {
         const hasDangerousFile = message.attachments.some(attachment => dangerousExtensions.some(ext => attachment.name.toLowerCase().endsWith(ext)));
         if (hasDangerousFile) {
