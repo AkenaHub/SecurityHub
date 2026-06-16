@@ -30,7 +30,6 @@ const dbFile = './database.json';
 let guildSettings = {};
 let firestoreDb = null;
 
-// Track backup servers awaiting their new owner to join via the special invite link
 const pendingBackups = new Map();
 
 const initRemoteStorage = async () => {
@@ -107,7 +106,6 @@ const logTicketAction = async (guildId, type, username, reason) => {
     if (settings.ticketLogs.length > 15) settings.ticketLogs = settings.ticketLogs.slice(0, 15);
     guildSettings[guildId] = settings; saveLocalDatabase(); await saveToCloud(guildId, settings);
     
-    // Independent Ticket Log Channel Pipeline
     if (settings.ticketLogChannelId) {
         try {
             const guild = client.guilds.cache.get(guildId);
@@ -203,8 +201,8 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Heavily optimized Interaction timeouts across all Slash Commands (/purge, /lock, /massrole).
-\u001b[2;32m[+]\u001b[0m Bot now fully delegates heavy API calls to background deferments to guarantee flawless stability.
+\u001b[2;32m[+]\u001b[0m Expanded invite filter to support raw codes like gg.AWSU8fDbH and gg/AWSU8fDbH.
+\u001b[2;34m[!]\u001b[0m Resolved clone route structure issues with deep role cloner fallbacks.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -212,8 +210,9 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
+// Expanded invite pattern capturing raw formats: gg/code, gg.code, discord.gg/code, discord.com/invite/code, etc.
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
-const discordInviteRegex = /(discord\.gg\/|discord\.com\/invite\/|discordapp\.com\/invite\/)[a-zA-Z0-9]+/i;
+const discordInviteRegex = /(?:discord\.(?:gg|com\/invite)\/|discordapp\.com\/invite\/|gg\/|gg\.)([a-zA-Z0-9\-]{2,32})/i;
 const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift|client_id=|oauth2\/authorize)/i;
 const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.msi', '.pif'];
 
@@ -246,8 +245,6 @@ client.once('ready', async () => {
 });
 
 client.on('guildMemberAdd', async member => {
-    
-    // Auto-Admin Claiming for new Backup Guilds
     if (pendingBackups.has(member.guild.id)) {
         if (member.id === pendingBackups.get(member.guild.id)) {
             try {
@@ -259,7 +256,6 @@ client.on('guildMemberAdd', async member => {
                 });
                 await member.roles.add(adminRole);
                 pendingBackups.delete(member.guild.id);
-                
                 await member.send(`🎉 **Welcome to your Backup Server!**\nBecause you created this server via the ServSecurity dashboard, I have automatically granted you an \`Administrator\` role!`).catch(()=>{});
             } catch(e) { console.error(e); }
         }
@@ -301,7 +297,6 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // Ticket Select Menu Handling - Shows Modal (MUST NOT DEFER!)
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_type_dropdown') {
         const selectedType = interaction.values;
         const modal = new ModalBuilder()
@@ -320,7 +315,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // Modal Submission for Support Tickets - DEFERRED
     if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_modal_')) {
         await interaction.deferReply({ ephemeral: true });
         const selectedType = interaction.customId.replace('ticket_modal_', '');
@@ -363,7 +357,6 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         const settings = await getSettings(interaction.guildId);
         
-        // Verify Button - DEFERRED
         if (interaction.customId === 'verify_user_btn') {
             await interaction.deferReply({ ephemeral: true });
             if (settings.verifyEnabled && settings.verifyRoleIds && settings.verifyRoleIds.length > 0) {
@@ -384,7 +377,6 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        // Close Ticket Button - DEFERRED
         if (interaction.customId === 'close_ticket_btn') {
             await interaction.deferReply({ ephemeral: false });
             await interaction.editReply({ content: '🔒 Ticket will automatically close in 5 seconds...' });
@@ -409,7 +401,6 @@ client.on('interactionCreate', async interaction => {
 
     const isAdmin = interaction.member?.permissions.has('Administrator') || interaction.user.id === '1284247278957367337';
 
-    // Moderation Commands - DEFERRED
     if (['kick', 'ban', 'timeout', 'unmute', 'role'].includes(interaction.commandName)) {
         await interaction.deferReply({ ephemeral: false }); 
         if (!isAdmin) return interaction.editReply({ content: '❌ You must be an administrator.'});
@@ -457,7 +448,6 @@ client.on('interactionCreate', async interaction => {
         } catch (error) { interaction.editReply({ content: '❌ Error executing command. Check bot permissions.' }); }
     }
 
-    // Purge - DEFERRED FIRST
     if (interaction.commandName === 'purge') {
         await interaction.deferReply({ ephemeral: true });
         if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
@@ -466,7 +456,6 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply({ content: `✅ Deleted ${amount} messages.` });
     }
 
-    // Lock - DEFERRED FIRST
     if (interaction.commandName === 'lock') {
         await interaction.deferReply({ ephemeral: false });
         if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
@@ -474,7 +463,6 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply({ content: `🔒 Channel locked.` });
     }
 
-    // Massrole - DEFERRED FIRST
     if (interaction.commandName === 'massrole') {
         await interaction.deferReply({ ephemeral: false });
         if (!isAdmin) return interaction.editReply({ content: '❌ Admin only.' });
@@ -705,6 +693,7 @@ client.on('messageCreate', async message => {
 
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
+        // Uses the newly expanded invite pattern to capture dot-based invite formats
         const isInvite = discordInviteRegex.test(message.content);
         const isAvoided = settings.linkAvoids && settings.linkAvoids.some(domain => messageContentLower.includes(domain));
         if (isInvite && !isAvoided) {
@@ -732,7 +721,7 @@ app.get('/', (req, res) => {
     else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>System Error: Missing UI index.html</h2></div>");
 });
 
-// NEW GUILD CREATION ENGINE
+// CLONING ENGINE DIRECTLY ONTO TARGET BACKUP SERVERS (TO PREVENT ENDPOINT ERRORS)
 app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const sourceGuild = client.guilds.cache.get(req.params.guildId);
@@ -740,7 +729,7 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
     
     if (client.guilds.cache.size >= 10) {
-        return res.status(400).json({ error: 'Discord API Error: Bots actively in 10+ servers cannot auto-create new servers.' });
+        return res.status(400).json({ error: 'Discord API Limitation: Bots present in 10 or more servers cannot programmatically spawn new guilds.' });
     }
 
     try {
