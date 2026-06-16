@@ -9,94 +9,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { 
-            background-color: #050608; 
-            font-family: 'Inter', sans-serif; 
-            color: #f4f4f5; 
-            background-image: 
-                linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 40px 45px;
-            animation: moveGrid 28s linear infinite;
+            background-color: #050608; font-family: 'Inter', sans-serif; color: #f4f4f5; overflow: hidden;
+            background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 45px; animation: moveGrid 28s linear infinite;
         }
 
-        @keyframes moveGrid {
-            0% { background-position: 0 0; }
-            100% { background-position: 40px 45px; }
-        }
+        @keyframes moveGrid { 0% { background-position: 0 0; } 100% { background-position: 40px 45px; } }
 
-        .glass-panel {
-            background: rgba(10, 11, 15, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
+        .glass-panel { background: rgba(10, 11, 15, 0.85); backdrop-filter: blur(24px); border-right: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-card {
-            background: rgba(15, 17, 24, 0.6);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
-            position: relative;
-            z-index: 10;
+            background: rgba(15, 17, 24, 0.6); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4); position: relative; z-index: 10;
         }
-        .glass-card:hover {
-            border-color: rgba(99, 102, 241, 0.35);
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6);
-        }
+        .glass-card:hover { border-color: rgba(99, 102, 241, 0.35); transform: translateY(-2px); box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.6); }
 
-        .input-base { 
-            background: rgba(0, 0, 0, 0.4); 
-            border: 1px solid rgba(255, 255, 255, 0.07); 
-            border-radius: 8px; 
-            color: #e4e4e7; 
-            transition: all 0.2s ease; 
-        }
-        .input-base:focus, .custom-dropdown.show > .input-base { 
-            border-color: #6366f1; 
-            outline: none; 
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); 
-            background: rgba(0, 0, 0, 0.6);
-        }
+        .input-base { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 8px; color: #e4e4e7; transition: all 0.2s ease; }
+        .input-base:focus, .custom-dropdown.show > .input-base { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); background: rgba(0, 0, 0, 0.6); }
 
-        .dropdown-menu {
-            visibility: hidden;
-            opacity: 0;
-            transform: translateY(-8px);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-        }
-        .dropdown-menu.show {
-            visibility: visible;
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
+        .dropdown-menu { visibility: hidden; opacity: 0; transform: translateY(-8px); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
+        .dropdown-menu.show { visibility: visible; opacity: 1; transform: translateY(0); pointer-events: auto; }
 
         .switch { position: relative; display: inline-block; width: 40px; height: 22px; z-index: 20; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(255,255,255,0.08); transition: .3s ease; border-radius: 30px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .slider:before {
-            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
-            background-color: #a1a1aa; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%;
-        }
-        input:checked + .slider { 
-            background-color: #10b981;
-            border-color: #10b981;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-        }
-        input:checked + .slider:before { 
-            transform: translateX(18px); 
-            background-color: #ffffff;
-        }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.08); transition: .3s ease; border-radius: 30px; border: 1px solid rgba(255,255,255,0.05); }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: #a1a1aa; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+        input:checked + .slider:before { transform: translateX(18px); background-color: #ffffff; }
 
         .sidebar-btn { border-radius: 8px; transition: all 0.2s ease; }
         .sidebar-btn:hover:not(.active) { background-color: rgba(255,255,255,0.03); }
@@ -108,7 +47,6 @@
         .tab-btn::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background-color: #818cf8; transform: scaleX(0); transition: transform 0.25s ease; }
         .tab-btn.active::after { transform: scaleX(1); }
 
-        .custom-dropdown-container { position: relative; }
         .check-icon { opacity: 0; transform: translateX(-8px) scale(0.8); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0; overflow: hidden; }
         .selected-option .check-icon { opacity: 1; transform: translateX(0) scale(1); width: 1rem; margin-right: 0.5rem; }
 
@@ -191,8 +129,8 @@
             <div class="animate-fade-in flex items-center justify-between w-full">
                 <h2 id="active-server-name" class="text-lg font-bold text-white tracking-wide">Select Server Terminal</h2>
                 <div class="flex space-x-2" id="tabs-container" style="display: none;">
-                    <div class="tab-btn active" onclick="switchTab('dashboard')">Control Panel</div>
-                    <div class="tab-btn" onclick="switchTab('users')">Users & Backup Matrix</div>
+                    <div class="tab-btn active" onclick="switchTab('dashboard', event)">Control Panel</div>
+                    <div class="tab-btn" onclick="switchTab('users', event)">Users & Backup Matrix</div>
                 </div>
             </div>
         </header>
@@ -292,7 +230,7 @@
                         </div>
 
                         <!-- Studio Launch Area -->
-                        <div class="bg-black/30 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-inner h-full min-h-[220px]">
+                        <div class="bg-black/30 border border-white/5 rounded-xl p-5 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-inner h-full min-h-[220px]">
                             <div class="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center mb-3">
                                 <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             </div>
@@ -305,7 +243,7 @@
                     </div>
                 </div>
 
-                <!-- Ticket Setup -->
+                <!-- Support Ticket System -->
                 <div class="glass-card p-6 animate-slide-up delay-150">
                     <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Support Ticket System</h4>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -352,7 +290,7 @@
                     </div>
                 </div>
 
-                <!-- Verification & Auto-Role -->
+                <!-- Verification Setup Card -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up delay-200">
                     <div class="glass-card p-6">
                         <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Verification Setup</h4>
@@ -389,7 +327,9 @@
                         <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Auto Role on Join</h4>
                         <div class="space-y-4">
                             <div class="flex items-center justify-between p-3.5 rounded-xl bg-black/30 border border-white/5">
-                                <div><span class="text-xs font-bold text-white">Enable Auto Role</span></div>
+                                <div>
+                                    <span class="text-xs font-bold text-white">Enable Auto Role</span>
+                                </div>
                                 <label class="switch"><input type="checkbox" id="autoRoleEnabled"><span class="slider"></span></label>
                             </div>
                             <div class="space-y-2">
@@ -406,7 +346,7 @@
                     </div>
                 </div>
 
-                <!-- Honeypot & Logging -->
+                <!-- Honeypot & Granular Logging Card -->
                 <div class="glass-card p-6 mt-2 animate-slide-up delay-200">
                     <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Honeypot Trap & Detailed Logging</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -440,6 +380,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <div class="space-y-4 col-span-1 lg:col-span-2">
                             <div class="flex items-center justify-between p-3.5 rounded-xl bg-black/30 border border-white/5">
                                 <span class="text-xs font-bold text-white">Track Purged Messages</span>
@@ -898,6 +839,7 @@
 
         // ---- UI MODULE CONTROL PLUMBING ----
         function autoResizeTextarea(el) { 
+            if (!el) return;
             el.style.height = 'auto'; 
             el.style.height = (el.scrollHeight) + 'px'; 
         }
@@ -1003,8 +945,10 @@
         }
 
         function updateWelcomePreview() { 
-            const msgInput = document.getElementById('welcomeMessage').value || 'Welcome {user} to **{server}**!'; 
-            const colInput = document.getElementById('welcomeColor').value || '#6366f1'; 
+            const welcomeMsgEl = document.getElementById('welcomeMessage');
+            if(!welcomeMsgEl) return;
+            const msgInput = welcomeMsgEl.value || 'Welcome {user} to **{server}**!'; 
+            const colInput = document.getElementById('welcomeColor')?.value || '#6366f1'; 
             const imgType = document.getElementById('welcomeImageType')?.value || 'icon'; 
             const customUrl = document.getElementById('welcomeCustomImageUrl')?.value || ''; 
             const previewBorder = document.getElementById('preview-border'); 
@@ -1093,7 +1037,7 @@
                 masterSwitch: originalConfig.masterSwitch, 
                 linksEnabled: originalConfig.linksEnabled, 
                 linkTimeout: originalConfig.linkTimeout, 
-                linkAvoids: originalConfig.linkAvoids.join(', '), 
+                linkAvoids: originalConfig.linkAvoids ? originalConfig.linkAvoids.join(', ') : '', 
                 raidEnabled: originalConfig.raidEnabled, 
                 fileShieldEnabled: originalConfig.fileShieldEnabled, 
                 logDeletedEnabled: originalConfig.logDeletedEnabled, 
@@ -1118,7 +1062,7 @@
                 ticketPanelChannelId: originalConfig.ticketPanelChannelId || '', 
                 ticketCategoryId: originalConfig.ticketCategoryId || '', 
                 ticketMessage: originalConfig.ticketMessage || 'Please click the button below to open a support ticket.', 
-                allowedAccess: originalConfig.allowedAccess.join(', '), 
+                allowedAccess: originalConfig.allowedAccess ? originalConfig.allowedAccess.join(', ') : '', 
                 allowedBots: (originalConfig.allowedBots || []).join(', '), 
                 autoRestoreRolesEnabled: originalConfig.autoRestoreRolesEnabled || false, 
                 autoRestoreSourceGuildId: originalConfig.autoRestoreSourceGuildId || '',
@@ -1127,6 +1071,88 @@
             const hasChanged = JSON.stringify(currentInputs) !== JSON.stringify(cleanOriginal);
             const banner = document.getElementById('unsaved-changes-banner');
             if (hasChanged) banner.classList.add('show'); else banner.classList.remove('show');
+        }
+
+        async function saveConfig() {
+            if (!activeGuildId) return;
+            
+            const payload = {
+                masterSwitch: !!document.getElementById('masterSwitch')?.checked, 
+                linksEnabled: !!document.getElementById('linksEnabled')?.checked, 
+                linkTimeout: getCalculatedTimeout(), 
+                linkAvoids: document.getElementById('linkAvoids')?.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0) || [], 
+                raidEnabled: !!document.getElementById('raidEnabled')?.checked, 
+                fileShieldEnabled: !!document.getElementById('fileShieldEnabled')?.checked, 
+                logDeletedEnabled: !!document.getElementById('logDeletedEnabled')?.checked, 
+                antiNukeEnabled: !!document.getElementById('antiNukeEnabled')?.checked, 
+                logChannelId: document.getElementById('logChannelId')?.value || null, 
+                ticketLogChannelId: document.getElementById('ticketLogChannelId')?.value || null, 
+                verifyEnabled: !!document.getElementById('verifyEnabled')?.checked, 
+                verifyChannelId: document.getElementById('verifyChannelId')?.value || null, 
+                verifyRoleIds: Array.from(document.querySelectorAll('.verify-role-checkbox:checked')).map(cb => cb.value), 
+                honeypotEnabled: !!document.getElementById('honeypotEnabled')?.checked, 
+                honeypotChannelId: document.getElementById('honeypotChannelId')?.value || null, 
+                honeypotAction: document.getElementById('honeypotAction')?.value || 'TIMEOUT', 
+                autoRoleEnabled: !!document.getElementById('autoRoleEnabled')?.checked, 
+                autoRoleIds: Array.from(document.querySelectorAll('.auto-role-checkbox:checked')).map(cb => cb.value), 
+                welcomeEnabled: !!document.getElementById('welcomeEnabled')?.checked, 
+                welcomeChannelId: document.getElementById('welcomeChannelId')?.value || null, 
+                welcomeMessage: document.getElementById('welcomeMessage')?.value || 'Welcome {user} to **{server}**! We are now at {membercount} members.', 
+                welcomeColor: document.getElementById('welcomeColor')?.value || '#6366f1', 
+                welcomeImageType: document.getElementById('welcomeImageType')?.value || 'icon', 
+                welcomeCustomImageUrl: document.getElementById('welcomeCustomImageUrl')?.value || '', 
+                ticketEnabled: !!document.getElementById('ticketEnabled')?.checked, 
+                ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || null, 
+                ticketCategoryId: document.getElementById('ticketCategoryId')?.value || null, 
+                ticketMessage: document.getElementById('ticketMessage')?.value || 'Please click the button below to open a support ticket.', 
+                allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value), 
+                allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value), 
+                autoRestoreRolesEnabled: !!document.getElementById('autoRestoreRolesEnabled')?.checked, 
+                autoRestoreSourceGuildId: document.getElementById('autoRestoreSourceGuildId')?.value || null,
+                welcomeStudioConfig: originalConfig.pendingStudioConfig || originalConfig.welcomeStudioConfig || null
+            };
+            
+            try {
+                const res = await fetch(resolveUrl(`/api/config/${activeGuildId}`), { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    credentials: 'include', 
+                    body: JSON.stringify(payload) 
+                });
+                if (res.ok) {
+                    showNotification('Settings saved.');
+                    originalConfig = JSON.parse(JSON.stringify(payload));
+                    delete originalConfig.pendingStudioConfig; 
+                    
+                    const resJson = await res.json();
+                    if (resJson.config) {
+                        if (resJson.config.verifyPanelMessageId) originalConfig.verifyPanelMessageId = resJson.config.verifyPanelMessageId;
+                        if (resJson.config.ticketPanelMessageId) originalConfig.ticketPanelMessageId = resJson.config.ticketPanelMessageId;
+                        const addOptionIfNew = (id, newId, name) => { 
+                            if(newId) { 
+                                const dropSelect = document.getElementById(id); 
+                                if (dropSelect && !dropSelect.querySelector(`option[value="${newId}"]`)) { 
+                                    const newOpt = document.createElement('option'); 
+                                    newOpt.value = newId; 
+                                    newOpt.className = 'bg-[#0b0b0e] text-zinc-300'; 
+                                    newOpt.textContent = name; 
+                                    dropSelect.appendChild(newOpt); 
+                                } 
+                                if(dropSelect) dropSelect.value = newId; 
+                            } 
+                        };
+                        if (resJson.config.honeypotChannelId === 'CREATE_NEW' || payload.honeypotChannelId === 'CREATE_NEW') { originalConfig.honeypotChannelId = resJson.config.honeypotChannelId; addOptionIfNew('honeypotChannelId', resJson.config.honeypotChannelId, `# ⚠️-do-not-talk-here`); }
+                        if (resJson.config.ticketCategoryId === 'CREATE_NEW' || payload.ticketCategoryId === 'CREATE_NEW') { originalConfig.ticketCategoryId = resJson.config.ticketCategoryId; addOptionIfNew('ticketCategoryId', resJson.config.ticketCategoryId, `📁 🎫 Tickets`); }
+                    }
+                    updateMasterBadge(); checkUnsavedChanges();
+                } else throw new Error();
+            } catch (err) { showNotification('Failed to save settings.', 'error'); }
+        }
+
+        function discardChanges() {
+            if (!activeGuildId) return;
+            loadConfig(activeGuildId);
+            showNotification('Reverted edits.');
         }
 
         function addInputListeners() { 
@@ -1152,45 +1178,72 @@
             const textSpan = document.getElementById(inputId + 'Text'); 
             const menu = document.getElementById(inputId + 'Menu'); 
             if(!input || !textSpan || !menu) return; 
+
             menu.innerHTML = `<div class="sticky top-0 bg-[#12141d] pt-0 pb-2 z-10 border-b border-white/5 mb-2 -mx-1.5 -mt-1.5 px-2 pt-2"><input type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 dropdown-search" placeholder="Search..."></div><div class="options-container flex flex-col overflow-y-auto overflow-x-hidden"></div>`; 
             const optionsContainer = menu.querySelector('.options-container'); 
+
             const addOpt = (val, label, customClass = '') => { 
                 const el = document.createElement('div'); 
                 el.className = `flex items-center px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors rounded-lg dropdown-option mb-1 mx-1 ${customClass}`; 
                 el.innerHTML = `<svg class="w-4 h-4 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span class="text-xs font-semibold ${val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${label}</span>`; 
                 if (input.value === val) el.classList.add('selected-option'); 
+
                 el.addEventListener('click', () => { 
-                    input.value = val; textSpan.textContent = label; textSpan.className = val ? 'truncate text-xs text-zinc-200 font-semibold' : 'truncate text-xs text-zinc-500 font-semibold'; 
-                    Array.from(optionsContainer.children).forEach(c => c.classList.remove('selected-option')); el.classList.add('selected-option'); menu.classList.remove('show'); 
-                    document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)'; const card = menu.closest('.glass-card'); if(card) card.style.zIndex = '10'; checkUnsavedChanges(); 
+                    input.value = val; 
+                    textSpan.textContent = label; 
+                    textSpan.className = val ? 'truncate text-xs text-zinc-200 font-semibold' : 'truncate text-xs text-zinc-500 font-semibold'; 
+                    Array.from(optionsContainer.children).forEach(c => c.classList.remove('selected-option')); 
+                    el.classList.add('selected-option'); 
+                    menu.classList.remove('show'); 
+                    document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)'; 
+                    const card = menu.closest('.glass-card'); 
+                    if(card) card.style.zIndex = '10'; 
+                    checkUnsavedChanges(); 
                 }); 
                 optionsContainer.appendChild(el); 
             }; 
+
             addOpt('', defaultText); 
             if(inputId === 'honeypotChannelId') addOpt('CREATE_NEW', '✨ Auto-Create "⚠️-do-not-talk-here"', 'bg-indigo-500/10 text-indigo-400'); 
             if(inputId === 'ticketCategoryId') addOpt('CREATE_NEW', '✨ Auto-Create "🎫 Tickets" Category', 'bg-indigo-500/10 text-indigo-400'); 
+
             options.forEach(opt => { 
-                let label = opt.name; if(isChannel) label = `# ${label}`; if(inputId === 'ticketCategoryId') label = `📁 ${label}`; addOpt(opt.id, label); 
+                let label = opt.name; 
+                if(isChannel) label = `# ${label}`; 
+                if(inputId === 'ticketCategoryId') label = `📁 ${label}`; 
+                addOpt(opt.id, label); 
             }); 
+
             const searchInput = menu.querySelector('.dropdown-search'); 
             searchInput.addEventListener('input', (e) => { 
                 const term = e.target.value.toLowerCase(); 
                 Array.from(optionsContainer.children).forEach(opt => { 
-                    const text = opt.textContent.toLowerCase(); opt.style.display = text.includes(term) ? 'flex' : 'none'; 
+                    const text = opt.textContent.toLowerCase(); 
+                    opt.style.display = text.includes(term) ? 'flex' : 'none'; 
                 }); 
             }); 
             searchInput.addEventListener('keydown', (e) => { 
                 if (e.key === 'Enter') { 
                     e.preventDefault(); 
                     const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none'); 
-                    if (firstVisible) { firstVisible.click(); searchInput.value = ''; Array.from(optionsContainer.children).forEach(opt => opt.style.display = 'flex'); } 
+                    if (firstVisible) { 
+                        firstVisible.click(); 
+                        searchInput.value = ''; 
+                        Array.from(optionsContainer.children).forEach(opt => opt.style.display = 'flex'); 
+                    } 
                 } 
             }); 
+
             const selectedOpt = options.find(o => o.id === input.value); 
             if (selectedOpt) { 
-                let label = selectedOpt.name; if(isChannel) label = `# ${label}`; if(inputId === 'ticketCategoryId') label = `📁 ${label}`; textSpan.textContent = label; textSpan.className = 'truncate text-xs text-zinc-200 font-semibold'; 
+                let label = selectedOpt.name; 
+                if(isChannel) label = `# ${label}`; 
+                if(inputId === 'ticketCategoryId') label = `📁 ${label}`; 
+                textSpan.textContent = label; 
+                textSpan.className = 'truncate text-xs text-zinc-200 font-semibold'; 
             } else if (!input.value) { 
-                textSpan.textContent = defaultText; textSpan.className = 'truncate text-xs text-zinc-500 font-semibold'; 
+                textSpan.textContent = defaultText; 
+                textSpan.className = 'truncate text-xs text-zinc-500 font-semibold'; 
             } 
         }
 
@@ -1222,7 +1275,7 @@
                 if (e.key === 'Enter') { 
                     e.preventDefault(); 
                     const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none'); 
-                    if (firstVisible) { firstVisible.click(); searchInput.value = ''; Array.from(optionsContainer.children).forEach(opt => opt.style.display = 'flex'); } 
+                    if (firstVisible) { firstVisible.click(); searchInput.value = ''; Array.from(optionsContainer.children).forEach(opt => { opt.style.display = 'flex'; }); } 
                 } 
             }); 
         }
@@ -1305,7 +1358,7 @@
                 systemBotClientId = data.botClientId; 
                 if (inviteBtn) { 
                     inviteBtn.style.display = 'flex'; 
-                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank'); }; 
+                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands&guild_id=\${activeGuildId || ""}`, '_blank'); }; 
                 } 
                 if (authZone) { 
                     authZone.innerHTML = `<div class="flex items-center justify-between animate-fade-in bg-black/20 p-2.5 rounded-xl border border-white/5 shadow-inner"><div class="flex items-center space-x-3 overflow-hidden"><img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-white/10 shadow"><div class="flex-1 overflow-hidden pr-2"><h4 class="text-xs font-bold text-white truncate w-full">${data.user.username}</h4><span class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5 block">Admin</span></div></div><a href="/api/auth/logout" class="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Logout"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></a></div>`; 
@@ -1337,6 +1390,56 @@
                     if(document.getElementById('tab-users-content') && !document.getElementById('tab-users-content').classList.contains('hidden')) renderChart(); 
                 } 
             } catch (e) {} 
+        }
+
+        function switchTab(tabName, event) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            } else {
+                const tabButtons = document.querySelectorAll('.tab-btn');
+                tabButtons.forEach(btn => {
+                    if (btn.getAttribute('onclick').includes(tabName)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+
+            document.getElementById('tab-dashboard-content').classList.add('hidden');
+            document.getElementById('tab-users-content').classList.add('hidden');
+
+            const targetContent = document.getElementById(`tab-${tabName}-content`);
+            if (targetContent) {
+                targetContent.classList.remove('hidden');
+                targetContent.classList.add('flex');
+            }
+            
+            if (tabName === 'users') renderChart();
+        }
+
+        async function selectServer(guildId, name) { 
+            const banner = document.getElementById('unsaved-changes-banner'); 
+            if (banner && banner.classList.contains('show')) { 
+                const proceed = confirm("You have unsaved changes. Navigating away will lose your unsaved edits. Proceed?"); 
+                if (!proceed) return; 
+            } 
+            if (window.innerWidth < 768) toggleMobileMenu(); 
+            document.querySelectorAll('.sidebar-btn').forEach(b => { b.classList.remove('active'); }); 
+            const selectedBtn = document.getElementById(`btn-${guildId}`); 
+            if (selectedBtn) { selectedBtn.classList.add('active'); } 
+            activeGuildId = guildId; 
+            const titleEl = document.getElementById('active-server-name'); 
+            if (titleEl) titleEl.innerText = name; 
+            const blankView = document.getElementById('blank-view'); 
+            if (blankView) blankView.classList.add('hidden'); 
+            document.getElementById('tabs-container').style.display = 'flex'; 
+            
+            // Programmatically load dashboard tab
+            switchTab('dashboard'); 
+            
+            await fetchDiscordData(guildId); 
+            await loadConfig(guildId); 
         }
 
         window.onload = () => { fetchSystemInitialization(); addInputListeners(); };
