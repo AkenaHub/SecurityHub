@@ -57,34 +57,13 @@
 
         .animate-fade-in { animation: fadeIn 0.5s ease forwards; opacity: 0; }
         .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .delay-50 { animation-delay: 50ms; } .delay-100 { animation-delay: 100ms; } .delay-150 { animation-delay: 150ms; } .delay-200 { animation-delay: 200ms; }
         
         @keyframes fadeIn { to { opacity: 1; } }
         @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
 
         .unsaved-banner { transform: translateY(100px); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .unsaved-banner.show { transform: translateY(0); }
-
-        /* ADVANCED STUDIO SPECIFIC CSS */
-        .studio-modal-overlay { 
-            opacity: 0; visibility: hidden; 
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
-        }
-        .studio-modal-overlay.open { 
-            opacity: 1; visibility: visible; 
-        }
-        .studio-modal-content {
-            transform: scale(0.95); opacity: 0;
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .studio-modal-overlay.open .studio-modal-content {
-            transform: scale(1); opacity: 1;
-        }
-
-        .studio-canvas-container { background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 20px 20px; }
-        canvas { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.1); cursor: crosshair; }
-        input[type=range] { -webkit-appearance: none; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #6366f1; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(99,102,241,0.5); }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.1); border-radius: 4px; }
     </style>
 </head>
 <body class="flex h-screen w-full overflow-hidden select-none">
@@ -203,55 +182,88 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-slide-up delay-100">
-                    <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti Nuke</h4><label class="switch scale-90"><input type="checkbox" id="antiNukeEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Instantly bans rogue bots making unauthorized channel deletions or role edits.</p></div>
-                    <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti Raid</h4><label class="switch scale-90"><input type="checkbox" id="raidEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Quarantines join floods, mass pings, and webhook token spam instantly.</p></div>
-                    <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti File</h4><label class="switch scale-90"><input type="checkbox" id="fileShieldEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Filters out harmful executable files, batch scripts, and hazardous extensions.</p></div>
+                    <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti Nuke</h4><label class="switch scale-90"><input type="checkbox" id="antiNukeEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Instantly bans rogue bots making unauthorized changes.</p></div>
+                    <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti Raid</h4><label class="switch scale-90"><input type="checkbox" id="raidEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Quarantines join floods and spammed links instantly.</p></div>
+                    <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti File</h4><label class="switch scale-90"><input type="checkbox" id="fileShieldEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Filters dangerous files and batch scripts.</p></div>
                 </div>
 
-                <!-- ADVANCED STUDIO WELCOME BUILDER -->
+                <!-- ORIGINAL EMBED BUILDER PRESERVED WITH DYNAMIC PREVIEW -->
                 <div class="glass-card p-6 animate-slide-up delay-150">
                     <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-                        <h4 class="text-xs font-bold text-white uppercase tracking-wider">Welcome Panel Matrix</h4>
+                        <h4 class="text-xs font-bold text-white uppercase tracking-wider">Welcome Panel Builder</h4>
                         <div class="flex items-center gap-3">
-                            <span class="text-xs font-bold text-white">Enable Module</span>
-                            <label class="switch scale-90"><input type="checkbox" id="welcomeEnabled"><span class="slider"></span></label>
+                            <span class="text-xs font-bold text-white">Enable Welcome Card</span>
+                            <label class="switch"><input type="checkbox" id="welcomeEnabled"><span class="slider"></span></label>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="space-y-4">
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Target Delivery Channel</label>
-                                <div class="relative custom-dropdown" id="welcomeChannelIdContainer">
-                                    <input type="hidden" id="welcomeChannelId">
-                                    <div class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('welcomeChannelIdMenu', 'welcomeChannelIdIcon')">
-                                        <span id="welcomeChannelIdText">Select Channel...</span>
-                                        <svg id="welcomeChannelIdIcon" class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Target Channel</label>
+                                    <div class="relative custom-dropdown" id="welcomeChannelIdContainer">
+                                        <input type="hidden" id="welcomeChannelId">
+                                        <div class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('welcomeChannelIdMenu', 'welcomeChannelIdIcon')">
+                                            <span id="welcomeChannelIdText">Select Channel...</span>
+                                            <svg id="welcomeChannelIdIcon" class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="welcomeChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
                                     </div>
-                                    <div id="welcomeChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Embed Color</label>
+                                    <input type="color" id="welcomeColor" class="w-full h-9 p-1 input-base cursor-pointer animate-fade-in" value="#6366f1">
                                 </div>
                             </div>
                             
+                            <div class="grid grid-cols-1 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Embed Graphic Image</label>
+                                    <div class="relative custom-dropdown" id="welcomeImageTypeContainer">
+                                        <input type="hidden" id="welcomeImageType" value="icon">
+                                        <div class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('welcomeImageTypeMenu', 'welcomeImageTypeIcon')">
+                                            <span id="welcomeImageTypeText">Server Icon</span>
+                                            <svg id="welcomeImageTypeIcon" class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div id="welcomeImageTypeMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 hidden animate-fade-in" id="welcomeCustomImageUrlContainer">
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Custom Graphic URL</label>
+                                <input type="text" id="welcomeCustomImageUrl" placeholder="https://i.imgur.com/image.png" class="w-full input-base px-3 py-2 text-xs">
+                            </div>
+
                             <div class="space-y-2 flex flex-col">
-                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Text Fallback Message</label>
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Custom Welcome Text</label>
                                 <textarea id="welcomeMessage" class="w-full min-h-[50px] input-base px-3 py-2 text-xs resize-none" placeholder="Welcome {user} to {server}!"></textarea>
                             </div>
                         </div>
 
-                        <!-- Studio Launch Area -->
-                        <div class="bg-black/30 border border-white/5 rounded-xl p-5 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-inner h-full min-h-[220px]">
-                            <div class="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center mb-3">
-                                <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <!-- Live Discord Welcome Preview Card -->
+                        <div class="bg-black/30 border border-white/5 rounded-xl p-5 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
+                            <span class="absolute top-3 left-4 text-[9px] font-bold text-indigo-400 uppercase bg-indigo-500/10 px-2 py-0.5 rounded">Live Welcome Preview</span>
+                            <div class="bg-[#2b2d31] rounded-lg flex shadow-2xl w-full max-w-[310px] mt-4 overflow-hidden">
+                                <div id="preview-border" class="w-1.5 shrink-0" style="background-color: #6366f1;"></div>
+                                <div class="p-3.5 w-full flex flex-col text-left">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center shrink-0"><span class="text-[9px] font-bold text-white">S</span></div>
+                                        <span class="text-xs font-semibold text-white">ServSecurity</span>
+                                        <span class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-bold scale-90">BOT</span>
+                                    </div>
+                                    <div id="preview-desc" class="text-[12px] text-zinc-300 leading-relaxed mb-3 whitespace-pre-wrap"></div>
+                                    <div class="mt-auto w-full flex justify-center">
+                                        <img id="preview-icon" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-20 h-20 rounded-lg object-cover shadow border border-white/10 mt-1">
+                                    </div>
+                                </div>
                             </div>
-                            <h4 class="text-sm font-bold text-white mb-1">Advanced Image Studio</h4>
-                            <p class="text-[10px] text-zinc-400 mb-4 px-4 leading-normal">Design a highly customized canvas layout to attach to your welcome messages automatically.</p>
-                            <button onclick="openStudio()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)] relative z-20">
-                                Launch Studio Editor
-                            </button>
                         </div>
                     </div>
                 </div>
 
+                <!-- Support Ticket System -->
                 <div class="glass-card p-6 animate-slide-up delay-150">
                     <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Support Ticket System</h4>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -285,7 +297,7 @@
                                 </div>
                             </div>
                             <div class="space-y-2 flex flex-col h-full">
-                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Panel Embed Message</label>
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Panel Message</label>
                                 <textarea id="ticketMessage" class="w-full min-h-[50px] input-base px-3 py-2 text-xs resize-none" placeholder="Create support channel."></textarea>
                             </div>
                         </div>
@@ -298,6 +310,7 @@
                     </div>
                 </div>
 
+                <!-- Verification Setup Card -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up delay-200">
                     <div class="glass-card p-6">
                         <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Verification Setup</h4>
@@ -409,7 +422,7 @@
                                             <span id="ticketLogChannelIdText">Select Channel...</span>
                                             <svg id="ticketLogChannelIdIcon" class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="ticketLogChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
+                                        <div id="ticketLogChannelIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto font-medium"></div>
                                     </div>
                                 </div>
                             </div>
@@ -495,7 +508,7 @@
                                                 <span id="autoRestoreSourceGuildIdText" class="text-zinc-500 truncate">Select Source Server...</span>
                                                 <svg id="autoRestoreSourceGuildIdIcon" class="w-4 h-4 text-zinc-500 dropdown-icon transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                             </div>
-                                            <div id="autoRestoreSourceGuildIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-56 overflow-hidden flex flex-col"></div>
+                                            <div id="autoRestoreSourceGuildIdMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-2 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-56 overflow-hidden flex flex-col font-medium"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -510,70 +523,6 @@
             </div>
         </div>
     </main>
-
-    <!-- STUDIO MODAL (CANVAS EDITOR) -->
-    <!-- Absolutely positioned in front of everything with heavy backdrop blur -->
-    <div id="studio-modal" class="fixed inset-0 bg-black/80 backdrop-blur-2xl studio-modal-overlay flex items-center justify-center p-0 md:p-6" style="z-index: 999999 !important;">
-        
-        <div class="w-full h-full md:max-w-[1200px] md:h-[85vh] bg-[#050608] md:rounded-2xl border-0 md:border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden studio-modal-content relative">
-            <!-- Header -->
-            <div class="h-16 border-b border-white/10 flex items-center justify-between px-4 md:px-6 bg-black/40 shrink-0">
-                <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    </div>
-                    <h2 class="text-white font-bold tracking-wide text-sm md:text-base">Image Studio</h2>
-                </div>
-                <div class="flex space-x-2 md:space-x-3">
-                    <button onclick="closeStudio()" class="px-3 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
-                    <button onclick="saveStudio()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 md:px-6 py-2 rounded-lg text-[10px] md:text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)]">Apply</button>
-                </div>
-            </div>
-
-            <!-- Workspace -->
-            <div class="flex flex-col md:flex-row flex-1 overflow-hidden font-sans bg-[#0a0b10]">
-                <!-- Canvas Area (On Top on Mobile) -->
-                <div class="flex-1 studio-canvas-container flex flex-col items-center justify-center p-4 md:p-8 overflow-auto relative order-1 md:order-2 min-h-[250px] md:min-h-0" id="canvas-wrapper">
-                    <span class="absolute top-2 right-2 md:top-6 md:right-8 text-[10px] font-bold text-zinc-500 tracking-widest uppercase">800 x 300</span>
-                    <canvas id="welcomeStudioCanvas" width="800" height="300" class="rounded-xl w-full max-w-[800px] h-auto border border-white/20 shadow-2xl" style="touch-action: none;"></canvas>
-                </div>
-
-                <!-- Properties Sidebar (Scrollable Below on Mobile) -->
-                <div class="w-full md:w-72 bg-[#0a0b10] border-t md:border-t-0 md:border-r border-white/5 flex flex-col shrink-0 overflow-y-auto order-2 md:order-1 h-[50vh] md:h-auto">
-                    <div class="p-5 border-b border-white/5">
-                        <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-4">Background Layer</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Image URL</label>
-                                <input type="text" id="studio-bg-url" class="w-full input-base px-3 py-2 text-xs" placeholder="https://..." oninput="updateStudioBg()">
-                            </div>
-                            <div class="flex gap-3">
-                                <div class="flex-1">
-                                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Solid Color</label>
-                                    <input type="color" id="studio-bg-color" class="w-full h-8 input-base cursor-pointer p-0" oninput="updateStudioBg()">
-                                </div>
-                                <div class="flex-1">
-                                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 block">Global Blur</label>
-                                    <input type="range" id="studio-bg-blur" min="0" max="20" value="0" class="w-full mt-2" oninput="updateStudioBg()">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="p-5 border-b border-white/5 bg-indigo-500/5">
-                        <div class="flex gap-2">
-                            <button onclick="addStudioElement('text')" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded text-xs font-bold transition-all border border-white/10">+ Text</button>
-                            <button onclick="addStudioElement('avatar')" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded text-xs font-bold transition-all border border-white/10">+ Avatar</button>
-                        </div>
-                    </div>
-
-                    <div class="p-5 flex-1" id="studio-properties-panel">
-                        <p class="text-xs text-zinc-500 italic text-center mt-10">Click an element on the canvas to edit its properties.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Floating Save Banner -->
     <div class="fixed bottom-0 left-0 right-0 h-20 bg-[#050608]/95 backdrop-blur-xl border-t border-white/10 z- flex items-center justify-between px-6 md:px-12 unsaved-banner" id="unsaved-changes-banner">
@@ -596,270 +545,6 @@
         let systemBotClientId = "";
         let activeGuildData = null;
         let chartInstance = null;
-
-        // ---- STUDIO EDITOR ENGINE ----
-        const canvas = document.getElementById('welcomeStudioCanvas');
-        const ctx = canvas.getContext('2d');
-        const wrapper = document.getElementById('canvas-wrapper');
-
-        let studioConfig = {
-            enabled: false,
-            bgUrl: '',
-            bgColor: '#0f111a',
-            bgBlur: 0,
-            elements: []
-        };
-        
-        let studioImages = {};
-        let selectedElementIndex = -1;
-        let isDragging = false;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
-
-        function loadStudioImage(url, callback) {
-            if(!url) return callback(null);
-            if(studioImages[url]) return callback(studioImages[url]);
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = () => { studioImages[url] = img; callback(img); };
-            img.onerror = () => { callback(null); };
-            img.src = url;
-        }
-
-        function openStudio() {
-            if (originalConfig.welcomeStudioConfig) {
-                studioConfig = JSON.parse(JSON.stringify(originalConfig.welcomeStudioConfig));
-            } else {
-                studioConfig = {
-                    enabled: true, bgUrl: '', bgColor: '#0f111a', bgBlur: 0,
-                    elements: [
-                        { type: 'avatar', x: 400, y: 100, size: 100, borderColor: '#6366f1', borderWidth: 4, opacity: 1 },
-                        { type: 'text', x: 400, y: 200, text: 'Welcome {user}!', font: 'Inter', size: 40, color: '#ffffff', opacity: 1, shadow: 0 }
-                    ]
-                };
-            }
-            
-            document.getElementById('studio-bg-url').value = studioConfig.bgUrl;
-            document.getElementById('studio-bg-color').value = studioConfig.bgColor;
-            document.getElementById('studio-bg-blur').value = studioConfig.bgBlur;
-            
-            selectedElementIndex = -1;
-            renderStudioSidebar();
-            renderStudioCanvas();
-            document.getElementById('studio-modal').classList.add('open');
-        }
-
-        function closeStudio() {
-            document.getElementById('studio-modal').classList.remove('open');
-        }
-
-        function saveStudio() {
-            studioConfig.enabled = true;
-            originalConfig.pendingStudioConfig = JSON.parse(JSON.stringify(studioConfig));
-            checkUnsavedChanges();
-            closeStudio();
-            showNotification('Studio layout applied. Click "Save Changes" on the main banner to deploy.', 'success');
-        }
-
-        function updateStudioBg() {
-            studioConfig.bgUrl = document.getElementById('studio-bg-url').value;
-            studioConfig.bgColor = document.getElementById('studio-bg-color').value;
-            studioConfig.bgBlur = parseInt(document.getElementById('studio-bg-blur').value);
-            renderStudioCanvas();
-        }
-
-        function addStudioElement(type) {
-            if (type === 'text') {
-                studioConfig.elements.push({ type: 'text', x: 400, y: 150, text: 'New Text', font: 'Inter', size: 30, color: '#ffffff', opacity: 1, shadow: 0 });
-            } else if (type === 'avatar') {
-                studioConfig.elements.push({ type: 'avatar', x: 400, y: 150, size: 80, borderColor: '#ffffff', borderWidth: 2, opacity: 1 });
-            }
-            selectedElementIndex = studioConfig.elements.length - 1;
-            renderStudioSidebar();
-            renderStudioCanvas();
-        }
-
-        function deleteSelectedElement() {
-            if (selectedElementIndex > -1) {
-                studioConfig.elements.splice(selectedElementIndex, 1);
-                selectedElementIndex = -1;
-                renderStudioSidebar();
-                renderStudioCanvas();
-            }
-        }
-
-        function updateElementProp(prop, value, isNumber = false) {
-            if (selectedElementIndex > -1) {
-                studioConfig.elements[selectedElementIndex][prop] = isNumber ? parseFloat(value) : value;
-                renderStudioCanvas();
-            }
-        }
-
-        function renderStudioSidebar() {
-            const panel = document.getElementById('studio-properties-panel');
-            if (selectedElementIndex === -1) {
-                panel.innerHTML = '<p class="text-xs text-zinc-500 italic text-center mt-10">Click an element on the canvas to edit its properties.</p>';
-                return;
-            }
-            
-            const el = studioConfig.elements[selectedElementIndex];
-            let html = `<div class="flex items-center justify-between mb-4"><h3 class="text-xs font-bold text-white uppercase tracking-wider">${el.type === 'text' ? 'Text' : 'Avatar'} Properties</h3><button onclick="deleteSelectedElement()" class="text-red-400 hover:text-red-300 text-xs font-bold">Delete</button></div><div class="space-y-4">`;
-
-            if (el.type === 'text') {
-                html += `
-                    <div><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Text Content</label><input type="text" class="w-full input-base px-2 py-1.5 text-xs" value="${el.text}" oninput="updateElementProp('text', this.value)"></div>
-                    <div><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Font Family</label><select class="w-full input-base px-2 py-1.5 text-xs" onchange="updateElementProp('font', this.value)"><option ${el.font==='Inter'?'selected':''}>Inter</option><option ${el.font==='Arial'?'selected':''}>Arial</option><option ${el.font==='Courier New'?'selected':''}>Courier New</option><option ${el.font==='Impact'?'selected':''}>Impact</option></select></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Size (${el.size})</label><input type="range" min="10" max="150" value="${el.size}" class="w-full" oninput="updateElementProp('size', this.value, true); this.previousElementSibling.innerText='Size ('+this.value+')'"></div>
-                        <div class="flex-1"><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Color</label><input type="color" class="w-full h-6 p-0 border-0 bg-transparent cursor-pointer" value="${el.color}" oninput="updateElementProp('color', this.value)"></div>
-                    </div>
-                    <div><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Shadow Blur (${el.shadow})</label><input type="range" min="0" max="50" value="${el.shadow}" class="w-full" oninput="updateElementProp('shadow', this.value, true); this.previousElementSibling.innerText='Shadow Blur ('+this.value+')'"></div>
-                `;
-            } else if (el.type === 'avatar') {
-                html += `
-                    <div><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Size (${el.size})</label><input type="range" min="20" max="250" value="${el.size}" class="w-full" oninput="updateElementProp('size', this.value, true); this.previousElementSibling.innerText='Size ('+this.value+')'"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Border Width (${el.borderWidth})</label><input type="range" min="0" max="20" value="${el.borderWidth}" class="w-full" oninput="updateElementProp('borderWidth', this.value, true); this.previousElementSibling.innerText='Border Width ('+this.value+')'"></div>
-                        <div class="flex-1"><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Border Color</label><input type="color" class="w-full h-6 p-0 border-0 bg-transparent cursor-pointer" value="${el.borderColor}" oninput="updateElementProp('borderColor', this.value)"></div>
-                    </div>
-                `;
-            }
-            html += `<div><label class="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Opacity (${el.opacity})</label><input type="range" min="0" max="1" step="0.1" value="${el.opacity}" class="w-full" oninput="updateElementProp('opacity', this.value, true); this.previousElementSibling.innerText='Opacity ('+this.value+')'"></div></div>`;
-            panel.innerHTML = html;
-        }
-
-        function renderStudioCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = studioConfig.bgColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const drawElements = () => {
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-
-                studioConfig.elements.forEach((el, index) => {
-                    ctx.save();
-                    ctx.globalAlpha = el.opacity;
-                    
-                    if (el.type === 'text') {
-                        ctx.font = `bold ${el.size}px "${el.font}"`;
-                        ctx.fillStyle = el.color;
-                        if(el.shadow > 0) {
-                            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                            ctx.shadowBlur = el.shadow;
-                            ctx.shadowOffsetX = 2;
-                            ctx.shadowOffsetY = 2;
-                        }
-                        const text = el.text.replace(/{user}/g, 'DiscordUser').replace(/{server}/g, 'Server').replace(/{membercount}/g, '1337');
-                        ctx.fillText(text, el.x, el.y);
-                        
-                        if (index === selectedElementIndex) {
-                            ctx.shadowBlur = 0; ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2; ctx.setLineDash();
-                            const tm = ctx.measureText(text);
-                            ctx.strokeRect(el.x - tm.width/2 - 10, el.y - el.size/2 - 10, tm.width + 20, el.size + 20);
-                        }
-                    } else if (el.type === 'avatar') {
-                        ctx.beginPath();
-                        ctx.arc(el.x, el.y, el.size/2, 0, Math.PI * 2);
-                        ctx.closePath();
-                        
-                        ctx.fillStyle = '#2b2d31';
-                        ctx.fill();
-                        
-                        if (el.borderWidth > 0) {
-                            ctx.lineWidth = el.borderWidth;
-                            ctx.strokeStyle = el.borderColor;
-                            ctx.stroke();
-                        }
-                        if (index === selectedElementIndex) {
-                            ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2; ctx.setLineDash();
-                            ctx.strokeRect(el.x - el.size/2 - 10, el.y - el.size/2 - 10, el.size + 20, el.size + 20);
-                        }
-                    }
-                    ctx.restore();
-                });
-            };
-
-            if (studioConfig.bgUrl) {
-                loadStudioImage(studioConfig.bgUrl, (img) => {
-                    if(img) {
-                        ctx.save();
-                        if(studioConfig.bgBlur > 0) ctx.filter = `blur(${studioConfig.bgBlur}px)`;
-                        const ratio = Math.max(canvas.width / img.width, canvas.height / img.height);
-                        const x = (canvas.width - img.width * ratio) / 2;
-                        const y = (canvas.height - img.height * ratio) / 2;
-                        ctx.drawImage(img, 0, 0, img.width, img.height, x, y, img.width * ratio, img.height * ratio);
-                        ctx.restore();
-                    }
-                    drawElements();
-                });
-            } else {
-                drawElements();
-            }
-        }
-
-        function getMousePos(evt) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
-        }
-
-        function handleDragStart(pos) {
-            selectedElementIndex = -1;
-            
-            for (let i = studioConfig.elements.length - 1; i >= 0; i--) {
-                const el = studioConfig.elements[i];
-                let hit = false;
-                if (el.type === 'avatar') {
-                    const dist = Math.sqrt(Math.pow(pos.x - el.x, 2) + Math.pow(pos.y - el.y, 2));
-                    if(dist <= el.size/2) hit = true;
-                } else if (el.type === 'text') {
-                    ctx.font = `bold ${el.size}px "${el.font}"`;
-                    const tm = ctx.measureText(el.text);
-                    if (pos.x >= el.x - tm.width/2 && pos.x <= el.x + tm.width/2 && pos.y >= el.y - el.size/2 && pos.y <= el.y + el.size/2) hit = true;
-                }
-                
-                if (hit) {
-                    selectedElementIndex = i;
-                    isDragging = true;
-                    dragOffsetX = pos.x - el.x;
-                    dragOffsetY = pos.y - el.y;
-                    break;
-                }
-            }
-            renderStudioSidebar();
-            renderStudioCanvas();
-        }
-
-        // Mouse Events
-        canvas.addEventListener('mousedown', (e) => { handleDragStart(getMousePos(e)); });
-        canvas.addEventListener('mousemove', (e) => {
-            if (isDragging && selectedElementIndex > -1) {
-                const pos = getMousePos(e);
-                studioConfig.elements[selectedElementIndex].x = pos.x - dragOffsetX;
-                studioConfig.elements[selectedElementIndex].y = pos.y - dragOffsetY;
-                renderStudioCanvas();
-            }
-        });
-        canvas.addEventListener('mouseup', () => { isDragging = false; });
-        canvas.addEventListener('mouseleave', () => { isDragging = false; });
-
-        // Touch Events for Mobile Dragging
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            handleDragStart(getMousePos(e.touches));
-        }, {passive: false});
-        canvas.addEventListener('touchmove', (e) => {
-            if (isDragging && selectedElementIndex > -1) {
-                e.preventDefault();
-                const pos = getMousePos(e.touches);
-                studioConfig.elements[selectedElementIndex].x = pos.x - dragOffsetX;
-                studioConfig.elements[selectedElementIndex].y = pos.y - dragOffsetY;
-                renderStudioCanvas();
-            }
-        }, {passive: false});
-        canvas.addEventListener('touchend', () => { isDragging = false; });
 
         // ---- UI MODULE CONTROL PLUMBING ----
         function autoResizeTextarea(el) { 
@@ -938,8 +623,9 @@
         }
 
         function updateMasterBadge() { 
-            const masterCheck = document.getElementById('masterSwitch').checked; 
+            const masterCheck = document.getElementById('masterSwitch')?.checked; 
             const badge = document.getElementById('masterBadge'); 
+            if(!badge) return;
             if(masterCheck) { 
                 badge.innerText = 'ACTIVE'; badge.className = 'text-[8px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 uppercase tracking-widest transition-colors'; 
             } else { 
@@ -950,6 +636,7 @@
         function updateMultiSelectText(selector, textId, defaultText) { 
             const checked = Array.from(document.querySelectorAll(selector + ':checked')); 
             const textSpan = document.getElementById(textId); 
+            if(!textSpan) return;
             if (checked.length === 0) { 
                 textSpan.textContent = defaultText; 
                 textSpan.className = 'truncate text-sm text-zinc-500 pr-2'; 
@@ -997,8 +684,11 @@
         }
 
         function getCalculatedTimeout() { 
-            const val = parseInt(document.getElementById('linkTimeoutVal').value) || 30; 
-            const unit = document.getElementById('linkTimeoutUnit').value; 
+            const valEl = document.getElementById('linkTimeoutVal');
+            const unitEl = document.getElementById('linkTimeoutUnit');
+            if(!valEl || !unitEl) return 30;
+            const val = parseInt(valEl.value) || 30; 
+            const unit = unitEl.value; 
             if (unit === 'days') return val * 1440; 
             if (unit === 'hours') return val * 60; 
             return val; 
@@ -1008,6 +698,7 @@
             const valInput = document.getElementById('linkTimeoutVal'); 
             const unitInput = document.getElementById('linkTimeoutUnit'); 
             const unitText = document.getElementById('linkTimeoutUnitText'); 
+            if(!valInput || !unitInput) return;
             if (totalMinutes % 1440 === 0 && totalMinutes !== 0) { 
                 valInput.value = totalMinutes / 1440; unitInput.value = 'days'; 
                 if(unitText) { unitText.textContent = 'Days'; unitText.className = 'text-sm text-zinc-200'; } 
@@ -1054,8 +745,7 @@
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '), 
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', '), 
                 autoRestoreRolesEnabled: !!document.getElementById('autoRestoreRolesEnabled')?.checked, 
-                autoRestoreSourceGuildId: document.getElementById('autoRestoreSourceGuildId')?.value || '',
-                welcomeStudioConfig: originalConfig.pendingStudioConfig || originalConfig.welcomeStudioConfig || null
+                autoRestoreSourceGuildId: document.getElementById('autoRestoreSourceGuildId')?.value || ''
             };
             const cleanOriginal = {
                 masterSwitch: originalConfig.masterSwitch, 
@@ -1089,12 +779,13 @@
                 allowedAccess: originalConfig.allowedAccess ? originalConfig.allowedAccess.join(', ') : '', 
                 allowedBots: (originalConfig.allowedBots || []).join(', '), 
                 autoRestoreRolesEnabled: originalConfig.autoRestoreRolesEnabled || false, 
-                autoRestoreSourceGuildId: originalConfig.autoRestoreSourceGuildId || '',
-                welcomeStudioConfig: originalConfig.welcomeStudioConfig || null
+                autoRestoreSourceGuildId: originalConfig.autoRestoreSourceGuildId || ''
             };
             const hasChanged = JSON.stringify(currentInputs) !== JSON.stringify(cleanOriginal);
             const banner = document.getElementById('unsaved-changes-banner');
-            if (hasChanged) banner.classList.add('show'); else banner.classList.remove('show');
+            if (banner) {
+                if (hasChanged) banner.classList.add('show'); else banner.classList.remove('show');
+            }
         }
 
         async function saveConfig() {
@@ -1132,8 +823,7 @@
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value), 
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value), 
                 autoRestoreRolesEnabled: !!document.getElementById('autoRestoreRolesEnabled')?.checked, 
-                autoRestoreSourceGuildId: document.getElementById('autoRestoreSourceGuildId')?.value || null,
-                welcomeStudioConfig: originalConfig.pendingStudioConfig || originalConfig.welcomeStudioConfig || null
+                autoRestoreSourceGuildId: document.getElementById('autoRestoreSourceGuildId')?.value || null
             };
             
             try {
@@ -1146,7 +836,6 @@
                 if (res.ok) {
                     showNotification('Settings saved.');
                     originalConfig = JSON.parse(JSON.stringify(payload));
-                    delete originalConfig.pendingStudioConfig; 
                     
                     const resJson = await res.json();
                     if (resJson.config) {
@@ -1219,7 +908,8 @@
                     Array.from(optionsContainer.children).forEach(c => c.classList.remove('selected-option')); 
                     el.classList.add('selected-option'); 
                     menu.classList.remove('show'); 
-                    document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)'; 
+                    const iconEl = document.getElementById(inputId + 'Icon');
+                    if(iconEl) iconEl.style.transform = 'rotate(0deg)'; 
                     const card = menu.closest('.glass-card'); 
                     if(card) card.style.zIndex = '10'; 
                     checkUnsavedChanges(); 
@@ -1239,24 +929,26 @@
             }); 
 
             const searchInput = menu.querySelector('.dropdown-search'); 
-            searchInput.addEventListener('input', (e) => { 
-                const term = e.target.value.toLowerCase(); 
-                Array.from(optionsContainer.children).forEach(opt => { 
-                    const text = opt.textContent.toLowerCase(); 
-                    opt.style.display = text.includes(term) ? 'flex' : 'none'; 
+            if(searchInput) {
+                searchInput.addEventListener('input', (e) => { 
+                    const term = e.target.value.toLowerCase(); 
+                    Array.from(optionsContainer.children).forEach(opt => { 
+                        const text = opt.textContent.toLowerCase(); 
+                        opt.style.display = text.includes(term) ? 'flex' : 'none'; 
+                    }); 
                 }); 
-            }); 
-            searchInput.addEventListener('keydown', (e) => { 
-                if (e.key === 'Enter') { 
-                    e.preventDefault(); 
-                    const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none'); 
-                    if (firstVisible) { 
-                        firstVisible.click(); 
-                        searchInput.value = ''; 
-                        Array.from(optionsContainer.children).forEach(opt => opt.style.display = 'flex'); 
+                searchInput.addEventListener('keydown', (e) => { 
+                    if (e.key === 'Enter') { 
+                        e.preventDefault(); 
+                        const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none'); 
+                        if (firstVisible) { 
+                            firstVisible.click(); 
+                            searchInput.value = ''; 
+                            Array.from(optionsContainer.children).forEach(opt => { opt.style.display = 'flex'; }); 
+                        } 
                     } 
-                } 
-            }); 
+                }); 
+            }
 
             const selectedOpt = options.find(o => o.id === input.value); 
             if (selectedOpt) { 
@@ -1289,19 +981,21 @@
             }); 
             updateMultiSelectText(`.${inputClass}`, textId, defaultText); 
             const searchInput = menu.querySelector('.dropdown-search'); 
-            searchInput.addEventListener('input', (e) => { 
-                const term = e.target.value.toLowerCase(); 
-                Array.from(optionsContainer.children).forEach(opt => { 
-                    const text = opt.textContent.toLowerCase(); opt.style.display = text.includes(term) ? 'flex' : 'none'; 
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => { 
+                    const term = e.target.value.toLowerCase(); 
+                    Array.from(optionsContainer.children).forEach(opt => { 
+                        const text = opt.textContent.toLowerCase(); opt.style.display = text.includes(term) ? 'flex' : 'none'; 
+                    }); 
                 }); 
-            }); 
-            searchInput.addEventListener('keydown', (e) => { 
-                if (e.key === 'Enter') { 
-                    e.preventDefault(); 
-                    const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none'); 
-                    if (firstVisible) { firstVisible.click(); searchInput.value = ''; Array.from(optionsContainer.children).forEach(opt => { opt.style.display = 'flex'; }); } 
-                } 
-            }); 
+                searchInput.addEventListener('keydown', (e) => { 
+                    if (e.key === 'Enter') { 
+                        e.preventDefault(); 
+                        const firstVisible = Array.from(optionsContainer.children).find(opt => opt.style.display !== 'none'); 
+                        if (firstVisible) { firstVisible.click(); searchInput.value = ''; Array.from(optionsContainer.children).forEach(opt => { opt.style.display = 'flex'; }); } 
+                    } 
+                }); 
+            }
         }
 
         function buildStaticDropdown(inputId, options) { 
@@ -1315,7 +1009,10 @@
                 el.innerHTML = `<svg class="w-4 h-4 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span class="text-xs font-semibold ${opt.val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${opt.label}</span>`; 
                 if (input.value === opt.val) el.classList.add('selected-option'); 
                 el.addEventListener('click', () => { 
-                    input.value = opt.val; textSpan.textContent = opt.label; textSpan.className = opt.val ? 'truncate text-xs text-zinc-200 font-semibold' : 'truncate text-xs text-zinc-500 font-semibold'; Array.from(menu.children).forEach(c => c.classList.remove('selected-option')); el.classList.add('selected-option'); menu.classList.remove('show'); document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)'; const card = menu.closest('.glass-card'); if(card) card.style.zIndex = '10'; if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout()); if(inputId === 'welcomeImageType') { toggleCustomImageInput(); updateWelcomePreview(); } checkUnsavedChanges(); 
+                    input.value = opt.val; textSpan.textContent = opt.label; textSpan.className = opt.val ? 'truncate text-xs text-zinc-200 font-semibold' : 'truncate text-xs text-zinc-500 font-semibold'; Array.from(menu.children).forEach(c => c.classList.remove('selected-option')); el.classList.add('selected-option'); menu.classList.remove('show'); 
+                    const iconEl = document.getElementById(inputId + 'Icon');
+                    if(iconEl) iconEl.style.transform = 'rotate(0deg)'; 
+                    const card = menu.closest('.glass-card'); if(card) card.style.zIndex = '10'; if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout()); if(inputId === 'welcomeImageType') { toggleCustomImageInput(); updateWelcomePreview(); } checkUnsavedChanges(); 
                 }); 
                 menu.appendChild(el); 
             }); 
@@ -1382,7 +1079,7 @@
                 systemBotClientId = data.botClientId; 
                 if (inviteBtn) { 
                     inviteBtn.style.display = 'flex'; 
-                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands&guild_id=\${activeGuildId || ""}`, '_blank'); }; 
+                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands&guild_id=${activeGuildId || ""}`, '_blank'); }; 
                 } 
                 if (authZone) { 
                     authZone.innerHTML = `<div class="flex items-center justify-between animate-fade-in bg-black/20 p-2.5 rounded-xl border border-white/5 shadow-inner"><div class="flex items-center space-x-3 overflow-hidden"><img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-white/10 shadow"><div class="flex-1 overflow-hidden pr-2"><h4 class="text-xs font-bold text-white truncate w-full">${data.user.username}</h4><span class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5 block">Admin</span></div></div><a href="/api/auth/logout" class="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Logout"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></a></div>`; 
@@ -1402,7 +1099,7 @@
                 const res = await fetch(resolveUrl(`/api/discord-data/${guildId}`), { credentials: 'include' }); 
                 if (res.ok) { 
                     const data = await res.json(); 
-                    activeGuildData = { id: guildId, name: document.getElementById('active-server-name').innerText, icon: null, banner: null }; 
+                    activeGuildData = { id: guildId, name: document.getElementById('active-server-name')?.innerText || 'Server Terminal', icon: null, banner: null }; 
                     if (data.guildInfo) { 
                         activeGuildData.icon = data.guildInfo.icon; 
                         activeGuildData.banner = data.guildInfo.banner; 
@@ -1424,14 +1121,17 @@
             } else {
                 const tabButtons = document.querySelectorAll('.tab-btn');
                 tabButtons.forEach(btn => {
-                    if (btn.getAttribute('onclick').includes(tabName)) {
+                    if (btn.getAttribute('onclick')?.includes(tabName)) {
                         btn.classList.add('active');
                     }
                 });
             }
 
-            document.getElementById('tab-dashboard-content').classList.add('hidden');
-            document.getElementById('tab-users-content').classList.add('hidden');
+            const dashboardContent = document.getElementById('tab-dashboard-content');
+            const usersContent = document.getElementById('tab-users-content');
+
+            if(dashboardContent) dashboardContent.classList.add('hidden');
+            if(usersContent) usersContent.classList.add('hidden');
 
             const targetContent = document.getElementById(`tab-${tabName}-content`);
             if (targetContent) {
@@ -1457,13 +1157,145 @@
             if (titleEl) titleEl.innerText = name; 
             const blankView = document.getElementById('blank-view'); 
             if (blankView) blankView.classList.add('hidden'); 
-            document.getElementById('tabs-container').style.display = 'flex'; 
             
-            // Programmatically load dashboard tab
-            switchTab('dashboard'); 
+            const tabsContainer = document.getElementById('tabs-container');
+            if(tabsContainer) tabsContainer.style.display = 'flex'; 
+            
+            // Programmatically load dashboard tab safely without event references
+            switchTab('dashboard', null); 
             
             await fetchDiscordData(guildId); 
             await loadConfig(guildId); 
+        }
+
+        async function loadConfig(guildId) { 
+            try { 
+                const res = await fetch(resolveUrl(`/api/config/${guildId}`), { credentials: 'include' }); 
+                const config = await res.json(); 
+                originalConfig = JSON.parse(JSON.stringify(config)); 
+                
+                const setVal = (id, prop, isCheck = false) => { 
+                    const el = document.getElementById(id); 
+                    if(el) { 
+                        if(isCheck) el.checked = !!config[prop]; 
+                        else el.value = config[prop] || ''; 
+                    } 
+                }; 
+                
+                const syncInputHidden = (id, prop) => { 
+                    const el = document.getElementById(id); 
+                    if(el) el.value = config[prop] || ''; 
+                };
+
+                setVal('masterSwitch', 'masterSwitch', true); 
+                setVal('linksEnabled', 'linksEnabled', true); 
+                setVal('raidEnabled', 'raidEnabled', true); 
+                setVal('fileShieldEnabled', 'fileShieldEnabled', true); 
+                setVal('logDeletedEnabled', 'logDeletedEnabled', true); 
+                setVal('antiNukeEnabled', 'antiNukeEnabled', true); 
+                setVal('verifyEnabled', 'verifyEnabled', true); 
+                setVal('honeypotEnabled', 'honeypotEnabled', true); 
+                setVal('autoRoleEnabled', 'autoRoleEnabled', true); 
+                setVal('welcomeEnabled', 'welcomeEnabled', true); 
+                setVal('ticketEnabled', 'ticketEnabled', true); 
+                setVal('autoRestoreRolesEnabled', 'autoRestoreRolesEnabled', true); 
+                
+                setCalculatedTimeout(config.linkTimeout); 
+                const avoidsIn = document.getElementById('linkAvoids'); 
+                
+                if (avoidsIn) { 
+                    avoidsIn.value = (config.linkAvoids || []).join(', '); 
+                    autoResizeTextarea(avoidsIn); 
+                } 
+                
+                syncInputHidden('honeypotAction', 'honeypotAction'); 
+                syncInputHidden('welcomeImageType', 'welcomeImageType'); 
+                syncInputHidden('autoRestoreSourceGuildId', 'autoRestoreSourceGuildId'); 
+                
+                toggleCustomImageInput(); 
+                
+                const customUrlIn = document.getElementById('welcomeCustomImageUrl'); 
+                if(customUrlIn) customUrlIn.value = config.welcomeCustomImageUrl || ''; 
+                
+                const welcomeMsgIn = document.getElementById('welcomeMessage'); 
+                if(welcomeMsgIn) { 
+                    welcomeMsgIn.value = config.welcomeMessage || 'Welcome {user} to **{server}**! We are now at {membercount} members.'; 
+                    autoResizeTextarea(welcomeMsgIn); 
+                } 
+                
+                const wColor = document.getElementById('welcomeColor'); 
+                if (wColor) wColor.value = config.welcomeColor || '#6366f1'; 
+                
+                const ticketMsgIn = document.getElementById('ticketMessage'); 
+                if(ticketMsgIn) { 
+                    ticketMsgIn.value = config.ticketMessage || 'Please click the button below to open a support ticket.'; 
+                    autoResizeTextarea(ticketMsgIn); 
+                } 
+                
+                syncInputHidden('logChannelId', 'logChannelId'); 
+                syncInputHidden('ticketLogChannelId', 'ticketLogChannelId'); 
+                syncInputHidden('verifyChannelId', 'verifyChannelId'); 
+                syncInputHidden('honeypotChannelId', 'honeypotChannelId'); 
+                syncInputHidden('welcomeChannelId', 'welcomeChannelId'); 
+                syncInputHidden('ticketPanelChannelId', 'ticketPanelChannelId'); 
+                syncInputHidden('ticketCategoryId', 'ticketCategoryId'); 
+                
+                document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = (config.allowedAccess || []).includes(cb.value); }); 
+                document.querySelectorAll('.bot-checkbox').forEach(cb => { cb.checked = (config.allowedBots || []).includes(cb.value); }); 
+                document.querySelectorAll('.verify-role-checkbox').forEach(cb => { cb.checked = (config.verifyRoleIds || []).includes(cb.value); }); 
+                document.querySelectorAll('.auto-role-checkbox').forEach(cb => { cb.checked = (config.autoRoleIds || []).includes(cb.value); }); 
+                
+                updateMultiSelectText('.role-checkbox', 'roleSelectText', 'Select roles...'); 
+                updateMultiSelectText('.bot-checkbox', 'botSelectText', 'Select bots...'); 
+                updateMultiSelectText('.verify-role-checkbox', 'verifyRoleSelectText', 'Select roles...'); 
+                updateMultiSelectText('.auto-role-checkbox', 'autoRoleSelectText', 'Select roles...'); 
+                
+                const ticketLogsList = document.getElementById('ticketLogsList'); 
+                if (ticketLogsList) { 
+                    const tLogs = config.ticketLogs || []; 
+                    if (tLogs.length === 0) { 
+                        ticketLogsList.innerHTML = '<p class="text-xs text-zinc-500 italic text-center mt-10">No recent ticket activity.</p>'; 
+                    } else { 
+                        ticketLogsList.innerHTML = tLogs.map(l => `<div class="text-[11px] text-zinc-400 mb-2 bg-black/20 p-2.5 rounded border border-white/5 flex flex-col"><span class="text-indigo-400 font-bold uppercase tracking-wider mb-1">[${l.type}]</span> <span class="text-white font-medium">${l.username}</span> <span class="opacity-80">${l.reason}</span></div>`).join(''); 
+                    } 
+                } 
+                
+                updateMasterBadge(); 
+                updateWelcomePreview(); 
+                checkUnsavedChanges(); 
+                
+                if(activeGuildId) { 
+                    fetch(resolveUrl(`/api/discord-data/${activeGuildId}`), { credentials: 'include' }).then(res => res.json()).then(data => { 
+                        populateDropdowns(data.channels, data.roles, data.bots, data.categories, data.otherGuilds); 
+                        updateWelcomePreview(); 
+                    }).catch(e=>{}); 
+                } 
+            } catch (err) { 
+                showNotification('Failed to load settings', 'error'); 
+            } 
+        }
+
+        async function syncAllRolesNow() {
+            const sourceId = document.getElementById('autoRestoreSourceGuildId')?.value;
+            if(!sourceId) return showNotification('Please select a source server first.', 'error');
+            if(!confirm('This will scan all members currently in this server and restore their roles from the source server. Proceed?')) return;
+            
+            showNotification('Sync initiated in background...', 'success');
+            try {
+                const res = await fetch(resolveUrl(`/api/config/sync-all/${activeGuildId}`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourceGuildId: sourceId }),
+                    credentials: 'include'
+                });
+                if(res.ok) {
+                    showNotification('Dynamic role sync started successfully!', 'success');
+                } else {
+                    showNotification('Failed to launch sync task.', 'error');
+                }
+            } catch(e) {
+                showNotification('Failed to execute task.', 'error');
+            }
         }
 
         window.onload = () => { fetchSystemInitialization(); addInputListeners(); };
