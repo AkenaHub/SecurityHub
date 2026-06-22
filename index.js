@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const { 
     Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, AttachmentBuilder
+    REST, Routes, SlashCommandBuilder, AuditLogEvent, Events, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder
 } = require('discord.js');
 const express = require('express');
 const cookieSession = require('cookie-session');
@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.3.0";
+const CURRENT_VERSION = "v3.4.0";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -81,13 +81,14 @@ const saveToCloud = async (guildId, settings) => {
 const getSettings = async (guildId) => {
     if (!guildSettings[guildId]) {
         guildSettings[guildId] = {
-            masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [], allowedAccess: [], allowedBots: [], raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, antiNukeEnabled: false, logChannelId: null, ticketLogChannelId: null, verifyEnabled: false, verifyChannelId: null, verifyRoleIds: [], verifyPanelMessageId: null, honeypotEnabled: false, honeypotChannelId: null, honeypotAction: 'TIMEOUT', autoRoleEnabled: false, autoRoleIds: [], welcomeEnabled: false, welcomeChannelId: null, welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.', welcomeColor: '#6366f1', welcomeImageType: 'icon', welcomeCustomImageUrl: '', welcomeStudioConfig: null, ticketEnabled: false, ticketPanelChannelId: null, ticketCategoryId: null, ticketMessage: 'Please click the button below to open a support ticket.', ticketLogs: [], ticketPanelMessageId: null, lastVersion: null, history: [],
+            masterSwitch: true, linksEnabled: true, linkTimeout: 30, linkAvoids: [], allowedAccess: [], allowedBots: [], raidEnabled: true, fileShieldEnabled: true, logDeletedEnabled: false, antiNukeEnabled: false, logChannelId: null, ticketLogChannelId: null, verifyEnabled: false, verifyChannelId: null, verifyRoleIds: [], verifyPanelMessageId: null, honeypotEnabled: false, honeypotChannelId: null, honeypotAction: 'TIMEOUT', autoRoleEnabled: false, autoRoleIds: [], welcomeEnabled: false, welcomeChannelId: null, welcomeMessage: 'Welcome {user} to **{server}**! We are now at {membercount} members.', welcomeColor: '#6366f1', welcomeImageType: 'icon', welcomeCustomImageUrl: '', ticketEnabled: false, ticketPanelChannelId: null, ticketCategoryId: null, ticketPingRoleIds: [], ticketMessage: 'Please click the button below to open a support ticket.', ticketLogs: [], ticketPanelMessageId: null, lastVersion: null, history: [],
             joinHistory: {}, verifiedUsers: [], autoRestoreRolesEnabled: false, autoRestoreSourceGuildId: null
         };
         saveLocalDatabase();
     }
     if(!guildSettings[guildId].joinHistory) guildSettings[guildId].joinHistory = {};
     if(!guildSettings[guildId].verifiedUsers) guildSettings[guildId].verifiedUsers = [];
+    if(!guildSettings[guildId].ticketPingRoleIds) guildSettings[guildId].ticketPingRoleIds = [];
     return guildSettings[guildId];
 };
 
@@ -201,8 +202,9 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Launched fully interactive HTML5 Canvas Welcome Image Studio within dashboard.
-\u001b[2;34m[!]\u001b[0m Background parameters securely bound to internal schema processing pipelines.
+\u001b[2;32m[+]\u001b[0m Removed Canvas logic to stabilize standard Welcome Embed configurations.
+\u001b[2;32m[+]\u001b[0m Multi-dropdown component arrays refactored ensuring clean UI re-renders and successful DB loads.
+\u001b[2;32m[+]\u001b[0m Implemented 'Ping Role on Ticket Open' mechanism dynamically tagging chosen roles inside new tickets.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -210,7 +212,6 @@ const sendChangelog = async (guild) => {
     } catch (e) {}
 };
 
-// Expanded invite pattern capturing raw formats: gg/code, gg.code, discord.gg/code, discord.com/invite/code, etc.
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.(?:gg|io|me|li|com\/invite)|discordapp\.com\/invite)\/[a-zA-Z0-9\-]+/i;
 const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift|client_id=|oauth2\/authorize)/i;
@@ -270,7 +271,6 @@ client.on('guildMemberAdd', async member => {
     settings.joinHistory[today] = (settings.joinHistory[today] || 0) + 1;
     updateSetting(member.guild.id, 'joinHistory', settings.joinHistory);
 
-    // Auto Restore Roles on Join
     if (settings.autoRestoreRolesEnabled && settings.autoRestoreSourceGuildId) {
         const sourceGuild = client.guilds.cache.get(settings.autoRestoreSourceGuildId);
         if (sourceGuild) {
@@ -316,10 +316,6 @@ client.on('guildMemberAdd', async member => {
             else finalImageUrl = member.guild.iconURL({ size: 512 });
 
             if (finalImageUrl) embed.setImage(finalImageUrl);
-
-            if(settings.welcomeStudioConfig && settings.welcomeStudioConfig.enabled) {
-                embed.setFooter({ text: 'Welcome Studio Editor Configuration Loaded' });
-            }
 
             await channel.send({ embeds: [embed] }).catch(() => {});
         }
@@ -376,7 +372,14 @@ client.on('interactionCreate', async interaction => {
                 .setColor('#6366f1')
                 .setTimestamp();
 
-            await ticketChan.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
+            // Construct role ping string if roles were selected in dashboard
+            let pingContent = `<@${interaction.user.id}>`;
+            if (settings.ticketPingRoleIds && settings.ticketPingRoleIds.length > 0) {
+                const roleMentions = settings.ticketPingRoleIds.map(roleId => `<@&${roleId}>`).join(' ');
+                pingContent += ` ${roleMentions}`;
+            }
+
+            await ticketChan.send({ content: pingContent, embeds: [embed], components: [row] });
             await interaction.editReply({ content: `✅ Support ticket generated successfully in <#${ticketChan.id}>` });
         } catch (e) {
             await interaction.editReply({ content: '❌ Failed to create a private support ticket. Check bot permissions.' });
