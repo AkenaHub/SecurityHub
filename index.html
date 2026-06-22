@@ -72,7 +72,7 @@
     <div id="mobile-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200" style="z-index: 40;" onclick="toggleMobileMenu()"></div>
 
     <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="w-[280px] md:w-72 glass-panel flex flex-col shrink-0 absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out" style="z-index: 50;">
+    <aside id="sidebar" class="w-[280px] md:w-72 glass-panel flex flex-col z-50 shrink-0 absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out" style="z-index: 50;">
         <div class="h-16 flex items-center px-6 border-b border-white/5 bg-black/20">
             <div class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-3 border border-indigo-500/30">
                 <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
@@ -187,7 +187,7 @@
                     <div class="glass-card p-5"><div class="flex items-center justify-between mb-3"><h4 class="text-xs font-bold text-white uppercase tracking-wider">Anti File</h4><label class="switch scale-90"><input type="checkbox" id="fileShieldEnabled"><span class="slider"></span></label></div><p class="text-[11px] text-zinc-400">Filters dangerous files and batch scripts.</p></div>
                 </div>
 
-                <!-- ORIGINAL EMBED BUILDER PRESERVED WITH DYNAMIC PREVIEW -->
+                <!-- ORIGINAL EMBED BUILDER -->
                 <div class="glass-card p-6 animate-slide-up delay-150">
                     <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
                         <h4 class="text-xs font-bold text-white uppercase tracking-wider">Welcome Panel Builder</h4>
@@ -296,21 +296,33 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- NEW TICKET PING ROLE DROPDOWN -->
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Role(s) to Ping on Open</label>
+                                <div class="relative custom-dropdown" id="ticketPingRoleDropdownContainer">
+                                    <div id="ticketPingRoleSelectBtn" class="w-full min-h-[36px] input-base px-3 py-2 text-xs flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('ticketPingRoleDropdownMenu', 'ticketPingRoleDropdownIcon')">
+                                        <span id="ticketPingRoleSelectText" class="text-zinc-500 truncate pr-2">Select roles...</span>
+                                        <svg class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform shrink-0" id="ticketPingRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                    <div id="ticketPingRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z- flex flex-col"></div>
+                                </div>
+                            </div>
+
                             <div class="space-y-2 flex flex-col h-full">
-                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Panel Message</label>
+                                <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Panel Embed Message</label>
                                 <textarea id="ticketMessage" class="w-full min-h-[50px] input-base px-3 py-2 text-xs resize-none" placeholder="Create support channel."></textarea>
                             </div>
                         </div>
                         <div class="space-y-3 flex flex-col">
                             <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Ticket Activity History</label>
-                            <div class="flex-1 bg-black/30 border border-white/5 rounded-xl p-3 overflow-y-auto max-h-[220px]" id="ticketLogsList">
+                            <div class="flex-1 bg-black/30 border border-white/5 rounded-xl p-3 overflow-y-auto max-h-[300px]" id="ticketLogsList">
                                 <p class="text-xs text-zinc-500 italic text-center mt-6">No recent ticket events.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Verification Setup Card -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up delay-200">
                     <div class="glass-card p-6">
                         <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-4 pb-3 border-b border-white/10">Verification Setup</h4>
@@ -333,11 +345,11 @@
                             <div class="space-y-2">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Roles to Assign</label>
                                 <div class="relative custom-dropdown" id="verifyRoleDropdownContainer">
-                                    <div id="verifyRoleSelectBtn" class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('verifyRoleDropdownMenu', 'verifyRoleDropdownIcon')">
+                                    <div id="verifyRoleSelectBtn" class="w-full min-h-[36px] input-base px-3 py-2 text-xs flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('verifyRoleDropdownMenu', 'verifyRoleDropdownIcon')">
                                         <span id="verifyRoleSelectText" class="text-zinc-500 truncate pr-2">Select roles...</span>
                                         <svg class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform shrink-0" id="verifyRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
-                                    <div id="verifyRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-50 flex flex-col"></div>
+                                    <div id="verifyRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z- flex flex-col"></div>
                                 </div>
                             </div>
                         </div>
@@ -353,11 +365,11 @@
                             <div class="space-y-2">
                                 <label class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Roles to Grant</label>
                                 <div class="relative custom-dropdown" id="autoRoleDropdownContainer">
-                                    <div id="autoRoleSelectBtn" class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('autoRoleDropdownMenu', 'autoRoleDropdownIcon')">
+                                    <div id="autoRoleSelectBtn" class="w-full min-h-[36px] input-base px-3 py-2 text-xs flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('autoRoleDropdownMenu', 'autoRoleDropdownIcon')">
                                         <span id="autoRoleSelectText" class="text-zinc-500 truncate pr-2">Select roles...</span>
                                         <svg class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform shrink-0" id="autoRoleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
-                                    <div id="autoRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-50 flex flex-col"></div>
+                                    <div id="autoRoleDropdownMenu" class="dropdown-menu absolute left-0 right-0 top-full mt-1.5 p-1 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z- flex flex-col"></div>
                                 </div>
                             </div>
                         </div>
@@ -430,21 +442,21 @@
                                 <div class="space-y-2">
                                     <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Bypass Roles</label>
                                     <div class="relative custom-dropdown" id="roleDropdownContainer">
-                                        <div id="roleSelectBtn" class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('roleDropdownMenu', 'roleDropdownIcon')">
+                                        <div id="roleSelectBtn" class="w-full min-h-[36px] input-base px-3 py-2 text-xs flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('roleDropdownMenu', 'roleDropdownIcon')">
                                             <span id="roleSelectText" class="text-zinc-500 pr-2">Select...</span>
                                             <svg class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform shrink-0" id="roleDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="roleDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-1.5 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
+                                        <div id="roleDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-1.5 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-48 overflow-y-auto"></div>
                                     </div>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Bypass Bots</label>
                                     <div class="relative custom-dropdown" id="botDropdownContainer">
-                                        <div id="botSelectBtn" class="w-full h-9 input-base px-3 flex justify-between items-center cursor-pointer text-xs" onclick="toggleCustomDropdown('botDropdownMenu', 'botDropdownIcon')">
+                                        <div id="botSelectBtn" class="w-full min-h-[36px] input-base px-3 py-2 text-xs flex justify-between items-center cursor-pointer" onclick="toggleCustomDropdown('botDropdownMenu', 'botDropdownIcon')">
                                             <span id="botSelectText" class="text-zinc-500 pr-2">Select...</span>
                                             <svg class="w-3.5 h-3.5 text-zinc-500 dropdown-icon transition-transform shrink-0" id="botDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
-                                        <div id="botDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-1.5 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
+                                        <div id="botDropdownMenu" class="dropdown-menu absolute bottom-full left-0 right-0 mb-1.5 p-1.5 bg-[#12141d] border border-white/10 rounded-xl shadow-2xl z- max-h-48 overflow-y-auto"></div>
                                     </div>
                                 </div>
                             </div>
@@ -571,9 +583,12 @@
             const menu = document.getElementById(menuId); 
             const icon = document.getElementById(iconId); 
             const isShowing = menu.classList.contains('show'); 
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show')); 
+            document.querySelectorAll('.dropdown-menu').forEach(m => { 
+                m.classList.remove('show'); 
+                const card = m.closest('.glass-card'); 
+                if(card) card.style.zIndex = '10'; 
+            }); 
             document.querySelectorAll('.dropdown-icon').forEach(i => i.style.transform = 'rotate(0deg)'); 
-            document.querySelectorAll('.glass-card').forEach(card => card.style.zIndex = '10'); 
             if (!isShowing) { 
                 menu.classList.add('show'); 
                 if(icon) icon.style.transform = 'rotate(180deg)'; 
@@ -741,7 +756,8 @@
                 ticketEnabled: !!document.getElementById('ticketEnabled')?.checked, 
                 ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || '', 
                 ticketCategoryId: document.getElementById('ticketCategoryId')?.value || '', 
-                ticketMessage: document.getElementById('ticketMessage')?.value || '', 
+                ticketMessage: document.getElementById('ticketMessage')?.value || '',
+                ticketPingRoleIds: Array.from(document.querySelectorAll('.ticket-ping-role-checkbox:checked')).map(cb => cb.value).join(', '),
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value).join(', '), 
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value).join(', '), 
                 autoRestoreRolesEnabled: !!document.getElementById('autoRestoreRolesEnabled')?.checked, 
@@ -776,6 +792,7 @@
                 ticketPanelChannelId: originalConfig.ticketPanelChannelId || '', 
                 ticketCategoryId: originalConfig.ticketCategoryId || '', 
                 ticketMessage: originalConfig.ticketMessage || 'Please click the button below to open a support ticket.', 
+                ticketPingRoleIds: (originalConfig.ticketPingRoleIds || []).join(', '),
                 allowedAccess: originalConfig.allowedAccess ? originalConfig.allowedAccess.join(', ') : '', 
                 allowedBots: (originalConfig.allowedBots || []).join(', '), 
                 autoRestoreRolesEnabled: originalConfig.autoRestoreRolesEnabled || false, 
@@ -820,6 +837,7 @@
                 ticketPanelChannelId: document.getElementById('ticketPanelChannelId')?.value || null, 
                 ticketCategoryId: document.getElementById('ticketCategoryId')?.value || null, 
                 ticketMessage: document.getElementById('ticketMessage')?.value || 'Please click the button below to open a support ticket.', 
+                ticketPingRoleIds: Array.from(document.querySelectorAll('.ticket-ping-role-checkbox:checked')).map(cb => cb.value),
                 allowedAccess: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value), 
                 allowedBots: Array.from(document.querySelectorAll('.bot-checkbox:checked')).map(cb => cb.value), 
                 autoRestoreRolesEnabled: !!document.getElementById('autoRestoreRolesEnabled')?.checked, 
@@ -1009,10 +1027,7 @@
                 el.innerHTML = `<svg class="w-4 h-4 text-indigo-400 check-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span class="text-xs font-semibold ${opt.val ? 'text-zinc-200' : 'text-zinc-500'} truncate">${opt.label}</span>`; 
                 if (input.value === opt.val) el.classList.add('selected-option'); 
                 el.addEventListener('click', () => { 
-                    input.value = opt.val; textSpan.textContent = opt.label; textSpan.className = opt.val ? 'truncate text-xs text-zinc-200 font-semibold' : 'truncate text-xs text-zinc-500 font-semibold'; Array.from(menu.children).forEach(c => c.classList.remove('selected-option')); el.classList.add('selected-option'); menu.classList.remove('show'); 
-                    const iconEl = document.getElementById(inputId + 'Icon');
-                    if(iconEl) iconEl.style.transform = 'rotate(0deg)'; 
-                    const card = menu.closest('.glass-card'); if(card) card.style.zIndex = '10'; if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout()); if(inputId === 'welcomeImageType') { toggleCustomImageInput(); updateWelcomePreview(); } checkUnsavedChanges(); 
+                    input.value = opt.val; textSpan.textContent = opt.label; textSpan.className = opt.val ? 'truncate text-xs text-zinc-200 font-semibold' : 'truncate text-xs text-zinc-500 font-semibold'; Array.from(menu.children).forEach(c => c.classList.remove('selected-option')); el.classList.add('selected-option'); menu.classList.remove('show'); document.getElementById(inputId + 'Icon').style.transform = 'rotate(0deg)'; const card = menu.closest('.glass-card'); if(card) card.style.zIndex = '10'; if(inputId === 'linkTimeoutUnit') setCalculatedTimeout(getCalculatedTimeout()); if(inputId === 'welcomeImageType') { toggleCustomImageInput(); updateWelcomePreview(); } checkUnsavedChanges(); 
                 }); 
                 menu.appendChild(el); 
             }); 
@@ -1027,10 +1042,14 @@
             renderSingleSelect('ticketPanelChannelId', channels, 'Select Channel...', true); 
             renderSingleSelect('ticketCategoryId', categories || [], 'Select Category...', false); 
             renderSingleSelect('autoRestoreSourceGuildId', otherGuilds || [], 'Select Source Server...', false); 
+            
             renderMultiSelect('roleDropdownMenu', 'role-checkbox', 'roleSelectText', 'Select roles...', roles); 
             renderMultiSelect('verifyRoleDropdownMenu', 'verify-role-checkbox', 'verifyRoleSelectText', 'Select roles...', roles); 
             renderMultiSelect('autoRoleDropdownMenu', 'auto-role-checkbox', 'autoRoleSelectText', 'Select roles...', roles); 
             renderMultiSelect('botDropdownMenu', 'bot-checkbox', 'botSelectText', 'Select bots...', bots); 
+            // New multi-select for ticket ping roles
+            renderMultiSelect('ticketPingRoleDropdownMenu', 'ticket-ping-role-checkbox', 'ticketPingRoleSelectText', 'Select roles...', roles); 
+
             buildStaticDropdown('linkTimeoutUnit', [{val: 'minutes', label: 'Minutes'},{val: 'hours', label: 'Hours'},{val: 'days', label: 'Days'}]); 
             buildStaticDropdown('honeypotAction', [{val: 'TIMEOUT', label: 'Timeout 24h'},{val: 'KICK', label: 'Kick'},{val: 'BAN', label: 'Ban'}]); 
             buildStaticDropdown('welcomeImageType', [{val: 'icon', label: 'Server Icon'},{val: 'banner', label: 'Server Banner'},{val: 'custom', label: 'Custom Image URL'}]); 
@@ -1079,7 +1098,7 @@
                 systemBotClientId = data.botClientId; 
                 if (inviteBtn) { 
                     inviteBtn.style.display = 'flex'; 
-                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands&guild_id=${activeGuildId || ""}`, '_blank'); }; 
+                    inviteBtn.onclick = () => { window.open(`https://discord.com/api/oauth2/authorize?client_id=${systemBotClientId}&permissions=8&scope=bot%20applications.commands`, '_blank'); }; 
                 } 
                 if (authZone) { 
                     authZone.innerHTML = `<div class="flex items-center justify-between animate-fade-in bg-black/20 p-2.5 rounded-xl border border-white/5 shadow-inner"><div class="flex items-center space-x-3 overflow-hidden"><img src="${data.user.avatar ? 'https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png' : 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="h-10 w-10 rounded-lg border border-white/10 shadow"><div class="flex-1 overflow-hidden pr-2"><h4 class="text-xs font-bold text-white truncate w-full">${data.user.username}</h4><span class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5 block">Admin</span></div></div><a href="/api/auth/logout" class="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Logout"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></a></div>`; 
@@ -1244,11 +1263,21 @@
                 document.querySelectorAll('.bot-checkbox').forEach(cb => { cb.checked = (config.allowedBots || []).includes(cb.value); }); 
                 document.querySelectorAll('.verify-role-checkbox').forEach(cb => { cb.checked = (config.verifyRoleIds || []).includes(cb.value); }); 
                 document.querySelectorAll('.auto-role-checkbox').forEach(cb => { cb.checked = (config.autoRoleIds || []).includes(cb.value); }); 
-                
+                document.querySelectorAll('.ticket-ping-role-checkbox').forEach(cb => { cb.checked = (config.ticketPingRoleIds || []).includes(cb.value); }); 
+
                 updateMultiSelectText('.role-checkbox', 'roleSelectText', 'Select roles...'); 
                 updateMultiSelectText('.bot-checkbox', 'botSelectText', 'Select bots...'); 
                 updateMultiSelectText('.verify-role-checkbox', 'verifyRoleSelectText', 'Select roles...'); 
                 updateMultiSelectText('.auto-role-checkbox', 'autoRoleSelectText', 'Select roles...'); 
+                updateMultiSelectText('.ticket-ping-role-checkbox', 'ticketPingRoleSelectText', 'Select roles...'); 
+
+                document.querySelectorAll('.dropdown-menu > div').forEach(div => { 
+                    const hiddenInput = div.closest('.custom-dropdown').querySelector('input[type="hidden"]'); 
+                    if(hiddenInput && hiddenInput.value) { 
+                        const valToFind = hiddenInput.value; 
+                        const labelText = div.querySelector('span.text-sm')?.textContent; 
+                    } 
+                }); 
                 
                 const ticketLogsList = document.getElementById('ticketLogsList'); 
                 if (ticketLogsList) { 
