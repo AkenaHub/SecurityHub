@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.4.0";
+const CURRENT_VERSION = "v3.5.0";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -202,9 +202,9 @@ const sendChangelog = async (guild) => {
         if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
 
         const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Removed Canvas logic to stabilize standard Welcome Embed configurations.
-\u001b[2;32m[+]\u001b[0m Multi-dropdown component arrays refactored ensuring clean UI re-renders and successful DB loads.
-\u001b[2;32m[+]\u001b[0m Implemented 'Ping Role on Ticket Open' mechanism dynamically tagging chosen roles inside new tickets.
+\u001b[2;32m[+]\u001b[0m Implemented intelligent Auto-Create bypass to prevent duplicate channels.
+\u001b[2;32m[+]\u001b[0m Ticket permissions now strictly deny @everyone and enforce visiblity to designated Ping Roles.
+\u001b[2;34m[!]\u001b[0m Ticket Closure is now restricted to administrators and designated Support/Ping roles only.
 \`\`\``;
 
         const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
@@ -349,15 +349,28 @@ client.on('interactionCreate', async interaction => {
 
         try {
             const safeUsername = interaction.user.username.replace(/[^a-z0-9]/gi, '').toLowerCase();
+            
+            // Build Dynamic Permissions granting view access to the creator and selected roles
+            const permissionOverwrites = [
+                { id: interaction.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
+            ];
+
+            if (settings.ticketPingRoleIds && settings.ticketPingRoleIds.length > 0) {
+                settings.ticketPingRoleIds.forEach(roleId => {
+                    permissionOverwrites.push({
+                        id: roleId,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    });
+                });
+            }
+
             const ticketChan = await interaction.guild.channels.create({
                 name: `${safeUsername}-ticket`,
                 type: ChannelType.GuildText,
                 parent: settings.ticketCategoryId || null,
-                permissionOverwrites: [
-                    { id: interaction.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-                    { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
-                ]
+                permissionOverwrites: permissionOverwrites
             });
 
             logTicketAction(interaction.guildId, 'OPENED', interaction.user.username, `Type: ${selectedType} | Reason: ${reason}`).catch(()=>{});
@@ -372,7 +385,6 @@ client.on('interactionCreate', async interaction => {
                 .setColor('#6366f1')
                 .setTimestamp();
 
-            // Construct role ping string if roles were selected in dashboard
             let pingContent = `<@${interaction.user.id}>`;
             if (settings.ticketPingRoleIds && settings.ticketPingRoleIds.length > 0) {
                 const roleMentions = settings.ticketPingRoleIds.map(roleId => `<@&${roleId}>`).join(' ');
@@ -411,6 +423,19 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'close_ticket_btn') {
+            let canClose = false;
+            if (interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                canClose = true;
+            } else if (settings.ticketPingRoleIds && settings.ticketPingRoleIds.length > 0) {
+                canClose = settings.ticketPingRoleIds.some(roleId => interaction.member.roles.cache.has(roleId));
+            } else {
+                canClose = true; 
+            }
+
+            if (!canClose) {
+                return interaction.reply({ content: '❌ You must have a designated Support Role to close this ticket.', ephemeral: true });
+            }
+
             await interaction.deferReply({ ephemeral: false });
             await interaction.editReply({ content: '🔒 Ticket will automatically close in 5 seconds...' });
             logTicketAction(interaction.guildId, 'CLOSED', interaction.user.username, `Closed ticket ${interaction.channel.name}`).catch(()=>{});
@@ -966,8 +991,25 @@ app.post('/api/config/:guildId', async (req, res) => {
     const current = await getSettings(req.params.guildId);
     let newSettings = { ...current, ...req.body };
     const guild = client.guilds.cache.get(req.params.guildId);
-    if (newSettings.honeypotChannelId === 'CREATE_NEW' && guild) { try { newSettings.honeypotChannelId = (await guild.channels.create({ name: '⚠️-do-not-talk-here', type: ChannelType.GuildText })).id; } catch(e){} }
-    if (newSettings.ticketCategoryId === 'CREATE_NEW' && guild) { try { newSettings.ticketCategoryId = (await guild.channels.create({ name: '🎫 Tickets', type: ChannelType.GuildCategory })).id; } catch(e){} }
+    
+    // Auto-create smart check for duplicate channels
+    if (newSettings.honeypotChannelId === 'CREATE_NEW' && guild) { 
+        let existing = guild.channels.cache.find(c => c.name === '⚠️-do-not-talk-here' && c.type === ChannelType.GuildText);
+        if (existing) {
+            newSettings.honeypotChannelId = existing.id;
+        } else {
+            try { newSettings.honeypotChannelId = (await guild.channels.create({ name: '⚠️-do-not-talk-here', type: ChannelType.GuildText })).id; } catch(e){} 
+        }
+    }
+    if (newSettings.ticketCategoryId === 'CREATE_NEW' && guild) { 
+        let existing = guild.channels.cache.find(c => c.name === '🎫 Tickets' && c.type === ChannelType.GuildCategory);
+        if (existing) {
+            newSettings.ticketCategoryId = existing.id;
+        } else {
+            try { newSettings.ticketCategoryId = (await guild.channels.create({ name: '🎫 Tickets', type: ChannelType.GuildCategory })).id; } catch(e){} 
+        }
+    }
+    
     guildSettings[req.params.guildId] = newSettings; saveLocalDatabase(); await saveToCloud(req.params.guildId, newSettings);
     if (newSettings.verifyEnabled && newSettings.verifyChannelId && guild && (current.verifyEnabled !== newSettings.verifyEnabled || current.verifyChannelId !== newSettings.verifyChannelId || JSON.stringify(current.verifyRoleIds) !== JSON.stringify(newSettings.verifyRoleIds))) { await setupVerifyMessage(guild.id, newSettings.verifyChannelId); await setupVerificationPermissions(guild, newSettings.verifyChannelId, newSettings.verifyRoleIds); }
     if (newSettings.ticketEnabled && newSettings.ticketPanelChannelId && guild && (current.ticketEnabled !== newSettings.ticketEnabled || current.ticketPanelChannelId !== newSettings.ticketPanelChannelId || current.ticketMessage !== newSettings.ticketMessage)) await setupTicketPanel(guild.id, newSettings.ticketPanelChannelId, newSettings.ticketMessage);
