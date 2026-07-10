@@ -513,10 +513,18 @@ app.use(cookieSession({
     sameSite: 'lax'
 }));
 
+// Route static files correctly for both Express and Vercel serverless environments
 app.get('/', (req, res) => {
-    const publicPath = path.join(__dirname, 'public', 'index.html');
-    if (fs.existsSync(publicPath)) res.sendFile(publicPath);
-    else res.status(404).send("<div style='background:#050608;color:#fff;height:100vh;display:flex;align-items:center;justify-content:center;'><h2>UI Error: Missing index.html</h2></div>");
+    const cwdPublicPath = path.join(process.cwd(), 'public', 'index.html');
+    const cwdRootPath = path.join(process.cwd(), 'index.html');
+    const dirPublicPath = path.join(__dirname, 'public', 'index.html');
+    const dirRootPath = path.join(__dirname, 'index.html');
+
+    if (fs.existsSync(cwdPublicPath)) res.sendFile(cwdPublicPath);
+    else if (fs.existsSync(cwdRootPath)) res.sendFile(cwdRootPath);
+    else if (fs.existsSync(dirPublicPath)) res.sendFile(dirPublicPath);
+    else if (fs.existsSync(dirRootPath)) res.sendFile(dirRootPath);
+    else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>UI Error: Missing index.html</h2><p style='color:#9ca3af;margin-top:10px;'>Vercel could not locate your dashboard UI file. Please ensure index.html is uploaded to your repository.</p></div>");
 });
 
 app.get('/api/auth/login', (req, res) => { 
