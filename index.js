@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.5.1";
+const CURRENT_VERSION = "v3.6.0";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -31,7 +31,6 @@ let guildSettings = {};
 let firestoreDb = null;
 
 const pendingBackups = new Map();
-const recentJoins = new Map(); // Tracks Anti-Raid Join Floods
 
 const initRemoteStorage = async () => {
     try {
@@ -140,7 +139,7 @@ const setupVerifyMessage = async (guildId, channelId) => {
         }
 
         const msgs = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-        const existingBtnMsg = msgs ? msgs.find(m => m.author.id === client.user.id && m.components.length > 0 && m.components?.components?.customId === 'verify_user_btn') : null;
+        const existingBtnMsg = msgs ? msgs.find(m => m.author.id === client.user.id && m.components.length > 0 && m.components[0]?.components[0]?.customId === 'verify_user_btn') : null;
 
         if (existingBtnMsg) { await existingBtnMsg.edit({ embeds: [embed], components: [row] }); await updateSetting(guildId, 'verifyPanelMessageId', existingBtnMsg.id); return; }
 
@@ -197,23 +196,6 @@ const setupVerificationPermissions = async (guild, verifyChannelId, verifyRoleId
     } catch (error) { console.error("Verification Setup Error:", error); }
 };
 
-const sendChangelog = async (guild) => {
-    if (guild.id !== '1499199296522944522') return;
-    try {
-        let channel = guild.channels.cache.find(c => c.name === 'bot-changelog' && c.type === ChannelType.GuildText);
-        if (!channel) { channel = await guild.channels.create({ name: 'bot-changelog', type: ChannelType.GuildText, permissionOverwrites: [ { id: guild.id, deny: [PermissionFlagsBits.SendMessages] }, { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } ] }); }
-
-        const ansiText = `\`\`\`ansi
-\u001b[2;32m[+]\u001b[0m Launched beautiful Module Grid layout interface! Settings are now cleanly organized into modals.
-\u001b[2;32m[+]\u001b[0m Anti-Raid system fully armed: actively detects and blocks Join Floods and Mass Ping abuse.
-\u001b[2;32m[+]\u001b[0m Tickets now map channel names securely by selected category. Added "Other" option.
-\`\`\``;
-
-        const embed = new EmbedBuilder().setTitle('🚀 System Update Deployed').setColor(0x6366f1).setDescription(`**Version ${CURRENT_VERSION}**\n\nThe ServSecurity Matrix has been updated. Below are the compiled changes:\n\n${ansiText}`).setTimestamp().setFooter({ text: 'ServSecurity Automated Changelog' });
-        await channel.send({ content: '@here', embeds: [embed] });
-    } catch (e) {}
-};
-
 const linkRegex = /(https?:\/\/(?!media\.discordapp\.net|cdn\.discordapp\.com)[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|li|co|us|uk|info|site|xyz)(\/[^\s]*)?)/i;
 const discordInviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.(?:gg|io|me|li|com\/invite)|discordapp\.com\/invite)\/[a-zA-Z0-9\-]+/i;
 const scamRegex = /(free.*nitro|nitro.*free|steam.*(?:free|gift|premium)|discord.*(?:gift|nitro)|@everyone.*https?:\/\/|@here.*https?:\/\/|discorcl\.gift|dlscord\.gift|client_id=|oauth2\/authorize)/i;
@@ -242,10 +224,6 @@ client.once('ready', async () => {
     for (const [id, guild] of client.guilds.cache) {
         await syncWithDiscord(guild);
         const settings = await getSettings(guild.id);
-        if (settings.lastVersion !== CURRENT_VERSION) {
-            if (guild.id === '1499199296522944522') await sendChangelog(guild);
-            await updateSetting(guild.id, 'lastVersion', CURRENT_VERSION);
-        }
     }
 });
 
@@ -271,11 +249,10 @@ client.on('guildMemberAdd', async member => {
     if (settings.raidEnabled) {
         const now = Date.now();
         const guildJoins = recentJoins.get(member.guild.id) || [];
-        const recent = guildJoins.filter(time => now - time < 10000); // Joins in last 10s
+        const recent = guildJoins.filter(time => now - time < 10000); 
         recent.push(now);
         recentJoins.set(member.guild.id, recent);
 
-        // More than 5 joins in 10 seconds is a Raid Flag
         if (recent.length > 5) {
             await member.kick('Anti-Raid: Mass join flood detected').catch(()=>{});
             logAction(member.guild.id, 'KICK', member.user.username, member.user.id, 'Anti-Raid: Mass join flood').catch(()=>{});
@@ -283,7 +260,7 @@ client.on('guildMemberAdd', async member => {
         }
     }
 
-    const today = new Date().toISOString().split('T');
+    const today = new Date().toISOString().split('T')[0];
     if(!settings.joinHistory) settings.joinHistory = {};
     settings.joinHistory[today] = (settings.joinHistory[today] || 0) + 1;
     updateSetting(member.guild.id, 'joinHistory', settings.joinHistory);
@@ -297,8 +274,10 @@ client.on('guildMemberAdd', async member => {
                     const sourceRoles = sourceMember.roles.cache.filter(r => r.name !== '@everyone' && !r.managed);
                     for (const [id, role] of sourceRoles) {
                         const matchingRole = member.guild.roles.cache.find(r => r.name === role.name);
-                        if (matchingRole && matchingRole.position < member.guild.members.me.roles.highest.position) {
-                            await member.roles.add(matchingRole).catch(() => {});
+                        if (matchingRole) {
+                            if (matchingRole.position < member.guild.members.me.roles.highest.position) {
+                                await member.roles.add(matchingRole).catch(() => {});
+                            }
                         }
                     }
                 }
@@ -323,12 +302,15 @@ client.on('guildMemberAdd', async member => {
 
             const embed = new EmbedBuilder().setDescription(msg).setColor(settings.welcomeColor || '#6366f1').setTimestamp();
             
-            let finalImageUrl = null;
-            if (settings.welcomeImageType === 'banner') finalImageUrl = member.guild.bannerURL({ size: 512 });
-            else if (settings.welcomeImageType === 'custom' && settings.welcomeCustomImageUrl) finalImageUrl = settings.welcomeCustomImageUrl;
-            else finalImageUrl = member.guild.iconURL({ size: 512 });
+            if (settings.welcomeImageType !== 'none') {
+                let finalImageUrl = null;
+                if (settings.welcomeImageType === 'banner') finalImageUrl = member.guild.bannerURL({ size: 512 });
+                else if (settings.welcomeImageType === 'custom' && settings.welcomeCustomImageUrl) finalImageUrl = settings.welcomeCustomImageUrl;
+                else finalImageUrl = member.guild.iconURL({ size: 512 });
 
-            if (finalImageUrl) embed.setImage(finalImageUrl);
+                if (finalImageUrl) embed.setImage(finalImageUrl);
+            }
+
             await channel.send({ embeds: [embed] }).catch(() => {});
         }
     }
@@ -336,7 +318,7 @@ client.on('guildMemberAdd', async member => {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_type_dropdown') {
-        const selectedType = interaction.values;
+        const selectedType = interaction.values[0];
         const modal = new ModalBuilder()
             .setCustomId(`ticket_modal_${selectedType}`)
             .setTitle(`${selectedType} Support Submission`);
@@ -458,19 +440,18 @@ client.on('interactionCreate', async interaction => {
 
     if (!interaction.isChatInputCommand()) return;
 
-    const isAdmin = interaction.member?.permissions.has('Administrator') || interaction.user.id === '1284247278957367337';
-
     if (interaction.commandName === 'dashboard') {
         await interaction.deferReply({ ephemeral: true });
         const settings = await getSettings(interaction.guildId);
         const allowedUserId = '1284247278957367337';
-        let hasAccess = isAdmin || interaction.user.id === interaction.guild?.ownerId;
+        let hasAccess = interaction.user.id === interaction.guild?.ownerId || interaction.user.id === allowedUserId || interaction.member?.permissions.has('Administrator');
         if (!hasAccess && settings.allowedAccess && settings.allowedAccess.includes(interaction.user.id)) hasAccess = true;
 
         if (!hasAccess) return interaction.editReply({ content: '❌ **Access Denied:** You do not have permission to view the security panel.' });
         await interaction.editReply({ content: `🌐 **Access the ServSecurity Control Center here:**\n${process.env.PUBLIC_URL || 'http://localhost:3000'}` });
-        return;
     }
+
+    const isAdmin = interaction.member?.permissions.has('Administrator') || interaction.user.id === '1284247278957367337';
 
     if (['kick', 'ban', 'timeout', 'unmute', 'role'].includes(interaction.commandName)) {
         await interaction.deferReply({ ephemeral: false }); 
@@ -818,7 +799,6 @@ client.on('messageCreate', async message => {
     
     if (hasBypass) return; 
 
-    // Mass Ping & Flood Protection
     if (settings.raidEnabled) {
         if (message.mentions.users.size > 5 || message.mentions.roles.size > 3) {
             try {
@@ -868,7 +848,6 @@ client.on('messageCreate', async message => {
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 const usingHttps = process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https');
 
@@ -880,6 +859,7 @@ app.use(cookieSession({
     sameSite: usingHttps ? 'none' : 'lax'
 }));
 
+// Route static files correctly for both Express and Vercel environments
 app.get('/', (req, res) => {
     const publicPath = path.join(__dirname, 'public', 'index.html');
     const rootPath = path.join(__dirname, 'index.html');
@@ -891,11 +871,18 @@ app.get('/', (req, res) => {
 app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const sourceGuild = client.guilds.cache.get(req.params.guildId);
+    
     if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
-    if (client.guilds.cache.size >= 10) return res.status(400).json({ error: 'Discord API Limitation: Bots present in 10 or more servers cannot programmatically spawn new guilds.' });
+    
+    if (client.guilds.cache.size >= 10) {
+        return res.status(400).json({ error: 'Discord API Limitation: Bots present in 10 or more servers cannot programmatically spawn new guilds.' });
+    }
 
     try {
-        const newGuild = await client.guilds.create({ name: `${sourceGuild.name} [Backup]` });
+        const newGuild = await client.guilds.create({
+            name: `${sourceGuild.name} [Backup]`
+        });
+
         pendingBackups.set(newGuild.id, req.session.user.id);
 
         let defaultChannel = newGuild.systemChannel;
@@ -903,7 +890,10 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
             const textChannels = newGuild.channels.cache.filter(c => c.type === ChannelType.GuildText);
             defaultChannel = textChannels.first();
         }
-        if (!defaultChannel) defaultChannel = await newGuild.channels.create({ name: 'general', type: ChannelType.GuildText });
+
+        if (!defaultChannel) {
+            defaultChannel = await newGuild.channels.create({ name: 'general', type: ChannelType.GuildText });
+        }
 
         const invite = await defaultChannel.createInvite({ maxAge: 0, maxUses: 10 });
         res.json({ success: true, message: 'Server generated successfully', inviteUrl: invite.url });
@@ -922,9 +912,14 @@ app.post('/api/backup/create/:guildId', async (req, res) => {
                         }
                     }
                 }
-            } catch (backgroundError) { console.error('Background cloning error:', backgroundError); }
+            } catch (backgroundError) {
+                console.error('Background cloning error:', backgroundError);
+            }
         })();
-    } catch(e) { res.status(500).json({ error: e.message || 'Failed to create backup server.' }); }
+
+    } catch(e) {
+        res.status(500).json({ error: e.message || 'Failed to create backup server.' });
+    }
 });
 
 app.post('/api/config/sync-all/:guildId', async (req, res) => {
@@ -954,7 +949,9 @@ app.post('/api/config/sync-all/:guildId', async (req, res) => {
                     }
                 }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Background sync error:', e);
+        }
     })();
 });
 
@@ -1026,4 +1023,12 @@ app.get('/api/auth/logout', (req, res) => {
 });
 
 if (process.env.DISCORD_TOKEN) client.login(process.env.DISCORD_TOKEN).catch(() => {});
-app.listen(process.env.PORT || 3000, '0.0.0.0');
+
+// VERCEL SERVERLESS EXPORT
+module.exports = app;
+
+if (require.main === module) {
+    app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+        console.log(`Server is running on port ${process.env.PORT || 3000}`);
+    });
+}
