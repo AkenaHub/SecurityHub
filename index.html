@@ -502,6 +502,7 @@
         async function fetchAPI(endpoint, options = {}) {
             try {
                 const url = resolveUrl(endpoint);
+                options.credentials = 'include'; // Force browser to send the secure session cookie
                 const response = await fetch(url, options);
                 const text = await response.text();
                 
