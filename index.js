@@ -768,36 +768,37 @@ app.post('/api/config/sync-all/:guildId', async (req, res) => {
     (async () => {
         try {
             const currentMembers = await targetGuild.members.fetch();
-            for (const [id, targetMember] of currentMembers) {
-                if (targetMember.user.bot) continue;
-                const sourceMember = await sourceGuild.members.fetch(id).catch(() => null);
-                if (sourceMember) {
-                    const sourceRoles = sourceMember.roles.cache.filter(r => r.name !== '@everyone' && !r.managed);
-                    for (const [sId, sRole] of sourceRoles) {
-                        const matchingRole = targetGuild.roles.cache.find(r => r.name === sRole.name);
-                        if (matchingRole && !targetMember.roles.cache.has(matchingRole.id)) {
-                            if (matchingRole.position < targetGuild.members.me.roles.highest.position) {
-                                await targetMember.roles.add(matchingRole).catch(()=>{});
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e) {}
-    })();
+app.get('/api/auth/login', (req, res) => { 
+    res.redirect(`https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`); 
 });
 
-app.get('/api/auth/login', (req, res) => { res.redirect(`https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`); });
 app.get('/api/auth/callback', async (req, res) => {
     try {
-        const tokenRes = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({ client_id: process.env.DISCORD_CLIENT_ID, client_secret: process.env.DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code: req.query.code, redirect_uri: process.env.REDIRECT_URI }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        const tokenRes = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({ 
+            client_id: process.env.DISCORD_CLIENT_ID, 
+            client_secret: process.env.DISCORD_CLIENT_SECRET, 
+            grant_type: 'authorization_code', 
+            code: req.query.code, 
+            redirect_uri: process.env.REDIRECT_URI 
+        }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        
         const userRes = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${tokenRes.data.access_token}` } });
         const guildsRes = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${tokenRes.data.access_token}` } });
+        
         req.session.user = { id: userRes.data.id, username: userRes.data.username, avatar: userRes.data.avatar };
-        req.session.guilds = guildsRes.data.filter(g => (BigInt(g.permissions) & 0x8n) === 0x8n).map(g => ({ id: g.id, name: g.name, icon: g.icon }));
+        
+        // Filter to Admin guilds and limit to 50 to prevent 4KB Cookie Overflow crash in Vercel
+        const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & 0x8n) === 0x8n).map(g => ({ id: g.id, name: g.name, icon: g.icon }));
+        req.session.guilds = adminGuilds.slice(0, 50); 
+        
         res.redirect('/');
-    } catch (e) { res.redirect('/?error=Auth_Failed'); }
+    } catch (e) { 
+        console.error("Auth Failed Details:", e.response?.data || e.message);
+        const errMsg = e.response?.data?.error_description || e.message;
+        res.send(`<script>alert("Discord Login Failed!\\n\\nError: ${errMsg}\\n\\nIf you see 'invalid_grant', your REDIRECT_URI in Vercel Environment Variables is incorrect."); window.location.href="/";</script>`); 
+    }
 });
+
 app.get('/api/user-data', (req, res) => {
     if (!req.session?.user) return res.json({ loggedIn: false });
     res.json({ loggedIn: true, user: req.session.user, guilds: req.session.guilds.map(g => ({ ...g, icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null, botPresent: client.guilds.cache.has(g.id) })), botClientId: process.env.DISCORD_CLIENT_ID });
