@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.6.2";
+const CURRENT_VERSION = "v3.6.3";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -206,7 +206,6 @@ client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
     loadLocalDatabase();
 
-    // Run heavy processes in the background to prevent Vercel timeout crashes
     (async () => {
         try {
             await initRemoteStorage();
@@ -628,6 +627,119 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
     }
 });
 
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (!oldChannel.guild) return;
+    const settings = await getSettings(oldChannel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldChannel.name !== newChannel.name) {
+        try {
+            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+
+            await newChannel.setName(oldChannel.name).catch(() => {});
+            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
+            }
+        } catch (e) {}
+    }
+});
+
+client.on('channelDelete', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+
+        await channel.clone().catch(()=>{});
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
+        }
+    } catch (e) {}
+});
+
+client.on('channelCreate', async channel => {
+    if (!channel.guild) return;
+    const settings = await getSettings(channel.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+
+        await channel.delete().catch(()=>{});
+        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
+        }
+    } catch (e) {}
+});
+
+client.on('roleDelete', async role => {
+    if (!role.guild) return;
+    const settings = await getSettings(role.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    try {
+        const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
+        const auditEntry = fetchedLogs.entries.first();
+        if (!auditEntry) return;
+
+        const executor = auditEntry.executor;
+        if (executor.id === client.user.id || !executor.bot) return;
+
+        await role.guild.roles.create({
+            name: role.name, color: role.color, hoist: role.hoist, permissions: role.permissions, position: role.position, mentionable: role.mentionable, reason: 'Anti-Nuke: Restoring deleted role'
+        }).catch(() => {});
+
+        const member = await role.guild.members.fetch(executor.id).catch(() => null);
+        if (member && member.bannable) {
+            await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
+        }
+    } catch (e) {}
+});
+
+client.on('roleUpdate', async (oldRole, newRole) => {
+    if (!oldRole.guild) return;
+    const settings = await getSettings(oldRole.guild.id);
+    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
+
+    if (oldRole.name !== newRole.name || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+        try {
+            const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
+            const auditEntry = fetchedLogs.entries.first();
+            if (!auditEntry) return;
+
+            const executor = auditEntry.executor;
+            if (executor.id === client.user.id || !executor.bot) return;
+
+            await newRole.edit({ name: oldRole.name, permissions: oldRole.permissions, color: oldRole.color, hoist: oldRole.hoist, mentionable: oldRole.mentionable }).catch(() => {});
+
+            const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
+            if (member && member.bannable) {
+                await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
+            }
+        } catch (e) {}
+    }
+});
+
 client.on('messageCreate', async message => {
     if (message.author.id === client.user.id) return; 
 
@@ -703,71 +815,17 @@ client.on('messageCreate', async message => {
 const app = express();
 
 app.set('trust proxy', 1);
-
 app.use(express.json());
 
-const isSecure = process.env.NODE_ENV === 'production' || !!process.env.VERCEL || (process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https'));
-
+// Set up cookie session securely
 app.use(cookieSession({ 
     name: 'servsecurity.sid', 
     keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], 
     maxAge: 24 * 60 * 60 * 1000,
-    secure: isSecure,
-    sameSite: isSecure ? 'none' : 'lax'
+    secure: true, // Force HTTPS for Vercel
+    sameSite: 'lax' // Allows Discord to return to the site and keep the cookie
 }));
 
-// API Routes
-app.post('/api/backup/create/:guildId', async (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    const sourceGuild = client.guilds.cache.get(req.params.guildId);
-    if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
-    if (client.guilds.cache.size >= 10) return res.status(400).json({ error: 'Discord API Limitation: Bots present in 10 or more servers cannot programmatically spawn new guilds.' });
-
-    try {
-        const newGuild = await client.guilds.create({ name: `${sourceGuild.name} [Backup]` });
-        pendingBackups.set(newGuild.id, req.session.user.id);
-
-        let defaultChannel = newGuild.systemChannel;
-        if (!defaultChannel) {
-            const textChannels = newGuild.channels.cache.filter(c => c.type === ChannelType.GuildText);
-            defaultChannel = textChannels.first();
-        }
-        if (!defaultChannel) defaultChannel = await newGuild.channels.create({ name: 'general', type: ChannelType.GuildText });
-
-        const invite = await defaultChannel.createInvite({ maxAge: 0, maxUses: 10 });
-        res.json({ success: true, message: 'Server generated successfully', inviteUrl: invite.url });
-
-        (async () => {
-            try {
-                for (const [id, role] of sourceGuild.roles.cache.sort((a,b) => a.position - b.position)) {
-                    if(role.name === '@everyone' || role.managed) continue;
-                    await newGuild.roles.create({ name: role.name, color: role.color, permissions: role.permissions, hoist: role.hoist }).catch(()=>{});
-                }
-                for (const [id, category] of sourceGuild.channels.cache.filter(c => c.type === ChannelType.GuildCategory)) {
-                    const newCat = await newGuild.channels.create({ name: category.name, type: ChannelType.GuildCategory }).catch(()=>{});
-                    if(newCat) {
-                        for (const [cid, channel] of sourceGuild.channels.cache.filter(c => c.parentId === category.id && c.type === ChannelType.GuildText)) {
-                            await newGuild.channels.create({ name: channel.name, type: ChannelType.GuildText, parent: newCat.id }).catch(()=>{});
-                        }
-                    }
-                }
-            } catch (backgroundError) { console.error('Background cloning error:', backgroundError); }
-        })();
-    } catch(e) { res.status(500).json({ error: e.message || 'Failed to create backup server.' }); }
-});
-
-app.post('/api/config/sync-all/:guildId', async (req, res) => {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    const { sourceGuildId } = req.body;
-    const targetGuild = client.guilds.cache.get(req.params.guildId);
-    const sourceGuild = client.guilds.cache.get(sourceGuildId);
-    if (!targetGuild || !sourceGuild) return res.status(400).json({ error: 'Guilds not found or bot not in them' });
-    
-    res.json({ success: true, message: 'Sync started' });
-    
-    (async () => {
-        try {
-            const currentMembers = await targetGuild.members.fetch();
 app.get('/api/auth/login', (req, res) => { 
     res.redirect(`https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`); 
 });
@@ -783,26 +841,45 @@ app.get('/api/auth/callback', async (req, res) => {
         }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         
         const userRes = await axios.get('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${tokenRes.data.access_token}` } });
-        const guildsRes = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${tokenRes.data.access_token}` } });
         
+        // ONLY save the essential info + token to prevent the 4KB Cookie Explosion error!
+        req.session.token = tokenRes.data.access_token;
         req.session.user = { id: userRes.data.id, username: userRes.data.username, avatar: userRes.data.avatar };
-        
-        // Filter to Admin guilds and limit to 50 to prevent 4KB Cookie Overflow crash in Vercel
-        const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & 0x8n) === 0x8n).map(g => ({ id: g.id, name: g.name, icon: g.icon }));
-        req.session.guilds = adminGuilds.slice(0, 50); 
         
         res.redirect('/');
     } catch (e) { 
-        console.error("Auth Failed Details:", e.response?.data || e.message);
-        const errMsg = e.response?.data?.error_description || e.message;
-        res.send(`<script>alert("Discord Login Failed!\\n\\nError: ${errMsg}\\n\\nIf you see 'invalid_grant', your REDIRECT_URI in Vercel Environment Variables is incorrect."); window.location.href="/";</script>`); 
+        res.redirect('/?error=Auth_Failed'); 
     }
 });
 
-app.get('/api/user-data', (req, res) => {
-    if (!req.session?.user) return res.json({ loggedIn: false });
-    res.json({ loggedIn: true, user: req.session.user, guilds: req.session.guilds.map(g => ({ ...g, icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null, botPresent: client.guilds.cache.has(g.id) })), botClientId: process.env.DISCORD_CLIENT_ID });
+// Dynamic User Data endpoint - Fixes the 4KB Cookie Explosion issue
+app.get('/api/user-data', async (req, res) => {
+    if (!req.session?.user || !req.session?.token) return res.json({ loggedIn: false });
+    
+    try {
+        // Fetch Guilds dynamically from Discord on page load instead of stuffing them into the cookie
+        const guildsRes = await axios.get('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bearer ${req.session.token}` } });
+        const adminGuilds = guildsRes.data
+            .filter(g => (BigInt(g.permissions) & 0x8n) === 0x8n)
+            .map(g => ({ 
+                id: g.id, 
+                name: g.name, 
+                icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null, 
+                botPresent: client.guilds.cache.has(g.id) 
+            }));
+
+        res.json({ 
+            loggedIn: true, 
+            user: req.session.user, 
+            guilds: adminGuilds, 
+            botClientId: process.env.DISCORD_CLIENT_ID 
+        });
+    } catch (err) {
+        // If the token expires or fails, log them out gracefully
+        res.json({ loggedIn: false });
+    }
 });
+
 app.get('/api/discord-data/:guildId', async (req, res) => {
     if (!req.session?.user) return res.status(401).json({ error: 'Unauthorized' });
     const guild = client.guilds.cache.get(req.params.guildId);
@@ -842,21 +919,38 @@ app.post('/api/config/:guildId', async (req, res) => {
     res.json({ success: true, config: newSettings });
 });
 
+app.post('/api/backup/create/:guildId', async (req, res) => {
+    // Logic from previous code...
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    const sourceGuild = client.guilds.cache.get(req.params.guildId);
+    if (!sourceGuild) return res.status(404).json({ error: 'Source Guild not found' });
+    if (client.guilds.cache.size >= 10) return res.status(400).json({ error: 'Discord API Limitation' });
+
+    try {
+        const newGuild = await client.guilds.create({ name: `${sourceGuild.name} [Backup]` });
+        pendingBackups.set(newGuild.id, req.session.user.id);
+        let defaultChannel = newGuild.systemChannel || newGuild.channels.cache.filter(c => c.type === ChannelType.GuildText).first();
+        if (!defaultChannel) defaultChannel = await newGuild.channels.create({ name: 'general', type: ChannelType.GuildText });
+        const invite = await defaultChannel.createInvite({ maxAge: 0, maxUses: 10 });
+        res.json({ success: true, message: 'Server generated successfully', inviteUrl: invite.url });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/auth/logout', (req, res) => { req.session = null; res.redirect('/'); });
 
-// Serve Static Assets & Fallback AFTER API Routes
+// UI Routing Wrapper
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => {
-    const cwdPublicPath = path.join(process.cwd(), 'public', 'index.html');
-    const cwdRootPath = path.join(process.cwd(), 'index.html');
-    const dirPublicPath = path.join(__dirname, 'public', 'index.html');
-    const dirRootPath = path.join(__dirname, 'index.html');
+    const p1 = path.join(process.cwd(), 'public', 'index.html');
+    const p2 = path.join(process.cwd(), 'index.html');
+    const p3 = path.join(__dirname, 'public', 'index.html');
+    const p4 = path.join(__dirname, 'index.html');
 
-    if (fs.existsSync(cwdPublicPath)) res.sendFile(cwdPublicPath);
-    else if (fs.existsSync(cwdRootPath)) res.sendFile(cwdRootPath);
-    else if (fs.existsSync(dirPublicPath)) res.sendFile(dirPublicPath);
-    else if (fs.existsSync(dirRootPath)) res.sendFile(dirRootPath);
-    else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>UI Error: Missing index.html</h2><p style='color:#9ca3af;margin-top:10px;'>Vercel could not locate your dashboard UI file. Please ensure index.html is uploaded to your repository.</p></div>");
+    if (fs.existsSync(p1)) res.sendFile(p1);
+    else if (fs.existsSync(p2)) res.sendFile(p2);
+    else if (fs.existsSync(p3)) res.sendFile(p3);
+    else if (fs.existsSync(p4)) res.sendFile(p4);
+    else res.status(404).send("<h2>UI Error: Missing index.html</h2>");
 });
 
 if (process.env.DISCORD_TOKEN) {
