@@ -14,7 +14,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { getAuth, signInAnonymously, signInWithCustomToken } = require('firebase/auth');
 
-const CURRENT_VERSION = "v3.6.1";
+const CURRENT_VERSION = "v3.6.2";
 
 process.on('unhandledRejection', error => { console.error('Unhandled Promise Rejection:', error); });
 process.on('uncaughtException', error => { console.error('Uncaught Exception:', error); });
@@ -303,7 +303,7 @@ client.on('guildMemberAdd', async member => {
     if (settings.welcomeEnabled && settings.welcomeChannelId) {
         const channel = member.guild.channels.cache.get(settings.welcomeChannelId);
         if (channel) {
-            let msg = settings.welcomeMessage || "Welcome {user} to **{server}**! We are now at {membercount} members.";
+            let msg = settings.welcomeMessage || "Welcome {user} to **{server}**!";
             msg = msg.replace(/{user}/g, `<@${member.id}>`).replace(/{username}/g, member.user.username).replace(/{server}/g, member.guild.name).replace(/{membercount}/g, member.guild.memberCount);
 
             const embed = new EmbedBuilder().setDescription(msg).setColor(settings.welcomeColor || '#6366f1').setTimestamp();
@@ -618,136 +618,11 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
 
             const executor = auditEntry.executor;
             if (executor.id === client.user.id || !executor.bot) return;
-            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
 
             await newGuild.setName(oldGuild.name).catch(() => {});
             const member = await newGuild.members.fetch(executor.id).catch(() => null);
             if (member && member.bannable) {
                 await member.ban({ reason: 'Anti-Nuke: Unauthorized Server Modification' }).catch(() => {});
-                logAction(newGuild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Server Name Change Attempt').catch(console.error);
-            }
-        } catch (e) {}
-    }
-});
-
-client.on('channelUpdate', async (oldChannel, newChannel) => {
-    if (!oldChannel.guild) return;
-    const settings = await getSettings(oldChannel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    if (oldChannel.name !== newChannel.name) {
-        try {
-            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
-
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || !executor.bot) return;
-            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-            await newChannel.setName(oldChannel.name).catch(() => {});
-            const member = await oldChannel.guild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Modification' }).catch(() => {});
-                logAction(oldChannel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Name Change Attempt').catch(console.error);
-            }
-        } catch (e) {}
-    }
-});
-
-client.on('channelDelete', async channel => {
-    if (!channel.guild) return;
-    const settings = await getSettings(channel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    try {
-        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
-        const auditEntry = fetchedLogs.entries.first();
-        if (!auditEntry) return;
-
-        const executor = auditEntry.executor;
-        if (executor.id === client.user.id || !executor.bot) return;
-        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-        await channel.clone().catch(()=>{});
-        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
-        if (member && member.bannable) {
-            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Deletion' }).catch(() => {});
-            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Deletion Attempt').catch(console.error);
-        }
-    } catch (e) {}
-});
-
-client.on('channelCreate', async channel => {
-    if (!channel.guild) return;
-    const settings = await getSettings(channel.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    try {
-        const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
-        const auditEntry = fetchedLogs.entries.first();
-        if (!auditEntry) return;
-
-        const executor = auditEntry.executor;
-        if (executor.id === client.user.id || !executor.bot) return;
-        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-        await channel.delete().catch(()=>{});
-        const member = await channel.guild.members.fetch(executor.id).catch(() => null);
-        if (member && member.bannable) {
-            await member.ban({ reason: 'Anti-Nuke: Unauthorized Channel Creation' }).catch(() => {});
-            logAction(channel.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Channel Creation Attempt').catch(console.error);
-        }
-    } catch (e) {}
-});
-
-client.on('roleDelete', async role => {
-    if (!role.guild) return;
-    const settings = await getSettings(role.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    try {
-        const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
-        const auditEntry = fetchedLogs.entries.first();
-        if (!auditEntry) return;
-
-        const executor = auditEntry.executor;
-        if (executor.id === client.user.id || !executor.bot) return;
-        if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-        await role.guild.roles.create({
-            name: role.name, color: role.color, hoist: role.hoist, permissions: role.permissions, position: role.position, mentionable: role.mentionable, reason: 'Anti-Nuke: Restoring deleted role'
-        }).catch(() => {});
-
-        const member = await role.guild.members.fetch(executor.id).catch(() => null);
-        if (member && member.bannable) {
-            await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Deletion' }).catch(() => {});
-            logAction(role.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Deletion Attempt').catch(console.error);
-        }
-    } catch (e) {}
-});
-
-client.on('roleUpdate', async (oldRole, newRole) => {
-    if (!oldRole.guild) return;
-    const settings = await getSettings(oldRole.guild.id);
-    if (!settings.masterSwitch || !settings.antiNukeEnabled) return;
-
-    if (oldRole.name !== newRole.name || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
-        try {
-            const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
-            const auditEntry = fetchedLogs.entries.first();
-            if (!auditEntry) return;
-
-            const executor = auditEntry.executor;
-            if (executor.id === client.user.id || !executor.bot) return;
-            if (settings.allowedBots && settings.allowedBots.includes(executor.id)) return;
-
-            await newRole.edit({ name: oldRole.name, permissions: oldRole.permissions, color: oldRole.color, hoist: oldRole.hoist, mentionable: oldRole.mentionable }).catch(() => {});
-
-            const member = await oldRole.guild.members.fetch(executor.id).catch(() => null);
-            if (member && member.bannable) {
-                await member.ban({ reason: 'Anti-Nuke: Unauthorized Role Modification' }).catch(() => {});
-                logAction(oldRole.guild.id, 'BAN', executor.username, executor.id, 'Anti-Nuke: Role Modification Attempt').catch(console.error);
             }
         } catch (e) {}
     }
@@ -760,10 +635,6 @@ client.on('messageCreate', async message => {
     if (!settings.masterSwitch) return;
 
     let hasBypass = message.author?.id === message.guild.ownerId || (message.member && message.member.permissions.has('Administrator'));
-    if (!hasBypass && settings.allowedAccess && settings.allowedAccess.length > 0) {
-        if (message.author && settings.allowedAccess.includes(message.author.id)) hasBypass = true;
-        if (message.member && message.member.roles && message.member.roles.cache.some(role => settings.allowedAccess.includes(role.id))) hasBypass = true;
-    }
     
     if (message.webhookId) {
         if (settings.raidEnabled || settings.linksEnabled) {
@@ -814,17 +685,6 @@ client.on('messageCreate', async message => {
         }
     }
 
-    if (settings.fileShieldEnabled && message.attachments.size > 0) {
-        const hasDangerousFile = message.attachments.some(attachment => dangerousExtensions.some(ext => attachment.name.toLowerCase().endsWith(ext)));
-        if (hasDangerousFile) {
-            try {
-                await message.delete();
-                if (message.member && message.member.timeout) await message.member.timeout(1440 * 60000, 'Uploading dangerous files').catch(() => {});
-                return; 
-            } catch (e) {}
-        }
-    }
-
     if (settings.linksEnabled) {
         const messageContentLower = message.content.toLowerCase();
         const isInvite = discordInviteRegex.test(message.content);
@@ -845,7 +705,6 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 const isSecure = process.env.NODE_ENV === 'production' || !!process.env.VERCEL || (process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https'));
 
@@ -857,19 +716,7 @@ app.use(cookieSession({
     sameSite: isSecure ? 'none' : 'lax'
 }));
 
-app.get('/', (req, res) => {
-    const cwdPublicPath = path.join(process.cwd(), 'public', 'index.html');
-    const cwdRootPath = path.join(process.cwd(), 'index.html');
-    const dirPublicPath = path.join(__dirname, 'public', 'index.html');
-    const dirRootPath = path.join(__dirname, 'index.html');
-
-    if (fs.existsSync(cwdPublicPath)) res.sendFile(cwdPublicPath);
-    else if (fs.existsSync(cwdRootPath)) res.sendFile(cwdRootPath);
-    else if (fs.existsSync(dirPublicPath)) res.sendFile(dirPublicPath);
-    else if (fs.existsSync(dirRootPath)) res.sendFile(dirRootPath);
-    else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>UI Error: Missing index.html</h2><p style='color:#9ca3af;margin-top:10px;'>Vercel could not locate your dashboard UI file. Please ensure index.html is uploaded to your repository.</p></div>");
-});
-
+// API Routes
 app.post('/api/backup/create/:guildId', async (req, res) => {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'Unauthorized' });
     const sourceGuild = client.guilds.cache.get(req.params.guildId);
@@ -995,6 +842,21 @@ app.post('/api/config/:guildId', async (req, res) => {
 });
 
 app.get('/api/auth/logout', (req, res) => { req.session = null; res.redirect('/'); });
+
+// Serve Static Assets & Fallback AFTER API Routes
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('*', (req, res) => {
+    const cwdPublicPath = path.join(process.cwd(), 'public', 'index.html');
+    const cwdRootPath = path.join(process.cwd(), 'index.html');
+    const dirPublicPath = path.join(__dirname, 'public', 'index.html');
+    const dirRootPath = path.join(__dirname, 'index.html');
+
+    if (fs.existsSync(cwdPublicPath)) res.sendFile(cwdPublicPath);
+    else if (fs.existsSync(cwdRootPath)) res.sendFile(cwdRootPath);
+    else if (fs.existsSync(dirPublicPath)) res.sendFile(dirPublicPath);
+    else if (fs.existsSync(dirRootPath)) res.sendFile(dirRootPath);
+    else res.status(404).send("<div style='background:#050608;color:#fff;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'><h2>UI Error: Missing index.html</h2><p style='color:#9ca3af;margin-top:10px;'>Vercel could not locate your dashboard UI file. Please ensure index.html is uploaded to your repository.</p></div>");
+});
 
 if (process.env.DISCORD_TOKEN) {
     client.login(process.env.DISCORD_TOKEN).catch(err => {
