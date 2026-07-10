@@ -502,15 +502,22 @@ client.on('messageCreate', async message => {
 });
 
 const app = express();
+
+// VERY IMPORTANT: Tells Express to trust Vercel/Render secure proxies!
+app.set('trust proxy', 1); 
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Determine if we are in a secure cloud environment
+const isSecure = process.env.NODE_ENV === 'production' || !!process.env.VERCEL || (process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('https'));
 
 app.use(cookieSession({ 
     name: 'servsecurity.sid', 
     keys: [process.env.SESSION_SECRET || 'servsecurity-key-12345'], 
     maxAge: 24 * 60 * 60 * 1000,
-    secure: process.env.NODE_ENV === 'production' || !!process.env.VERCEL,
-    sameSite: 'lax'
+    secure: isSecure,
+    sameSite: isSecure ? 'none' : 'lax' // 'none' is required for Discord OAuth callbacks to work securely
 }));
 
 // Route static files correctly for both Express and Vercel serverless environments
@@ -599,4 +606,4 @@ app.get('/api/auth/logout', (req, res) => { req.session = null; res.redirect('/'
 
 if (process.env.DISCORD_TOKEN) client.login(process.env.DISCORD_TOKEN).catch(() => {});
 module.exports = app;
-if (require.main === module) { app.listen(process.env.PORT || 3000, '0.0.0.0'); }
+if (require.main === module) { app.listen(process.env.PORT || 3000, '0.0.0.0'); }p
