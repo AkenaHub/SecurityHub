@@ -432,22 +432,23 @@
             } 
         }
 
+        // Extremely robust fetch wrapper that doesn't crash on HTML/404 responses
         async function fetchAPI(endpoint, options = {}) {
             try {
                 const url = resolveUrl(endpoint);
                 const response = await fetch(url, options);
-                const contentType = response.headers.get("content-type");
+                const text = await response.text();
                 
-                if (contentType && contentType.includes("application/json")) {
-                    return { ok: response.ok, status: response.status, data: await response.json() };
-                } else {
-                    const text = await response.text();
-                    console.error(`[API Error] Expected JSON from ${endpoint}, got:`, text.substring(0, 100));
-                    return { ok: false, status: response.status, error: "Invalid Response Format" };
+                let data = null;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    // It's likely a 404 HTML page (like during a local Canvas preview). We safely ignore the error.
+                    return { ok: false, status: response.status, data: null, error: "Invalid JSON" };
                 }
+                return { ok: response.ok, status: response.status, data: data };
             } catch (err) {
-                console.error(`[API Fetch Error] ${endpoint}:`, err);
-                return { ok: false, status: 0, error: err.message };
+                return { ok: false, status: 0, data: null, error: err.message };
             }
         }
 
@@ -490,7 +491,6 @@
         function discardChanges() {
             if (activeGuildId) loadConfig(activeGuildId);
             document.getElementById('save-banner').classList.remove('visible');
-            alert('Changes discarded.');
         }
 
         function getCalculatedTimeout() { 
@@ -539,9 +539,9 @@
                 autoRoleIds: document.getElementById('autoRoleIds').value.split(',').map(s => s.trim()).filter(s => s.length > 0), 
                 welcomeEnabled: !!document.getElementById('welcomeEnabled').checked, 
                 welcomeChannelId: document.getElementById('welcomeChannelId').value || null, 
-                welcomeMessage: document.getElementById('welcomeMessage').value || 'Welcome {user} to **{server}**! We are now at {membercount} members.', 
+                welcomeMessage: document.getElementById('welcomeMessage').value || 'Welcome {user} to **{server}**!', 
                 welcomeColor: document.getElementById('welcomeColor').value || '#6366f1', 
-                welcomeImageType: document.getElementById('welcomeImageType').value || 'icon', 
+                welcomeImageType: document.getElementById('welcomeImageType').value || 'none', 
                 welcomeCustomImageUrl: document.getElementById('welcomeCustomImageUrl').value || '', 
                 ticketEnabled: !!document.getElementById('ticketEnabled').checked, 
                 ticketPanelChannelId: document.getElementById('ticketPanelChannelId').value || null, 
@@ -580,23 +580,37 @@
                         if (config.honeypotChannelId === 'CREATE_NEW' || payload.honeypotChannelId === 'CREATE_NEW') { originalConfig.honeypotChannelId = config.honeypotChannelId; addOptionIfNew('honeypotChannelId', config.honeypotChannelId, `# ⚠️-do-not-talk-here`); }
                         if (config.ticketCategoryId === 'CREATE_NEW' || payload.ticketCategoryId === 'CREATE_NEW') { originalConfig.ticketCategoryId = config.ticketCategoryId; addOptionIfNew('ticketCategoryId', config.ticketCategoryId, `📁 🎫 Tickets`); }
                     }
-                } else alert('Failed to save settings.');
+                } else {
+                    alert('Failed to save settings. Is your backend running?');
+                }
             } catch (err) { alert('Network error while saving settings.'); }
         }
 
         async function fetchSystemInitialization() { 
             try { 
                 const res = await fetchAPI('/api/user-data'); 
-                if (!res.ok || !res.data) {
-                    document.getElementById('auth-status').innerHTML = `<span style="color:#ef4444; font-size: 0.85rem;">Backend Offline</span>`;
-                    return;
+                let data = res.data;
+                
+                // MOCK DATA HANDLING FOR OFFLINE PREVIEW (E.g. Canvas Sandbox environment)
+                if (!res.ok || !data) {
+                    document.getElementById('auth-status').innerHTML = `<span style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(239, 68, 68, 0.3);">Backend Offline (Preview Mode)</span>`;
+                    
+                    data = {
+                        loggedIn: true,
+                        user: { id: '000', username: 'Demo Admin', avatar: '0' },
+                        guilds: [ { id: '12345', name: 'Demo Protection Server', icon: null, botPresent: true } ]
+                    };
                 }
-                const data = res.data; 
+
                 if (!data.loggedIn) { 
                     document.getElementById('auth-status').innerHTML = `<a href="${resolveUrl('/api/auth/login')}" class="auth-btn">Sign In with Discord</a>`;
                     return; 
                 } 
-                document.getElementById('auth-status').innerHTML = `<div style="display:flex; align-items:center; gap:10px;"><img src="https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png" style="width:30px; height:30px; border-radius:50%;"><span style="font-weight:600;">${data.user.username}</span><a href="${resolveUrl('/api/auth/logout')}" style="color:#f87171; text-decoration:none; margin-left:10px;">Logout</a></div>`;
+                
+                const authStatus = document.getElementById('auth-status');
+                if(!authStatus.innerHTML.includes('Demo Admin') && !authStatus.innerHTML.includes(data.user.username)) {
+                     authStatus.innerHTML = `<div style="display:flex; align-items:center; gap:10px;"><img src="https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png" style="width:30px; height:30px; border-radius:50%; background: #2b2d31;"><span style="font-weight:600;">${data.user.username}</span><a href="${resolveUrl('/api/auth/logout')}" style="color:#f87171; text-decoration:none; margin-left:10px; font-size: 0.9rem;">Logout</a></div>`;
+                }
                 
                 if (data.guilds && data.guilds.length > 0) {
                     const select = document.getElementById('serverSelect');
@@ -615,9 +629,11 @@
             const currentVal = select.value;
             select.innerHTML = '<option value="">Select...</option>';
             if (includeAutoCreate) select.innerHTML += '<option value="CREATE_NEW">✨ Auto-Create</option>';
-            options.forEach(opt => {
-                select.innerHTML += `<option value="${opt.id}"># ${opt.name}</option>`;
-            });
+            if (options && Array.isArray(options)) {
+                options.forEach(opt => {
+                    select.innerHTML += `<option value="${opt.id}"># ${opt.name}</option>`;
+                });
+            }
             if(currentVal) select.value = currentVal;
         }
 
@@ -633,16 +649,25 @@
             
             try { 
                 const res = await fetchAPI(`/api/discord-data/${guildId}`); 
-                if (res.ok && res.data) { 
-                    const data = res.data; 
-                    populateSelect('welcomeChannelId', data.channels);
-                    populateSelect('ticketPanelChannelId', data.channels);
-                    populateSelect('verifyChannelId', data.channels);
-                    populateSelect('logChannelId', data.channels);
-                    populateSelect('ticketLogChannelId', data.channels);
-                    populateSelect('honeypotChannelId', data.channels, true);
-                    populateSelect('ticketCategoryId', data.categories, true);
-                } 
+                let data = res.data;
+                
+                if (!res.ok || !data) {
+                    // Sandbox mock data
+                    data = {
+                        channels: [{id: 'c1', name: 'general'}, {id: 'c2', name: 'logs'}],
+                        categories: [{id: 'cat1', name: 'Text Channels'}],
+                        roles: [{id: 'r1', name: 'Admin'}, {id: 'r2', name: 'Member'}],
+                        bots: [], otherGuilds: []
+                    };
+                }
+                
+                populateSelect('welcomeChannelId', data.channels);
+                populateSelect('ticketPanelChannelId', data.channels);
+                populateSelect('verifyChannelId', data.channels);
+                populateSelect('logChannelId', data.channels);
+                populateSelect('ticketLogChannelId', data.channels);
+                populateSelect('honeypotChannelId', data.channels, true);
+                populateSelect('ticketCategoryId', data.categories, true);
             } catch (e) {} 
             await loadConfig(guildId); 
         }
@@ -650,11 +675,20 @@
         async function loadConfig(guildId) { 
             try { 
                 const res = await fetchAPI(`/api/config/${guildId}`); 
-                if (!res.ok || !res.data) {
-                    console.error("Failed to load settings from backend");
-                    return;
+                let config = res.data;
+                
+                if (!res.ok || !config) {
+                    // Sandbox mock configuration
+                    config = {
+                        masterSwitch: true, linksEnabled: true, raidEnabled: true,
+                        antiNukeEnabled: false, verifyEnabled: false, honeypotEnabled: false,
+                        autoRoleEnabled: false, welcomeEnabled: false, ticketEnabled: false,
+                        linkTimeout: 30, linkAvoids: [], honeypotAction: 'TIMEOUT',
+                        welcomeImageType: 'none', welcomeColor: '#6366f1',
+                        ticketMessage: 'Open a support ticket below.'
+                    };
                 }
-                const config = res.data; 
+                
                 originalConfig = JSON.parse(JSON.stringify(config)); 
                 
                 const setVal = (id, prop, isCheck = false) => { 
